@@ -40,8 +40,8 @@ RSpec.describe Internal::ReconcilePlanConfigService do
         create(:installation_config, name: 'INSTALLATION_NAME', value: 'custom-name')
         create(:installation_config, name: 'LOGO', value: '/custom-path/logo.svg')
         service.perform
-        expect(InstallationConfig.find_by(name: 'INSTALLATION_NAME').value).to eq('Chatwoot')
-        expect(InstallationConfig.find_by(name: 'LOGO').value).to eq('/brand-assets/logo.svg')
+        expect(InstallationConfig.find_by(name: 'INSTALLATION_NAME').value).to eq('Synkra Chat')
+        expect(InstallationConfig.find_by(name: 'LOGO').value).to eq('/brand-assets/logo.png')
       end
     end
 

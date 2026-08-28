@@ -93,6 +93,12 @@ const hasFilteredUnreadCounts = computed(() => {
   );
 });
 
+// Synkra Chat V1: Macros are hidden from the settings menu (canned
+// responses + native automations already cover V1 needs). The route,
+// page, and underlying macro functionality are untouched - only this
+// nav entry is suppressed. Flip to true to bring it back.
+const isMacrosVisibleInV1 = false;
+
 const hasDataImport = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
@@ -873,12 +879,16 @@ const menuItems = computed(() => {
           icon: 'i-lucide-bot',
           to: accountScopedRoute('agent_bots'),
         },
-        {
-          name: 'Settings Macros',
-          label: t('SIDEBAR.MACROS'),
-          icon: 'i-lucide-toy-brick',
-          to: accountScopedRoute('macros_wrapper'),
-        },
+        ...(isMacrosVisibleInV1
+          ? [
+              {
+                name: 'Settings Macros',
+                label: t('SIDEBAR.MACROS'),
+                icon: 'i-lucide-toy-brick',
+                to: accountScopedRoute('macros_wrapper'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Canned Responses',
           label: t('SIDEBAR.CANNED_RESPONSES'),

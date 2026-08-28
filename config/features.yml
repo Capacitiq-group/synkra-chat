@@ -49,7 +49,7 @@
   help_url: https://chwt.app/hc/agent-bots
 - name: macros
   display_name: Macros
-  enabled: true
+  enabled: false
 - name: agent_management
   display_name: Agent Management
   enabled: true

@@ -105,6 +105,16 @@ const channelList = computed(() => {
   return channels;
 });
 
+// Synkra Chat V1: only the Website channel is offered to customers.
+// The full channelList above is left untouched so other channels can be
+// re-enabled later just by removing this filter - nothing is deleted.
+const SYNKRA_V1_ENABLED_CHANNELS = ['website'];
+const visibleChannelList = computed(() =>
+  channelList.value.filter(channel =>
+    SYNKRA_V1_ENABLED_CHANNELS.includes(channel.key)
+  )
+);
+
 const initChannelAuth = channel => {
   const params = {
     sub_page: channel,
@@ -119,7 +129,7 @@ const initChannelAuth = channel => {
     class="grid max-w-3xl grid-cols-1 xs:grid-cols-2 mx-0 gap-6 sm:grid-cols-3 p-8"
   >
     <ChannelItem
-      v-for="channel in channelList"
+      v-for="channel in visibleChannelList"
       :key="channel.key"
       :channel="channel"
       :enabled-features="enabledFeatures"

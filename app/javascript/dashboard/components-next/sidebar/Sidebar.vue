@@ -99,6 +99,12 @@ const hasFilteredUnreadCounts = computed(() => {
 // nav entry is suppressed. Flip to true to bring it back.
 const isMacrosVisibleInV1 = false;
 
+// Synkra Chat V1: generic Integrations page is replaced by a dedicated
+// Flow connection (not yet built). The integrations feature flag
+// (config/features.yml) already blocks the underlying routes; this
+// just keeps the sidebar from linking to a now-inaccessible page.
+const isIntegrationsVisibleInV1 = false;
+
 const hasDataImport = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
@@ -895,12 +901,16 @@ const menuItems = computed(() => {
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
         },
-        {
-          name: 'Settings Integrations',
-          label: t('SIDEBAR.INTEGRATIONS'),
-          icon: 'i-lucide-blocks',
-          to: accountScopedRoute('settings_applications'),
-        },
+        ...(isIntegrationsVisibleInV1
+          ? [
+              {
+                name: 'Settings Integrations',
+                label: t('SIDEBAR.INTEGRATIONS'),
+                icon: 'i-lucide-blocks',
+                to: accountScopedRoute('settings_applications'),
+              },
+            ]
+          : []),
         ...(hasDataImport.value
           ? [
               {

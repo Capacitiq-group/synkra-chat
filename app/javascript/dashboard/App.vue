@@ -140,7 +140,10 @@ export default {
     class="flex flex-col w-full h-screen min-h-0 bg-n-background"
     :dir="isRTL ? 'rtl' : 'ltr'"
   >
-    <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" />
+    <!-- Synkra Chat V1: hidden. Platform updates are managed by Synkra, not
+         individual business admins, and this banner exposes the underlying
+         Chatwoot version. Component intentionally left in the codebase. -->
+    <!-- <UpdateBanner :latest-chatwoot-version="latestChatwootVersion" /> -->
     <StatusBanner />
     <template v-if="currentAccountId">
       <PendingEmailVerificationBanner v-if="hideOnOnboardingView" />

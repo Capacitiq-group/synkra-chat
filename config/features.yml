@@ -110,7 +110,7 @@
   enabled: false
 - name: audit_logs
   display_name: Audit Logs
-  enabled: false
+  enabled: true
   premium: true
 - name: custom_tools
   display_name: Custom Tools

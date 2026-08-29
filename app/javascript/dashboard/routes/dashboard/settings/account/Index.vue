@@ -252,6 +252,9 @@ export default {
     <div v-if="!uiFlags.isFetchingItem && isOnChatwootCloud">
       <AccountDelete />
     </div>
-    <BuildInfo />
+    <!-- Synkra Chat V1: hidden. Shows the raw underlying Chatwoot version
+         and git build hash, which shouldn't be customer-facing.
+         Component intentionally left in the codebase. -->
+    <!-- <BuildInfo /> -->
   </div>
 </template>

@@ -724,16 +724,10 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.LIVE_CHAT'),
           to: accountScopedRoute('campaigns_livechat_index'),
         },
-        {
-          name: 'SMS',
-          label: t('SIDEBAR.SMS'),
-          to: accountScopedRoute('campaigns_sms_index'),
-        },
-        {
-          name: 'WhatsApp',
-          label: t('SIDEBAR.WHATSAPP'),
-          to: accountScopedRoute('campaigns_whatsapp_index'),
-        },
+        // Synkra Chat V1: SMS and WhatsApp campaigns hidden until those
+        // channels are actually available (they're already hidden from
+        // inbox creation - see ChannelList.vue). Live Chat campaigns
+        // remain, matching the enabled Website channel.
       ],
     },
     {

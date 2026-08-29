@@ -84,14 +84,20 @@ class Channel::WebWidget < ApplicationRecord
   def validate_pre_chat_options
     return if pre_chat_form_options.with_indifferent_access['pre_chat_fields'].present?
 
+    # Synkra Chat V1: every new website widget requires full name + email
+    # before a customer can send their first message (this is the base
+    # of the customer identity/session layer - actual email *verification*
+    # is a separate, not-yet-built layer on top of this collected value).
+    self.pre_chat_form_enabled = true
+
     self.pre_chat_form_options = {
       pre_chat_message: 'Share your queries or comments here.',
       pre_chat_fields: [
         {
-          'field_type': 'standard', 'label': 'Email Id', 'name': 'emailAddress', 'type': 'email', 'required': true, 'enabled': false
+          'field_type': 'standard', 'label': 'Email Id', 'name': 'emailAddress', 'type': 'email', 'required': true, 'enabled': true
         },
         {
-          'field_type': 'standard', 'label': 'Full name', 'name': 'fullName', 'type': 'text', 'required': false, 'enabled': false
+          'field_type': 'standard', 'label': 'Full name', 'name': 'fullName', 'type': 'text', 'required': true, 'enabled': true
         },
         {
           'field_type': 'standard', 'label': 'Phone number', 'name': 'phoneNumber', 'type': 'text', 'required': false, 'enabled': false

@@ -36,28 +36,36 @@ const route = useRoute();
 
 const activeTab = ref('general');
 
-const settingsTabs = computed(() => [
-  {
-    id: 'general',
-    label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.GENERAL'),
-    icon: 'i-lucide-settings-2',
-  },
-  {
-    id: 'domain',
-    label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.DOMAIN'),
-    icon: 'i-lucide-globe',
-  },
-  {
-    id: 'appearance',
-    label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.APPEARANCE'),
-    icon: 'i-lucide-palette',
-  },
+// Synkra Chat V1: custom Help Center domains aren't supported yet, so
+// the 'domain' tab (and its underlying PortalConfigurationSettings
+// component) is filtered out here. Nothing deleted - remove this
+// filter to bring it back once custom domains are ready.
+const SYNKRA_V1_HIDDEN_PORTAL_TABS = ['domain', 'integrations'];
+
+const settingsTabs = computed(() =>
+  [
+    {
+      id: 'general',
+      label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.GENERAL'),
+      icon: 'i-lucide-settings-2',
+    },
+    {
+      id: 'domain',
+      label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.DOMAIN'),
+      icon: 'i-lucide-globe',
+    },
+    {
+      id: 'appearance',
+      label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.APPEARANCE'),
+      icon: 'i-lucide-palette',
+    },
   {
     id: 'integrations',
     label: t('HELP_CENTER.PORTAL_SETTINGS.NAV.INTEGRATIONS'),
     icon: 'i-lucide-blocks',
   },
-]);
+  ].filter(tab => !SYNKRA_V1_HIDDEN_PORTAL_TABS.includes(tab.id))
+);
 
 const currentPortalSlug = computed(() => route.params.portalSlug);
 

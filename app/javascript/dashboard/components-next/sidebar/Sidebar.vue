@@ -49,9 +49,10 @@ const store = useStore();
 
 // Calls run on the enterprise-only API (cloud runs enterprise); hide the entry
 // on community so it doesn't lead to a dashboard/CTA the backend can't serve.
-const isCallsAvailable = computed(
-  () => isOnChatwootCloud.value || isEnterprise
-);
+// Synkra Chat V1: forced false regardless of isEnterprise (a build-time flag
+// present on any self-hosted install, not an actual voice/Twilio setup check)
+// since Voice isn't built yet. Restore the original condition once it is.
+const isCallsAvailable = computed(() => false);
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
 
@@ -92,6 +93,12 @@ const hasFilteredUnreadCounts = computed(() => {
     )
   );
 });
+
+// Synkra Chat V1: generic Captain AI Agents section is replaced by a
+// dedicated Synkra AI Agent (not yet built). The underlying routes,
+// pages, and Captain feature flags are untouched - just not linked
+// to from the nav. Flip to true to bring it back.
+const isCaptainVisibleInV1 = false;
 
 // Synkra Chat V1: Macros are hidden from the settings menu (canned
 // responses + native automations already cover V1 needs). The route,
@@ -504,12 +511,14 @@ const menuItems = computed(() => {
         },
       ],
     },
-    {
-      name: 'Captain',
-      icon: 'i-woot-captain',
-      label: t('SIDEBAR.CAPTAIN'),
-      activeOn: ['captain_assistants_create_index'],
-      children: [
+    ...(isCaptainVisibleInV1
+      ? [
+          {
+            name: 'Captain',
+            icon: 'i-woot-captain',
+            label: t('SIDEBAR.CAPTAIN'),
+            activeOn: ['captain_assistants_create_index'],
+            children: [
         {
           name: 'Overview',
           label: t('SIDEBAR.CAPTAIN_OVERVIEW'),
@@ -585,7 +594,9 @@ const menuItems = computed(() => {
           }),
         },
       ],
-    },
+          },
+        ]
+      : []),
     ...(isCallsAvailable.value
       ? [
           {

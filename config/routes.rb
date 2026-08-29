@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     get '/app/accounts/:account_id/onboarding/inbox-setup', to: 'dashboard#index', as: 'app_onboarding_inbox_setup'
 
     resource :widget, only: [:show]
+    get '/widget/verify_email', to: 'contact_email_verifications#show'
     namespace :survey do
       resources :responses, only: [:show]
     end
@@ -506,6 +507,7 @@ Rails.application.routes.draw do
             patch :set_user
           end
         end
+        resource :contact_verification, only: [:create]
         resources :inbox_members, only: [:index]
         resources :labels, only: [:create, :destroy]
         namespace :integrations do

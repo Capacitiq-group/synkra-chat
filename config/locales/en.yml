@@ -385,6 +385,11 @@ en:
       transcript_subject: 'Conversation Transcript'
     survey:
       response: 'Please rate this conversation, %{link}'
+  contact_identity_mailer:
+    verify_email:
+      subject: 'Verify your email to start chatting'
+    continue_conversation:
+      subject: 'Continue your conversation'
   contacts:
     online:
       delete: '%{contact_name} is Online, please try again later'

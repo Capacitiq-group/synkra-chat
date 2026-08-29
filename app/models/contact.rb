@@ -11,6 +11,7 @@
 #  country_code          :string           default("")
 #  custom_attributes     :jsonb
 #  email                 :string
+#  email_verified_at     :datetime
 #  identifier            :string
 #  last_activity_at      :datetime
 #  last_name             :string           default("")
@@ -145,6 +146,23 @@ class Contact < ApplicationRecord
 
   def get_source_id(inbox_id)
     contact_inboxes.find_by!(inbox_id: inbox_id).source_id
+  end
+
+  # Synkra Chat identity layer: whether this contact's email has been
+  # confirmed as actually belonging to them (via the emailed verification
+  # link), as opposed to just being collected as a text field in the
+  # pre-chat form. A contact with no email is never "verified".
+  def email_verified?
+    email.present? && email_verified_at.present?
+  end
+
+  # Generates a short-lived, cryptographically signed token identifying
+  # this contact, for a single specific purpose. Uses Rails' built-in
+  # signed_id (backed by the app's secret_key_base) rather than a new
+  # database table - the token is self-contained and verifiable without
+  # a lookup, and expires on its own.
+  def generate_identity_token(purpose:, expires_in: 30.minutes)
+    signed_id(purpose: purpose, expires_in: expires_in)
   end
 
   def push_event_data

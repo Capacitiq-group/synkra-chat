@@ -100,6 +100,11 @@ const hasFilteredUnreadCounts = computed(() => {
 // to from the nav. Flip to true to bring it back.
 const isCaptainVisibleInV1 = false;
 
+// Synkra Chat V1: "Agent Bots" (API-channel bot integration) hidden -
+// no bot-building capability is offered until there's real demand
+// post-launch. Route/page untouched, just not linked from the nav.
+const isAgentBotsVisibleInV1 = false;
+
 // Synkra Chat V1: Macros are hidden from the settings menu (canned
 // responses + native automations already cover V1 needs). The route,
 // page, and underlying macro functionality are untouched - only this
@@ -884,12 +889,16 @@ const menuItems = computed(() => {
           icon: 'i-lucide-repeat',
           to: accountScopedRoute('automation_list'),
         },
-        {
-          name: 'Settings Agent Bots',
-          label: t('SIDEBAR.AGENT_BOTS'),
-          icon: 'i-lucide-bot',
-          to: accountScopedRoute('agent_bots'),
-        },
+        ...(isAgentBotsVisibleInV1
+          ? [
+              {
+                name: 'Settings Agent Bots',
+                label: t('SIDEBAR.AGENT_BOTS'),
+                icon: 'i-lucide-bot',
+                to: accountScopedRoute('agent_bots'),
+              },
+            ]
+          : []),
         ...(isMacrosVisibleInV1
           ? [
               {

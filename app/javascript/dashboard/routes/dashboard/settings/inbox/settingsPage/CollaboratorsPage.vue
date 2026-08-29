@@ -84,6 +84,13 @@ const hasAdvancedAssignment = computed(() => {
   return isFeatureEnabled('advanced_assignment');
 });
 
+// Synkra Chat V1: this feature genuinely isn't offered yet (matches the
+// underlying advanced_assignment flag being off), but the built-in upgrade
+// prompt links to Chatwoot's own billing/plan pages, which don't apply to
+// us - Synkra has its own separate billing. Suppress just the CTA banner;
+// the informational "default assignment rules" list above it stays.
+const showUpgradeToBusinessPromptInV1 = false;
+
 const hasAssignmentV2 = computed(() => {
   return isFeatureEnabled('assignment_v2');
 });
@@ -619,7 +626,7 @@ onMounted(() => {
                   <div class="w-full h-px bg-n-weak my-4" />
 
                   <!-- Upgrade prompt when advanced_assignment is not enabled -->
-                  <div v-if="!hasAdvancedAssignment">
+                  <div v-if="!hasAdvancedAssignment && showUpgradeToBusinessPromptInV1">
                     <p class="text-body-main text-n-slate-11 mb-1">
                       {{ $t('INBOX_MGMT.ASSIGNMENT.UPGRADE_PROMPT') }}
                     </p>

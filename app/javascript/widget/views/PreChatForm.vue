@@ -25,7 +25,11 @@ export default {
   methods: {
     ...mapActions('conversation', ['clearConversations']),
     ...mapActions('conversationAttributes', ['clearConversationAttributes']),
+    ...mapActions('contacts', ['requestEmailVerification']),
     handleConversationCreated() {
+      // Synkra Chat identity layer: kick off email verification in the
+      // background - never blocks navigation to the chat.
+      this.requestEmailVerification();
       // Redirect to messages page after conversation is created
       this.router.replace({ name: 'messages' });
       // Only after successful navigation, reset the isUpdatingRoute UIflag in app/javascript/widget/router.js

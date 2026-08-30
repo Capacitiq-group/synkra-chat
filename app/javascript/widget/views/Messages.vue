@@ -3,9 +3,10 @@ import { mapGetters } from 'vuex';
 
 import ChatFooter from '../components/ChatFooter.vue';
 import ConversationWrap from '../components/ConversationWrap.vue';
+import EmailVerificationNudge from '../components/EmailVerificationNudge.vue';
 
 export default {
-  components: { ChatFooter, ConversationWrap },
+  components: { ChatFooter, ConversationWrap, EmailVerificationNudge },
   computed: {
     ...mapGetters({
       groupedMessages: 'conversation/getGroupedConversation',
@@ -21,6 +22,7 @@ export default {
   <div
     class="flex flex-col flex-1 overflow-hidden rounded-b-lg bg-n-slate-2 dark:bg-n-solid-1"
   >
+    <EmailVerificationNudge />
     <div class="flex flex-1 overflow-auto">
       <ConversationWrap :grouped-messages="groupedMessages" />
     </div>

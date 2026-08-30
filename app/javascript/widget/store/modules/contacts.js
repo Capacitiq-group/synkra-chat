@@ -4,9 +4,14 @@ import { SET_USER_ERROR } from '../../constants/errorTypes';
 import { setHeader } from '../../helpers/axios';
 const state = {
   currentUser: {},
+  // Synkra Chat identity layer: tracks whether we've already asked the
+  // backend to send a verification email this session, so we don't
+  // fire it repeatedly (e.g. on every contact refetch).
+  emailVerificationRequested: false,
 };
 
 const SET_CURRENT_USER = 'SET_CURRENT_USER';
+const SET_EMAIL_VERIFICATION_REQUESTED = 'SET_EMAIL_VERIFICATION_REQUESTED';
 const parseErrorData = error =>
   error && error.response && error.response.data ? error.response.data : error;
 export const updateWidgetAuthToken = widgetAuthToken => {
@@ -22,6 +27,13 @@ export const updateWidgetAuthToken = widgetAuthToken => {
 export const getters = {
   getCurrentUser(_state) {
     return _state.currentUser;
+  },
+  // Synkra Chat identity layer
+  isEmailVerified(_state) {
+    return !!_state.currentUser.email_verified;
+  },
+  hasRequestedEmailVerification(_state) {
+    return _state.emailVerificationRequested;
   },
 };
 
@@ -101,12 +113,28 @@ export const actions = {
       // Ignore error
     }
   },
+  // Synkra Chat identity layer: fire-and-forget, non-blocking. If it
+  // fails (network hiccup, etc.) the customer can still chat normally -
+  // this only affects the "check your email" nudge, never the actual
+  // conversation.
+  requestEmailVerification: async ({ commit, state: _state }) => {
+    if (_state.emailVerificationRequested) return;
+    commit(SET_EMAIL_VERIFICATION_REQUESTED, true);
+    try {
+      await ContactsAPI.verifyEmail();
+    } catch (error) {
+      // Ignore error - non-critical, customer can still chat
+    }
+  },
 };
 
 export const mutations = {
   [SET_CURRENT_USER]($state, user) {
     const { currentUser } = $state;
     $state.currentUser = { ...currentUser, ...user };
+  },
+  [SET_EMAIL_VERIFICATION_REQUESTED]($state, value) {
+    $state.emailVerificationRequested = value;
   },
 };
 

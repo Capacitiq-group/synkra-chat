@@ -25,4 +25,10 @@ export default {
       custom_attributes: [customAttribute],
     });
   },
+  // Synkra Chat identity layer: triggers sending the email verification
+  // link. Safe to call even if already verified (backend just returns
+  // { verified: true } without sending anything).
+  verifyEmail() {
+    return API.post(buildUrl('widget/contact_verification'));
+  },
 };

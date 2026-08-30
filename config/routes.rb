@@ -510,6 +510,9 @@ Rails.application.routes.draw do
         end
         resource :contact_verification, only: [:create]
         resource :contact_continuation, only: [:create]
+        resource :global_identity, only: [:create] do
+          post :verify_otp, on: :collection
+        end
         resources :inbox_members, only: [:index]
         resources :labels, only: [:create, :destroy]
         namespace :integrations do

@@ -390,6 +390,9 @@ en:
       subject: 'Verify your email to start chatting'
     continue_conversation:
       subject: 'Continue your conversation'
+  synkra_identity_mailer:
+    otp_code:
+      subject: 'Your verification code'
   contacts:
     online:
       delete: '%{contact_name} is Online, please try again later'

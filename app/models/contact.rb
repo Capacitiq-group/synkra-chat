@@ -23,6 +23,7 @@
 #  updated_at            :datetime         not null
 #  account_id            :integer          not null
 #  company_id            :bigint
+#  synkra_global_user_id :bigint
 #
 # Indexes
 #
@@ -57,6 +58,11 @@ class Contact < ApplicationRecord
             format: { with: /\A\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
 
   belongs_to :account
+  # Synkra Chat global identity layer: links this business-scoped
+  # contact to the one global person it belongs to, if that link has
+  # been established (nil for contacts that haven't gone through the
+  # identity flow yet - this is additive, never required).
+  belongs_to :synkra_global_user, optional: true, inverse_of: :contacts
   has_many :conversations, dependent: :destroy_async
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async

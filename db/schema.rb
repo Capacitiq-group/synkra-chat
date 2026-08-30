@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_30_090000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -797,6 +797,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.boolean "blocked", default: false, null: false
     t.bigint "company_id"
     t.datetime "email_verified_at"
+    t.bigint "synkra_global_user_id"
     t.index "lower((email)::text), account_id", name: "index_contacts_on_lower_email_account_id"
     t.index ["account_id", "contact_type"], name: "index_contacts_on_account_id_and_contact_type"
     t.index ["account_id", "email", "phone_number", "identifier"], name: "index_contacts_on_nonempty_fields", where: "(((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))"
@@ -809,6 +810,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.index ["identifier", "account_id"], name: "uniq_identifier_per_account_contact", unique: true
     t.index ["name", "email", "phone_number", "identifier"], name: "index_contacts_on_name_email_phone_number_identifier", opclass: :gin_trgm_ops, using: :gin
     t.index ["phone_number", "account_id"], name: "index_contacts_on_phone_number_and_account_id"
+    t.index ["synkra_global_user_id"], name: "index_contacts_on_synkra_global_user_id"
   end
 
   create_table "conversation_outcomes", force: :cascade do |t|
@@ -1450,6 +1452,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_28_140000) do
     t.string "description"
     t.float "resolution_time_threshold"
     t.index ["account_id"], name: "index_sla_policies_on_account_id"
+  end
+
+  create_table "synkra_global_users", force: :cascade do |t|
+    t.string "email", null: false
+    t.datetime "email_verified_at"
+    t.string "otp_digest"
+    t.datetime "otp_sent_at"
+    t.datetime "otp_expires_at"
+    t.integer "otp_attempts", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "lower((email)::text)", name: "index_synkra_global_users_on_lower_email", unique: true
   end
 
   create_table "taggings", id: :serial, force: :cascade do |t|

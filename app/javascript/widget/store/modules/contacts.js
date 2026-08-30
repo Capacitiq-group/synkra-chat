@@ -126,6 +126,13 @@ export const actions = {
       // Ignore error - non-critical, customer can still chat
     }
   },
+  // Synkra Chat identity layer: cross-device continuation. Always
+  // resolves successfully from the caller's perspective (backend never
+  // reveals whether the email matched anything, to avoid leaking which
+  // emails have chatted before).
+  requestContinuation: async (_, email) => {
+    await ContactsAPI.requestContinuation(email);
+  },
 };
 
 export const mutations = {

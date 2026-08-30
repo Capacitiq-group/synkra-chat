@@ -31,4 +31,10 @@ export default {
   verifyEmail() {
     return API.post(buildUrl('widget/contact_verification'));
   },
+  // Synkra Chat identity layer: for a visitor on a new device who has
+  // chatted before. Does not require any existing auth - that's the
+  // point.
+  requestContinuation(email) {
+    return API.post(buildUrl('widget/contact_continuation'), { email });
+  },
 };

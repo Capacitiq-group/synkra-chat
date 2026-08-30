@@ -4,11 +4,13 @@ import { mapGetters } from 'vuex';
 import { useRouter } from 'vue-router';
 import configMixin from 'widget/mixins/configMixin';
 import ArticleContainer from '../components/pageComponents/Home/Article/ArticleContainer.vue';
+import ContinueConversation from '../components/ContinueConversation.vue';
 export default {
   name: 'Home',
   components: {
     ArticleContainer,
     TeamAvailability,
+    ContinueConversation,
   },
   mixins: [configMixin],
   setup() {
@@ -43,5 +45,7 @@ export default {
     />
 
     <ArticleContainer />
+
+    <ContinueConversation v-if="!conversationSize" />
   </div>
 </template>

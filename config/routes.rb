@@ -33,6 +33,7 @@ Rails.application.routes.draw do
 
     resource :widget, only: [:show]
     get '/widget/verify_email', to: 'contact_email_verifications#show'
+    get '/widget/continue_conversation', to: 'contact_continuations#show'
     namespace :survey do
       resources :responses, only: [:show]
     end
@@ -508,6 +509,7 @@ Rails.application.routes.draw do
           end
         end
         resource :contact_verification, only: [:create]
+        resource :contact_continuation, only: [:create]
         resources :inbox_members, only: [:index]
         resources :labels, only: [:create, :destroy]
         namespace :integrations do

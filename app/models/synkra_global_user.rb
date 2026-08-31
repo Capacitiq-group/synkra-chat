@@ -11,6 +11,9 @@ class SynkraGlobalUser < ApplicationRecord
   OTP_LENGTH = 6
   OTP_VALID_FOR = 10.minutes
   MAX_OTP_ATTEMPTS = 5
+  # Minimum gap between OTP sends, so the endpoint can't be used to spam
+  # someone's inbox or rack up mail-sending costs.
+  OTP_RESEND_COOLDOWN = 30.seconds
   # How long a device stays "trusted" (skips OTP) after a successful
   # verification, via the signed cookie set by TrustedDeviceHelper.
   TRUST_DURATION = 90.days
@@ -29,9 +32,16 @@ class SynkraGlobalUser < ApplicationRecord
     email_verified_at.present?
   end
 
+  def otp_resend_allowed?
+    otp_sent_at.blank? || otp_sent_at < OTP_RESEND_COOLDOWN.ago
+  end
+
   # Generates a fresh OTP, stores only its digest, and emails it. Resets
   # the attempt counter so a new code always gets a full set of tries.
+  # Returns false (without sending anything) if called again too soon.
   def generate_and_send_otp!
+    return false unless otp_resend_allowed?
+
     code = SecureRandom.random_number(10**OTP_LENGTH).to_s.rjust(OTP_LENGTH, '0')
 
     update!(

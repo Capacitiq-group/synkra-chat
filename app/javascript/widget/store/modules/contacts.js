@@ -133,6 +133,25 @@ export const actions = {
   requestContinuation: async (_, email) => {
     await ContactsAPI.requestContinuation(email);
   },
+  // Synkra Chat global identity layer. Both actions return the raw
+  // response data so the calling component can branch on otp_required/
+  // verified - errors are intentionally left to propagate (not caught
+  // here) since the component needs to show an inline retry, unlike
+  // the fire-and-forget verification nudge above.
+  requestGlobalIdentity: async (_, email) => {
+    const { data } = await ContactsAPI.requestGlobalIdentity(email);
+    if (!data.otp_required && data.auth_token) {
+      updateWidgetAuthToken(data.auth_token);
+    }
+    return data;
+  },
+  verifyGlobalIdentityOtp: async (_, { email, otp }) => {
+    const { data } = await ContactsAPI.verifyGlobalIdentityOtp(email, otp);
+    if (data.verified && data.auth_token) {
+      updateWidgetAuthToken(data.auth_token);
+    }
+    return data;
+  },
 };
 
 export const mutations = {

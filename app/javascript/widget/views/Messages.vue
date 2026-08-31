@@ -3,10 +3,14 @@ import { mapGetters } from 'vuex';
 
 import ChatFooter from '../components/ChatFooter.vue';
 import ConversationWrap from '../components/ConversationWrap.vue';
-import EmailVerificationNudge from '../components/EmailVerificationNudge.vue';
+import GlobalIdentityNudge from '../components/GlobalIdentityNudge.vue';
 
 export default {
-  components: { ChatFooter, ConversationWrap, EmailVerificationNudge },
+  components: {
+    ChatFooter,
+    ConversationWrap,
+    GlobalIdentityNudge,
+  },
   computed: {
     ...mapGetters({
       groupedMessages: 'conversation/getGroupedConversation',
@@ -22,7 +26,11 @@ export default {
   <div
     class="flex flex-col flex-1 overflow-hidden rounded-b-lg bg-n-slate-2 dark:bg-n-solid-1"
   >
-    <EmailVerificationNudge />
+    <!-- Synkra Chat: EmailVerificationNudge (magic-link based) is
+         superseded by GlobalIdentityNudge (OTP based) - kept in the
+         codebase, just not rendered, to avoid double-prompting for
+         the same thing. -->
+    <GlobalIdentityNudge />
     <div class="flex flex-1 overflow-auto">
       <ConversationWrap :grouped-messages="groupedMessages" />
     </div>

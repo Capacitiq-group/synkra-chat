@@ -8,10 +8,18 @@ const state = {
   // backend to send a verification email this session, so we don't
   // fire it repeatedly (e.g. on every contact refetch).
   emailVerificationRequested: false,
+  // Synkra Chat global identity layer: whether the last background
+  // global-identity request came back needing an OTP, and which email
+  // it's for - drives the (dismissible, non-blocking) OTP nudge shown
+  // in Messages.vue.
+  globalIdentityOtpRequired: false,
+  globalIdentityEmail: '',
+  globalIdentityLinked: false,
 };
 
 const SET_CURRENT_USER = 'SET_CURRENT_USER';
 const SET_EMAIL_VERIFICATION_REQUESTED = 'SET_EMAIL_VERIFICATION_REQUESTED';
+const SET_GLOBAL_IDENTITY_STATE = 'SET_GLOBAL_IDENTITY_STATE';
 const parseErrorData = error =>
   error && error.response && error.response.data ? error.response.data : error;
 export const updateWidgetAuthToken = widgetAuthToken => {
@@ -34,6 +42,15 @@ export const getters = {
   },
   hasRequestedEmailVerification(_state) {
     return _state.emailVerificationRequested;
+  },
+  globalIdentityOtpRequired(_state) {
+    return _state.globalIdentityOtpRequired;
+  },
+  globalIdentityEmail(_state) {
+    return _state.globalIdentityEmail;
+  },
+  globalIdentityLinked(_state) {
+    return _state.globalIdentityLinked;
   },
 };
 
@@ -133,22 +150,30 @@ export const actions = {
   requestContinuation: async (_, email) => {
     await ContactsAPI.requestContinuation(email);
   },
-  // Synkra Chat global identity layer. Both actions return the raw
-  // response data so the calling component can branch on otp_required/
-  // verified - errors are intentionally left to propagate (not caught
-  // here) since the component needs to show an inline retry, unlike
-  // the fire-and-forget verification nudge above.
-  requestGlobalIdentity: async (_, email) => {
-    const { data } = await ContactsAPI.requestGlobalIdentity(email);
-    if (!data.otp_required && data.auth_token) {
-      updateWidgetAuthToken(data.auth_token);
+  // Synkra Chat global identity layer: fire-and-forget from the caller's
+  // perspective (never throws), but commits state so the OTP nudge
+  // component can react. Runs only after a conversation/contact already
+  // exists - never blocks or gates the first message.
+  requestGlobalIdentity: async ({ commit }, email) => {
+    try {
+      const { data } = await ContactsAPI.requestGlobalIdentity(email);
+      commit(SET_GLOBAL_IDENTITY_STATE, {
+        globalIdentityOtpRequired: !!data.otp_required,
+        globalIdentityEmail: email,
+        globalIdentityLinked: !!data.linked,
+      });
+    } catch (error) {
+      // Ignore error - non-critical, customer can still chat
     }
-    return data;
   },
-  verifyGlobalIdentityOtp: async (_, { email, otp }) => {
+  verifyGlobalIdentityOtp: async ({ commit }, { email, otp }) => {
     const { data } = await ContactsAPI.verifyGlobalIdentityOtp(email, otp);
-    if (data.verified && data.auth_token) {
-      updateWidgetAuthToken(data.auth_token);
+    if (data.verified) {
+      commit(SET_GLOBAL_IDENTITY_STATE, {
+        globalIdentityOtpRequired: false,
+        globalIdentityEmail: email,
+        globalIdentityLinked: true,
+      });
     }
     return data;
   },
@@ -161,6 +186,9 @@ export const mutations = {
   },
   [SET_EMAIL_VERIFICATION_REQUESTED]($state, value) {
     $state.emailVerificationRequested = value;
+  },
+  [SET_GLOBAL_IDENTITY_STATE]($state, payload) {
+    Object.assign($state, payload);
   },
 };
 

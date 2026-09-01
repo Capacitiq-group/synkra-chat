@@ -86,7 +86,10 @@ const menuItems = computed(() => {
       },
     },
     {
-      show: true,
+      // Synkra Chat V1: unconditionally hidden (not relying on the
+      // indirect showOnCustomBrandedInstance check) - points at
+      // Chatwoot's own docs, which we don't have an equivalent for yet.
+      show: false,
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.DOCS'),
       icon: 'i-lucide-book',
@@ -95,7 +98,9 @@ const menuItems = computed(() => {
       target: '_blank',
     },
     {
-      show: true,
+      // Synkra Chat V1: unconditionally hidden, same reasoning as Docs
+      // above - this is Chatwoot's own product changelog, not ours.
+      show: false,
       showOnCustomBrandedInstance: false,
       label: t('SIDEBAR_ITEMS.CHANGELOG'),
       icon: 'i-lucide-scroll-text',
@@ -104,7 +109,10 @@ const menuItems = computed(() => {
       target: '_blank',
     },
     {
-      show: currentUser.value.type === 'SuperAdmin',
+      // Synkra Chat V1: hidden until the super admin panel is fully
+      // reviewed/customized for Synkra's own use. Platform operators
+      // can still reach it directly by URL if needed.
+      show: false,
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.SUPER_ADMIN_CONSOLE'),
       icon: 'i-lucide-castle',

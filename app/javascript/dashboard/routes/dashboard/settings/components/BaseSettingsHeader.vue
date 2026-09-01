@@ -1,6 +1,5 @@
 <script setup>
 import { useSlots } from 'vue';
-import CustomBrandPolicyWrapper from 'dashboard/components/CustomBrandPolicyWrapper.vue';
 import { getHelpUrlForFeature } from '../../../../helper/featureHelper';
 import BackButton from '../../../../components/widgets/BackButton.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
@@ -68,21 +67,26 @@ const helpURL = getHelpUrlForFeature(props.featureName);
       >
         <slot name="description">{{ description }}</slot>
       </p>
-      <CustomBrandPolicyWrapper :show-on-custom-branded-instance="false">
-        <a
-          v-if="helpURL && linkText"
-          :href="helpURL"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="items-center hidden gap-1 text-sm font-medium sm:inline-flex w-fit text-n-blue-11 hover:underline mb-2"
-        >
-          {{ linkText }}
-          <Icon
-            icon="i-lucide-chevron-right"
-            class="flex-shrink-0 text-n-blue-11 size-4"
-          />
-        </a>
-      </CustomBrandPolicyWrapper>
+      <!-- Synkra Chat V1: "Learn more" links across all Settings pages
+           point to Chatwoot's own documentation, which we don't have an
+           equivalent for yet. Unconditionally hidden here (not relying
+           on CustomBrandPolicyWrapper's indirect installation-name
+           check) so there's no ambiguity about whether it's showing.
+           Remove this v-if="false" once Synkra has its own docs to
+           link to instead. -->
+      <a
+        v-if="false"
+        :href="helpURL"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="items-center hidden gap-1 text-sm font-medium sm:inline-flex w-fit text-n-blue-11 hover:underline mb-2"
+      >
+        {{ linkText }}
+        <Icon
+          icon="i-lucide-chevron-right"
+          class="flex-shrink-0 text-n-blue-11 size-4"
+        />
+      </a>
     </div>
   </div>
   <div

@@ -105,6 +105,19 @@ const isCaptainVisibleInV1 = false;
 // post-launch. Route/page untouched, just not linked from the nav.
 const isAgentBotsVisibleInV1 = false;
 
+// Synkra Chat V1: Security settings page only contains SAML SSO
+// (Chatwoot's own enterprise auth feature), which isn't relevant to
+// V1 and would otherwise just show an "Upgrade to Enterprise" CTA
+// pointing at Chatwoot's own billing. Hidden until we build out real
+// Synkra-specific security settings for this page.
+const isSecuritySettingsVisibleInV1 = false;
+
+// Synkra Chat V1: this points at Chatwoot's OWN internal billing/plan
+// pages, which don't apply since Synkra has entirely separate billing
+// (not yet built). Hidden until Synkra's own billing settings page
+// exists to replace it.
+const isChatwootBillingVisibleInV1 = false;
+
 // Synkra Chat V1: Macros are hidden from the settings menu (canned
 // responses + native automations already cover V1 needs). The route,
 // page, and underlying macro functionality are untouched - only this
@@ -959,18 +972,26 @@ const menuItems = computed(() => {
           icon: 'i-lucide-workflow',
           to: accountScopedRoute('conversation_workflow_index'),
         },
-        {
-          name: 'Settings Security',
-          label: t('SIDEBAR.SECURITY'),
-          icon: 'i-lucide-shield',
-          to: accountScopedRoute('security_settings_index'),
-        },
-        {
-          name: 'Settings Billing',
-          label: t('SIDEBAR.BILLING'),
-          icon: 'i-lucide-credit-card',
-          to: accountScopedRoute('billing_settings_index'),
-        },
+        ...(isSecuritySettingsVisibleInV1
+          ? [
+              {
+                name: 'Settings Security',
+                label: t('SIDEBAR.SECURITY'),
+                icon: 'i-lucide-shield',
+                to: accountScopedRoute('security_settings_index'),
+              },
+            ]
+          : []),
+        ...(isChatwootBillingVisibleInV1
+          ? [
+              {
+                name: 'Settings Billing',
+                label: t('SIDEBAR.BILLING'),
+                icon: 'i-lucide-credit-card',
+                to: accountScopedRoute('billing_settings_index'),
+              },
+            ]
+          : []),
       ],
     },
   ];

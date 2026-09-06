@@ -65,6 +65,11 @@ class Message < ApplicationRecord
 
   before_validation :ensure_content_type
   before_validation :prevent_message_flooding
+  # Synkra Chat billing: blocks a new outbound business message if the
+  # account's subscription is actually restricted (past_due alone does
+  # NOT block anything - that's the grace period). Inbound customer
+  # messages are never affected by this check at all.
+  before_validation :enforce_synkra_billing_restriction, on: :create
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
 
@@ -136,6 +141,11 @@ class Message < ApplicationRecord
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
 
   after_create_commit :execute_after_create_commit_callbacks
+  # Synkra Chat billing: records usage for the ledger. Runs after the
+  # billing-restriction check above already would have blocked creation
+  # if it were going to - so this only ever fires for messages that
+  # were actually allowed through.
+  after_create_commit :record_synkra_usage_event
 
   after_update_commit :dispatch_update_event
   after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
@@ -296,6 +306,46 @@ class Message < ApplicationRecord
       Rails.logger.error "Too many message: Account Id - #{account_id} : Conversation id - #{conversation_id}"
       errors.add(:base, 'Too many messages')
     end
+  end
+
+  def billable_outgoing_message?
+    outgoing? && !private?
+  end
+
+  def synkra_subscription_for_billing
+    # Fail open rather than closed: a missing subscription record
+    # (e.g. an account that predates this feature, before a migration
+    # backfill runs) should never lock a business out of its own
+    # conversations. find_or_create_by only ever creates a fresh
+    # Basic/active record here, never a restricted one.
+    account.synkra_subscription || account.reload.synkra_subscription ||
+      SynkraSubscription.find_or_create_by!(account: account) { |sub| sub.plan = 'basic'; sub.status = 'active' }
+  rescue StandardError => e
+    Rails.logger.error "[SynkraBilling] Could not resolve subscription for account #{account_id}: #{e.message}"
+    nil
+  end
+
+  def enforce_synkra_billing_restriction
+    return unless billable_outgoing_message?
+
+    subscription = synkra_subscription_for_billing
+    return if subscription.nil? # fail open, see above
+
+    errors.add(:base, 'This account is restricted - outbound messages are paused until billing is resolved') if subscription.outbound_blocked?
+  end
+
+  def record_synkra_usage_event
+    return unless billable_outgoing_message?
+
+    SynkraUsageEvent.record!(
+      account: account,
+      resource_type: 'business_initiated_message',
+      source: 'agent_reply',
+      reference: self
+    )
+  rescue StandardError => e
+    # Usage metering must never take down message sending - log and move on.
+    Rails.logger.error "[SynkraBilling] Failed to record usage event for message #{id}: #{e.message}"
   end
 
   def ensure_processed_message_content

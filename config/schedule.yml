@@ -74,3 +74,13 @@ remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
+
+# executed hourly
+# Synkra Chat billing: moves past_due subscriptions to restricted once
+# their grace period has elapsed, and sends usage-threshold warnings.
+# Never runs more than hourly - a failed payment should never be
+# punished faster than the grace period it was promised.
+synkra_billing_grace_period_job:
+  cron: '0 * * * *'
+  class: 'Billing::RestrictOverdueSubscriptionsJob'
+  queue: scheduled_jobs

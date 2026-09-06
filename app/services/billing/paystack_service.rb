@@ -1,0 +1,89 @@
+# Synkra Chat billing: talks to Paystack's REST API directly (no gem -
+# Paystack's API is simple REST and a full SDK isn't warranted for the
+# handful of endpoints we actually need). Requires PAYSTACK_SECRET_KEY
+# to be set; every method returns a clear error rather than raising
+# when that's missing, so a misconfigured environment fails safely
+# rather than crashing billing pages.
+class Billing::PaystackService
+  BASE_URL = 'https://api.paystack.co'
+
+  Result = Struct.new(:success?, :data, :error, keyword_init: true)
+
+  def initialize
+    @secret_key = ENV.fetch('PAYSTACK_SECRET_KEY', nil)
+  end
+
+  def configured?
+    @secret_key.present?
+  end
+
+  # Starts a checkout for a subscription. Returns the authorization_url
+  # to redirect the customer to. Paystack automatically creates the
+  # recurring subscription once this initial transaction succeeds,
+  # provided a plan code is supplied.
+  def initialize_transaction(email:, amount_zar:, plan_code:, callback_url:, metadata: {})
+    return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
+
+    response = connection.post('/transaction/initialize') do |req|
+      req.body = {
+        email: email,
+        amount: (amount_zar.to_f * 100).to_i, # Paystack expects the amount in cents
+        plan: plan_code,
+        callback_url: callback_url,
+        metadata: metadata
+      }
+    end
+
+    handle_response(response)
+  end
+
+  def verify_transaction(reference)
+    return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
+
+    response = connection.get("/transaction/verify/#{reference}")
+    handle_response(response)
+  end
+
+  def cancel_subscription(subscription_code:, email_token:)
+    return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
+
+    response = connection.post('/subscription/disable') do |req|
+      req.body = { code: subscription_code, token: email_token }
+    end
+
+    handle_response(response)
+  end
+
+  # Verifies that a webhook actually came from Paystack, per their
+  # documented signature scheme (HMAC-SHA512 of the raw body, using the
+  # secret key). Never trust an unsigned/incorrectly-signed webhook.
+  def self.verify_webhook_signature(raw_body, signature_header)
+    secret_key = ENV.fetch('PAYSTACK_SECRET_KEY', nil)
+    return false if secret_key.blank? || signature_header.blank?
+
+    expected = OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha512'), secret_key, raw_body)
+    ActiveSupport::SecurityUtils.secure_compare(expected, signature_header)
+  end
+
+  private
+
+  def connection
+    @connection ||= Faraday.new(url: BASE_URL) do |f|
+      f.request :json
+      f.response :json, content_type: /\bjson$/
+      f.headers['Authorization'] = "Bearer #{@secret_key}"
+      f.adapter Faraday.default_adapter
+    end
+  end
+
+  def handle_response(response)
+    body = response.body || {}
+    if response.success? && body['status']
+      Result.new(success?: true, data: body['data'])
+    else
+      Result.new(success?: false, error: body['message'] || 'Paystack request failed')
+    end
+  rescue StandardError => e
+    Result.new(success?: false, error: e.message)
+  end
+end

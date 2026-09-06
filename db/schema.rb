@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_30_090000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_02_100000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1466,6 +1466,39 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_30_090000) do
     t.index "lower((email)::text)", name: "index_synkra_global_users_on_lower_email", unique: true
   end
 
+  create_table "synkra_subscriptions", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "plan", default: "basic", null: false
+    t.string "status", default: "active", null: false
+    t.string "billing_cycle", default: "monthly", null: false
+    t.datetime "current_period_start"
+    t.datetime "current_period_end"
+    t.boolean "cancel_at_period_end", default: false, null: false
+    t.datetime "past_due_since"
+    t.string "paystack_customer_code"
+    t.string "paystack_subscription_code"
+    t.string "paystack_email_token"
+    t.string "pending_plan"
+    t.decimal "last_usage_warning_threshold"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id"], name: "index_synkra_subscriptions_on_account_id", unique: true
+  end
+
+  create_table "synkra_usage_events", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "resource_type", null: false
+    t.decimal "quantity", default: "1.0", null: false
+    t.datetime "occurred_at", null: false
+    t.string "source"
+    t.bigint "reference_id"
+    t.string "reference_type"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "resource_type", "occurred_at"], name: "index_usage_events_on_account_resource_time"
+    t.index ["account_id"], name: "index_synkra_usage_events_on_account_id"
+  end
+
   create_table "taggings", id: :serial, force: :cascade do |t|
     t.integer "tag_id"
     t.string "taggable_type"
@@ -1611,6 +1644,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_30_090000) do
   add_foreign_key "campaign_recipients", "contacts", on_delete: :cascade
   add_foreign_key "campaign_recipients", "inboxes", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
+  add_foreign_key "synkra_subscriptions", "accounts"
+  add_foreign_key "synkra_usage_events", "accounts"
   add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").

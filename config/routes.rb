@@ -34,6 +34,7 @@ Rails.application.routes.draw do
     resource :widget, only: [:show]
     get '/widget/verify_email', to: 'contact_email_verifications#show'
     get '/widget/continue_conversation', to: 'contact_continuations#show'
+    post '/webhooks/paystack', to: 'billing/paystack_webhooks#create'
     namespace :survey do
       resources :responses, only: [:show]
     end
@@ -386,6 +387,14 @@ Rails.application.routes.draw do
           end
 
           resources :webhooks, only: [:index, :create, :update, :destroy]
+          namespace :billing do
+            resource :subscription, only: [:show], controller: 'subscriptions' do
+              post :checkout
+              post :change_plan
+              post :cancel
+              post :resume
+            end
+          end
           namespace :integrations do
             resources :apps, only: [:index, :show]
             resources :hooks, only: [:show, :create, :update, :destroy] do

@@ -102,6 +102,9 @@ class Account < ApplicationRecord
   has_many :users, through: :account_users
   has_many :web_widgets, dependent: :destroy_async, class_name: '::Channel::WebWidget'
   has_many :webhooks, dependent: :destroy_async
+  # Synkra Chat billing
+  has_one :synkra_subscription, dependent: :destroy
+  has_many :synkra_usage_events, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
 
@@ -114,6 +117,10 @@ class Account < ApplicationRecord
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
+  # Synkra Chat billing: every account gets a Basic subscription the
+  # moment it's created - there's no "no subscription" state to handle
+  # elsewhere in the codebase.
+  after_create_commit :provision_synkra_subscription
   after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
   after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
   after_destroy :remove_account_sequences
@@ -192,6 +199,13 @@ class Account < ApplicationRecord
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def provision_synkra_subscription
+    SynkraSubscription.find_or_create_by!(account: self) do |sub|
+      sub.plan = 'basic'
+      sub.status = 'active'
+    end
   end
 
   def clear_unread_conversation_counts_cache

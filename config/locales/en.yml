@@ -393,6 +393,13 @@ en:
   synkra_identity_mailer:
     otp_code:
       subject: 'Your verification code'
+  billing_mailer:
+    usage_warning:
+      subject: "You've used %{percent}% of your monthly message allowance"
+    payment_failed:
+      subject: 'We could not process your payment'
+    account_restricted:
+      subject: 'Your account is restricted - action needed'
   contacts:
     online:
       delete: '%{contact_name} is Online, please try again later'

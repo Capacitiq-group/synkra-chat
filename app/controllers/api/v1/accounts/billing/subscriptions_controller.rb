@@ -1,9 +1,13 @@
-# Synkra Chat billing: account-facing billing management. Admin-only
-# (check_authorization's default already requires
-# Current.account_user.administrator?) - agents should never see or
+# Synkra Chat billing: account-facing billing management. Admin-only,
+# enforced by SynkraSubscriptionPolicy - agents should never see or
 # touch billing.
+#
+# check_authorization's default (controller_name.classify.constantize)
+# would resolve this controller's name to a bare `Subscription`
+# constant, which doesn't exist - our model is namespaced as
+# SynkraSubscription - so the model has to be passed explicitly.
 class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::BaseController
-  before_action :check_authorization
+  before_action -> { check_authorization(SynkraSubscription) }
   before_action :fetch_subscription
 
   def show

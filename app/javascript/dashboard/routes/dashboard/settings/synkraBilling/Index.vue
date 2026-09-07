@@ -45,25 +45,41 @@ const {
 const cancelDialogRef = ref(null);
 
 // Mirrors app/models/synkra_plan.rb - there's no API endpoint that
-// lists all plans (only the account's own current one), and with just
-// two plans by design a small static catalogue here is simpler than
-// building one. IMPORTANT: Pro's price is still an unconfirmed
-// placeholder on the backend - keep these two numbers in sync with
-// synkra_plan.rb, and update both together once pricing is final.
+// lists all plans (only the account's own current one), so a small
+// static catalogue here is simpler than building one. IMPORTANT:
+// prices/codes come from the real Plan objects on Paystack's own
+// dashboard (source of truth) - keep these in sync with synkra_plan.rb.
+// Message/seat numbers are still unconfirmed placeholders (Refilwe
+// confirmed "we cap volume, not features" but hasn't given exact
+// numbers per tier) and aren't enforced anywhere today either way.
 const PLAN_CATALOGUE = [
   {
-    key: 'basic',
-    name: t('SYNKRA_BILLING_SETTINGS.PLANS.BASIC_NAME'),
-    priceZar: 49,
-    messageAllowance: 500,
-    staffLimit: 3,
+    key: 'free',
+    name: t('SYNKRA_BILLING_SETTINGS.PLANS.FREE_NAME'),
+    priceZar: 0,
+    messageAllowance: 100,
+    staffLimit: 1,
+  },
+  {
+    key: 'starter',
+    name: t('SYNKRA_BILLING_SETTINGS.PLANS.STARTER_NAME'),
+    priceZar: 299,
+    messageAllowance: 1000,
+    staffLimit: 5,
+  },
+  {
+    key: 'business',
+    name: t('SYNKRA_BILLING_SETTINGS.PLANS.BUSINESS_NAME'),
+    priceZar: 599,
+    messageAllowance: 4000,
+    staffLimit: 15,
   },
   {
     key: 'pro',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.PRO_NAME'),
-    priceZar: 149,
-    messageAllowance: 2500,
-    staffLimit: 10,
+    priceZar: 999,
+    messageAllowance: 10000,
+    staffLimit: 30,
   },
 ];
 
@@ -209,7 +225,7 @@ onMounted(async () => {
           :title="t('SYNKRA_BILLING_SETTINGS.PLANS.TITLE')"
           :description="t('SYNKRA_BILLING_SETTINGS.PLANS.DESCRIPTION')"
         />
-        <div class="grid sm:grid-cols-2 gap-4">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <PlanCard
             v-for="planOption in PLAN_CATALOGUE"
             :key="planOption.key"

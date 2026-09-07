@@ -317,9 +317,9 @@ class Message < ApplicationRecord
     # (e.g. an account that predates this feature, before a migration
     # backfill runs) should never lock a business out of its own
     # conversations. find_or_create_by only ever creates a fresh
-    # Basic/active record here, never a restricted one.
+    # Free/active record here, never a restricted one.
     account.synkra_subscription || account.reload.synkra_subscription ||
-      SynkraSubscription.find_or_create_by!(account: account) { |sub| sub.plan = 'basic'; sub.status = 'active' }
+      SynkraSubscription.find_or_create_by!(account: account) { |sub| sub.plan = 'free'; sub.status = 'active' }
   rescue StandardError => e
     Rails.logger.error "[SynkraBilling] Could not resolve subscription for account #{account_id}: #{e.message}"
     nil

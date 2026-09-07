@@ -677,7 +677,9 @@
       "STAFF_LIMIT": "Up to {count} staff",
       "UPGRADE_BUTTON": "Upgrade to {name}",
       "DOWNGRADE_BUTTON": "Switch to {name} at period end",
-      "BASIC_NAME": "Chat Basic",
+      "FREE_NAME": "Synkra Chat Free",
+      "STARTER_NAME": "Chat Starter",
+      "BUSINESS_NAME": "Business",
       "PRO_NAME": "Chat Pro"
     },
     "CANCEL_DIALOG": {

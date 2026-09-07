@@ -203,7 +203,7 @@ class Account < ApplicationRecord
 
   def provision_synkra_subscription
     SynkraSubscription.find_or_create_by!(account: self) do |sub|
-      sub.plan = 'basic'
+      sub.plan = 'free'
       sub.status = 'active'
     end
   end

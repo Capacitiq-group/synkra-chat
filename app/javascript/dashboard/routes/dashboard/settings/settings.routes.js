@@ -12,6 +12,7 @@ import attributes from './attributes/attributes.routes';
 import automation from './automation/automation.routes';
 import auditlogs from './auditlogs/audit.routes';
 import billing from './billing/billing.routes';
+import synkraBilling from './synkraBilling/synkraBilling.routes';
 import canned from './canned/canned.routes';
 import inbox from './inbox/inbox.routes';
 import templates from './templates/templates.routes';
@@ -56,6 +57,7 @@ export default {
     ...automation.routes,
     ...auditlogs.routes,
     ...billing.routes,
+    ...synkraBilling.routes,
     ...canned.routes,
     ...inbox.routes,
     ...templates.routes,

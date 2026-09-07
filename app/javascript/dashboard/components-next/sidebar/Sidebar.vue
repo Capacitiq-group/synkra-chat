@@ -113,10 +113,14 @@ const isAgentBotsVisibleInV1 = false;
 const isSecuritySettingsVisibleInV1 = false;
 
 // Synkra Chat V1: this points at Chatwoot's OWN internal billing/plan
-// pages, which don't apply since Synkra has entirely separate billing
-// (not yet built). Hidden until Synkra's own billing settings page
-// exists to replace it.
+// pages, which don't apply since Synkra has entirely separate billing.
+// Stays hidden permanently in favour of Synkra's own billing settings
+// page below.
 const isChatwootBillingVisibleInV1 = false;
+
+// Synkra Chat's own billing settings page (Paystack-backed), replacing
+// the Chatwoot billing nav entry above.
+const isSynkraBillingVisibleInV1 = true;
 
 // Synkra Chat V1: Macros are hidden from the settings menu (canned
 // responses + native automations already cover V1 needs). The route,
@@ -989,6 +993,16 @@ const menuItems = computed(() => {
                 label: t('SIDEBAR.BILLING'),
                 icon: 'i-lucide-credit-card',
                 to: accountScopedRoute('billing_settings_index'),
+              },
+            ]
+          : []),
+        ...(isSynkraBillingVisibleInV1
+          ? [
+              {
+                name: 'Settings Synkra Billing',
+                label: t('SIDEBAR.BILLING'),
+                icon: 'i-lucide-credit-card',
+                to: accountScopedRoute('synkra_billing_settings_index'),
               },
             ]
           : []),

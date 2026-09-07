@@ -643,6 +643,62 @@
       }
     }
   },
+  "SYNKRA_BILLING_SETTINGS": {
+    "TITLE": "Billing",
+    "DESCRIPTION": "Manage your Synkra Chat plan, usage, and subscription.",
+    "LOADING": "Loading your billing details...",
+    "CONFIRMING_PAYMENT": "Confirming your payment with Paystack, this can take a few seconds...",
+    "CANCEL_BUTTON": "Cancel subscription",
+    "CURRENT_PLAN": {
+      "TITLE": "Current plan",
+      "DESCRIPTION": "Your active Synkra Chat subscription.",
+      "PLAN": "Plan",
+      "STATUS": "Status",
+      "RENEWS_ON": "Renews on",
+      "SWITCHING_TO": "Switching to"
+    },
+    "USAGE": {
+      "MESSAGES": "Messages"
+    },
+    "STATUS": {
+      "PAST_DUE": "Your last payment failed. Please update your payment method within the grace period to avoid interruption.",
+      "RESTRICTED": "Outbound messaging is currently restricted due to a failed payment. Update your payment method to restore access.",
+      "CANCELLED": "Your subscription has been cancelled. Outbound messaging is restricted.",
+      "CANCELLING": "Your subscription is set to cancel on {date}.",
+      "RESUME_LINK": "Resume subscription"
+    },
+    "PLANS": {
+      "TITLE": "Plans",
+      "DESCRIPTION": "Choose the plan that fits your team.",
+      "PRICE": "R{price} / month",
+      "CURRENT": "Current plan",
+      "SCHEDULED": "Scheduled",
+      "MESSAGE_ALLOWANCE": "{count} messages / month",
+      "STAFF_LIMIT": "Up to {count} staff",
+      "UPGRADE_BUTTON": "Upgrade to {name}",
+      "DOWNGRADE_BUTTON": "Switch to {name} at period end",
+      "BASIC_NAME": "Chat Basic",
+      "PRO_NAME": "Chat Pro"
+    },
+    "CANCEL_DIALOG": {
+      "TITLE": "Cancel your subscription?",
+      "DESCRIPTION": "Your plan will remain active until the end of your current billing period, then outbound messaging will be restricted until you resubscribe.",
+      "CONFIRM": "Cancel subscription",
+      "DISMISS": "Keep subscription"
+    },
+    "ERRORS": {
+      "FETCH": "Couldn't load your billing details. Please refresh and try again.",
+      "CHECKOUT": "Couldn't start checkout. Please try again.",
+      "CHANGE_PLAN": "Couldn't change your plan. Please try again.",
+      "CANCEL": "Couldn't cancel your subscription. Please try again.",
+      "RESUME": "Couldn't resume your subscription. Please try again."
+    },
+    "SUCCESS": {
+      "PLAN_SCHEDULED": "Your plan change has been scheduled for the end of the current period.",
+      "CANCELLED": "Your subscription has been scheduled for cancellation.",
+      "RESUMED": "Your subscription has been resumed."
+    }
+  },
   "SECURITY_SETTINGS": {
     "TITLE": "Security",
     "DESCRIPTION": "Manage your account security settings.",

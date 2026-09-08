@@ -19,7 +19,7 @@ class Llm::BaseAiService
   end
 
   def chat(model: @model, temperature: @temperature)
-    build_chat(model).with_temperature(temperature)
+    resolve_ruby_llm_chat(model).with_temperature(temperature)
   end
 
   private
@@ -32,7 +32,14 @@ class Llm::BaseAiService
   # Only fall back to assume_model_exists when the normal lookup
   # genuinely fails, so every already-working model path (real OpenAI/
   # Anthropic models via the real API) is completely unaffected.
-  def build_chat(model)
+  #
+  # Named distinctly (not `build_chat`) because Captain::ChatHelper -
+  # included into subclasses alongside this base class - already
+  # defines its own private `build_chat` with a different signature;
+  # reusing that name here gets silently shadowed by it via Ruby's
+  # method resolution order instead of raising a clear "already
+  # defined" error, which is exactly what happened the first time.
+  def resolve_ruby_llm_chat(model)
     RubyLLM.chat(model: model)
   rescue RubyLLM::ModelNotFoundError
     RubyLLM.chat(model: model, provider: :openai, assume_model_exists: true)

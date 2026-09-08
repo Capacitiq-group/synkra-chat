@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_08_010000) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_08_020000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1478,6 +1478,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_08_010000) do
     t.string "paystack_customer_code"
     t.string "paystack_subscription_code"
     t.string "paystack_email_token"
+    t.string "paystack_authorization_code"
     t.string "pending_plan"
     t.decimal "last_usage_warning_threshold"
     t.datetime "created_at", null: false

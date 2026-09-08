@@ -54,6 +54,28 @@ class Billing::PaystackService
     handle_response(response)
   end
 
+  # Creates a subscription directly from a stored card/direct-debit
+  # authorization (no checkout redirect). Used for plan switches on an
+  # already-paying customer - per Paystack's own docs, start_date is
+  # "useful... when you want to switch a customer to a different
+  # plan": passing the next billing date defers the first charge on
+  # the new plan to then, so this never double-charges someone who was
+  # just billed moments ago for their old plan's final cycle.
+  def create_subscription(customer_code:, plan_code:, authorization_code:, start_date: nil)
+    return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
+
+    response = connection.post('/subscription') do |req|
+      req.body = {
+        customer: customer_code,
+        plan: plan_code,
+        authorization: authorization_code,
+        start_date: start_date&.iso8601
+      }.compact
+    end
+
+    handle_response(response)
+  end
+
   # Verifies that a webhook actually came from Paystack, per their
   # documented signature scheme (HMAC-SHA512 of the raw body, using the
   # secret key). Never trust an unsigned/incorrectly-signed webhook.

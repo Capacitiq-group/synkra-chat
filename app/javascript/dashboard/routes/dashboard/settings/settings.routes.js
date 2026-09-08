@@ -13,6 +13,7 @@ import automation from './automation/automation.routes';
 import auditlogs from './auditlogs/audit.routes';
 import billing from './billing/billing.routes';
 import synkraBilling from './synkraBilling/synkraBilling.routes';
+import aiAgent from './aiAgent/aiAgent.routes';
 import canned from './canned/canned.routes';
 import inbox from './inbox/inbox.routes';
 import templates from './templates/templates.routes';
@@ -58,6 +59,7 @@ export default {
     ...auditlogs.routes,
     ...billing.routes,
     ...synkraBilling.routes,
+    ...aiAgent.routes,
     ...canned.routes,
     ...inbox.routes,
     ...templates.routes,

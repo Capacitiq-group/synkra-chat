@@ -1006,6 +1006,12 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        {
+          name: 'Settings AI Agent',
+          label: t('SIDEBAR.AI_AGENT'),
+          icon: 'i-lucide-bot',
+          to: accountScopedRoute('ai_agent_settings_index'),
+        },
       ],
     },
   ];

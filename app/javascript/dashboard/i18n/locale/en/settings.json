@@ -354,6 +354,7 @@
     "MACROS": "Macros",
     "TEAMS": "Teams",
     "BILLING": "Billing",
+    "AI_AGENT": "AI Agent",
     "CUSTOM_VIEWS_FOLDER": "Folders",
     "CUSTOM_VIEWS_SEGMENTS": "Segments",
     "ALL_CONTACTS": "All Contacts",
@@ -699,6 +700,59 @@
       "PLAN_SCHEDULED": "Your plan change has been scheduled for the end of the current period.",
       "CANCELLED": "Your subscription has been scheduled for cancellation.",
       "RESUMED": "Your subscription has been resumed."
+    }
+  },
+  "AI_AGENT_SETTINGS": {
+    "TITLE": "AI Agent",
+    "DESCRIPTION": "Give your AI agent real actions it can take - triggered through Synkra Flow.",
+    "LOADING": "Loading your AI agent's actions...",
+    "ACTIONS": {
+      "TITLE": "Actions",
+      "DESCRIPTION": "Each action lets your AI agent call a Synkra Flow webhook when a customer asks for something it handles.",
+      "ADD_BUTTON": "Add action",
+      "ADD_TITLE": "Add an action",
+      "EMPTY": "No actions configured yet. Add one to let your AI agent do more than just answer questions.",
+      "NAME_LABEL": "Action name",
+      "NAME_PLACEHOLDER": "e.g. New Lead \u2192 CRM",
+      "URL_LABEL": "Flow webhook URL",
+      "URL_HELP": "Paste the webhook trigger URL from the Synkra Flow workflow this action should run.",
+      "AUTH_LABEL": "Authentication",
+      "TOKEN_LABEL": "Bearer token",
+      "API_KEY_LABEL": "API key",
+      "TEST_BUTTON": "Test connection",
+      "TESTING": "Testing...",
+      "CHANGE_TYPE": "Choose a different type",
+      "SAVE_BUTTON": "Save action",
+      "CREATED": "Action added.",
+      "CREATE_ERROR": "Couldn't add that action. Please check the details and try again.",
+      "DELETE_BUTTON": "Remove",
+      "DELETED": "Action removed.",
+      "DELETE_ERROR": "Couldn't remove that action. Please try again."
+    },
+    "PRESETS": {
+      "TRIGGER_FLOW": {
+        "TITLE": "Trigger a Flow",
+        "DESCRIPTION": "Run any Synkra Flow workflow for this conversation."
+      },
+      "SEND_EMAIL": {
+        "TITLE": "Send email",
+        "DESCRIPTION": "Send an email on the customer's behalf, like an invoice or confirmation."
+      },
+      "CREATE_LEAD": {
+        "TITLE": "Create lead",
+        "DESCRIPTION": "Capture a new sales lead with their details and what they need."
+      },
+      "BOOK_APPOINTMENT": {
+        "TITLE": "Book appointment",
+        "DESCRIPTION": "Book a consultation or appointment based on the customer's preferred time."
+      },
+      "CREATE_ORDER": {
+        "TITLE": "Create order",
+        "DESCRIPTION": "Take an order or service request and its details."
+      }
+    },
+    "ERRORS": {
+      "FETCH": "Couldn't load your AI agent's actions. Please refresh and try again."
     }
   },
   "SECURITY_SETTINGS": {

@@ -142,7 +142,7 @@
   enabled: false
 - name: captain_integration
   display_name: Captain
-  enabled: false
+  enabled: true
   premium: true
 - name: custom_roles
   display_name: Custom Roles
@@ -153,7 +153,7 @@
   enabled: true
 - name: captain_v1_action_classifier
   display_name: Captain V1 Action Classifier
-  enabled: false
+  enabled: true
   premium: true
   chatwoot_internal: true
 - name: contact_chatwoot_support_team
@@ -201,7 +201,7 @@
   enabled: true
 - name: captain_document_auto_sync
   display_name: Captain Document Auto Sync
-  enabled: false
+  enabled: true
   premium: true
 - name: advanced_search
   display_name: Advanced Search

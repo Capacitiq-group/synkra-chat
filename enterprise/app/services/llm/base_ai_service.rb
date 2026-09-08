@@ -19,10 +19,24 @@ class Llm::BaseAiService
   end
 
   def chat(model: @model, temperature: @temperature)
-    RubyLLM.chat(model: model).with_temperature(temperature)
+    build_chat(model).with_temperature(temperature)
   end
 
   private
+
+  # RubyLLM validates `model` against its own bundled model registry
+  # before making any request. That's fine for real OpenAI/Anthropic
+  # models, but a self-hosted model name (e.g. an Ollama tag like
+  # "qwen2.5:7b-instruct-q4_K_M", reached via our own
+  # CAPTAIN_OPEN_AI_ENDPOINT override) will never be in that registry.
+  # Only fall back to assume_model_exists when the normal lookup
+  # genuinely fails, so every already-working model path (real OpenAI/
+  # Anthropic models via the real API) is completely unaffected.
+  def build_chat(model)
+    RubyLLM.chat(model: model)
+  rescue RubyLLM::ModelNotFoundError
+    RubyLLM.chat(model: model, provider: :openai, assume_model_exists: true)
+  end
 
   # Strips markdown code fences (```json ... ``` or ``` ... ```) that some
   # LLM providers/gateways wrap around JSON responses despite response_format hints.

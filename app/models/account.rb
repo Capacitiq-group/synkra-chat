@@ -205,6 +205,12 @@ class Account < ApplicationRecord
     SynkraSubscription.find_or_create_by!(account: self) do |sub|
       sub.plan = 'free'
       sub.status = 'active'
+      # Without this, a fresh account's period would be nil until the
+      # next hourly Billing::RestrictOverdueSubscriptionsJob sweep
+      # picks it up - harmless, but there's no reason to wait when we
+      # can just set it correctly here.
+      sub.current_period_start = Time.current
+      sub.current_period_end = 1.month.from_now
     end
   end
 

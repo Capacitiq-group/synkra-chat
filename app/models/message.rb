@@ -319,7 +319,12 @@ class Message < ApplicationRecord
     # conversations. find_or_create_by only ever creates a fresh
     # Free/active record here, never a restricted one.
     account.synkra_subscription || account.reload.synkra_subscription ||
-      SynkraSubscription.find_or_create_by!(account: account) { |sub| sub.plan = 'free'; sub.status = 'active' }
+      SynkraSubscription.find_or_create_by!(account: account) do |sub|
+        sub.plan = 'free'
+        sub.status = 'active'
+        sub.current_period_start = Time.current
+        sub.current_period_end = 1.month.from_now
+      end
   rescue StandardError => e
     Rails.logger.error "[SynkraBilling] Could not resolve subscription for account #{account_id}: #{e.message}"
     nil

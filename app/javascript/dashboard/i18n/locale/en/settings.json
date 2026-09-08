@@ -709,6 +709,7 @@
     "ACTIONS": {
       "TITLE": "Actions",
       "DESCRIPTION": "Each action lets your AI agent call a Synkra Flow webhook when a customer asks for something it handles.",
+      "TAB_LABEL": "Actions",
       "ADD_BUTTON": "Add action",
       "ADD_TITLE": "Add an action",
       "EMPTY": "No actions configured yet. Add one to let your AI agent do more than just answer questions.",
@@ -728,6 +729,33 @@
       "DELETE_BUTTON": "Remove",
       "DELETED": "Action removed.",
       "DELETE_ERROR": "Couldn't remove that action. Please try again."
+    },
+    "BRAIN": {
+      "TAB_LABEL": "Business Brain",
+      "NAME_LABEL": "Agent name",
+      "NAME_PLACEHOLDER": "e.g. Synkra Assistant",
+      "PRODUCT_LABEL": "Product / service name",
+      "PRODUCT_PLACEHOLDER": "e.g. Synkra Chat",
+      "DESCRIPTION_LABEL": "What does your business do?",
+      "DESCRIPTION_PLACEHOLDER": "A short description of your business, shown to the AI as context for every conversation.",
+      "INSTRUCTIONS_LABEL": "Tell your AI agent about your business",
+      "INSTRUCTIONS_PLACEHOLDER": "Products/services, pricing, policies, opening hours, locations, delivery information - anything the agent should know when answering customers.",
+      "WELCOME_LABEL": "Welcome message",
+      "WELCOME_PLACEHOLDER": "How the agent introduces itself",
+      "HANDOFF_LABEL": "Handoff message",
+      "HANDOFF_PLACEHOLDER": "What the agent says when passing the conversation to a human",
+      "GUARDRAILS_LABEL": "Rules",
+      "GUARDRAILS_HELP": "Things the agent must always do or never do, e.g. \"Never quote a price without confirming with a human\" or \"Never discuss competitors.\"",
+      "GUARDRAILS_PLACEHOLDER": "e.g. Never promise a delivery date",
+      "ADD_RULE": "Add rule",
+      "RESPONSE_GUIDELINES_LABEL": "Tone & style",
+      "RESPONSE_GUIDELINES_HELP": "How the agent should sound, e.g. \"Keep responses under three sentences\" or \"Always reply in the customer's language.\"",
+      "RESPONSE_GUIDELINE_PLACEHOLDER": "e.g. Be warm and concise",
+      "ADD_GUIDELINE": "Add guideline",
+      "SAVE_BUTTON": "Save",
+      "SAVED": "Business Brain saved.",
+      "SAVE_ERROR": "Couldn't save. Please try again.",
+      "VALIDATION_ERROR": "Agent name and business description are required."
     },
     "PRESETS": {
       "TRIGGER_FLOW": {

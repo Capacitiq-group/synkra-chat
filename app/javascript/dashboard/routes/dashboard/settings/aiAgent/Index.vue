@@ -7,9 +7,12 @@ import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 import SettingsLayout from '../SettingsLayout.vue';
 import ActionCard from './components/ActionCard.vue';
 import AddActionDialog from './components/AddActionDialog.vue';
+import BusinessBrainPanel from './components/BusinessBrainPanel.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
 const { t } = useI18n();
+
+const activeTab = ref('brain');
 
 const tools = ref([]);
 const isFetching = ref(false);
@@ -41,16 +44,18 @@ const handleDelete = async id => {
 
 const handleCreated = () => fetchTools();
 
-onMounted(fetchTools);
+const selectTab = tab => {
+  activeTab.value = tab;
+  if (tab === 'actions' && !tools.value.length) fetchTools();
+};
+
+onMounted(() => {
+  if (activeTab.value === 'actions') fetchTools();
+});
 </script>
 
 <template>
-  <SettingsLayout
-    :is-loading="isFetching"
-    :no-records-found="fetchError && !tools.length"
-    :loading-message="t('AI_AGENT_SETTINGS.LOADING')"
-    :no-records-message="t('AI_AGENT_SETTINGS.ERRORS.FETCH')"
-  >
+  <SettingsLayout>
     <template #header>
       <BaseSettingsHeader
         :title="t('AI_AGENT_SETTINGS.TITLE')"
@@ -58,7 +63,36 @@ onMounted(fetchTools);
       />
     </template>
     <template #body>
-      <section class="flex flex-col gap-4 max-w-3xl">
+      <div class="flex items-center gap-1 border-b border-n-weak mb-4">
+        <button
+          type="button"
+          class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+          :class="
+            activeTab === 'brain'
+              ? 'border-n-brand text-n-slate-12'
+              : 'border-transparent text-n-slate-11'
+          "
+          @click="selectTab('brain')"
+        >
+          {{ t('AI_AGENT_SETTINGS.BRAIN.TAB_LABEL') }}
+        </button>
+        <button
+          type="button"
+          class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+          :class="
+            activeTab === 'actions'
+              ? 'border-n-brand text-n-slate-12'
+              : 'border-transparent text-n-slate-11'
+          "
+          @click="selectTab('actions')"
+        >
+          {{ t('AI_AGENT_SETTINGS.ACTIONS.TAB_LABEL') }}
+        </button>
+      </div>
+
+      <BusinessBrainPanel v-if="activeTab === 'brain'" />
+
+      <section v-else class="flex flex-col gap-4 max-w-3xl">
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-sm font-medium text-n-slate-12">
@@ -80,6 +114,12 @@ onMounted(fetchTools);
 
         <p v-if="!isFetching && !tools.length" class="text-sm text-n-slate-11">
           {{ t('AI_AGENT_SETTINGS.ACTIONS.EMPTY') }}
+        </p>
+        <p v-else-if="isFetching" class="text-sm text-n-slate-11">
+          {{ t('AI_AGENT_SETTINGS.LOADING') }}
+        </p>
+        <p v-else-if="fetchError" class="text-sm text-n-ruby-11">
+          {{ t('AI_AGENT_SETTINGS.ERRORS.FETCH') }}
         </p>
 
         <ActionCard

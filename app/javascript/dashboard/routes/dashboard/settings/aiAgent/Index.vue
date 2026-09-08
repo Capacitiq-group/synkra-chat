@@ -8,6 +8,7 @@ import SettingsLayout from '../SettingsLayout.vue';
 import ActionCard from './components/ActionCard.vue';
 import AddActionDialog from './components/AddActionDialog.vue';
 import BusinessBrainPanel from './components/BusinessBrainPanel.vue';
+import KnowledgeBasePanel from './components/KnowledgeBasePanel.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
 const { t } = useI18n();
@@ -80,6 +81,18 @@ onMounted(() => {
           type="button"
           class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
           :class="
+            activeTab === 'knowledge'
+              ? 'border-n-brand text-n-slate-12'
+              : 'border-transparent text-n-slate-11'
+          "
+          @click="selectTab('knowledge')"
+        >
+          {{ t('AI_AGENT_SETTINGS.KNOWLEDGE.TAB_LABEL') }}
+        </button>
+        <button
+          type="button"
+          class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
+          :class="
             activeTab === 'actions'
               ? 'border-n-brand text-n-slate-12'
               : 'border-transparent text-n-slate-11'
@@ -91,6 +104,7 @@ onMounted(() => {
       </div>
 
       <BusinessBrainPanel v-if="activeTab === 'brain'" />
+      <KnowledgeBasePanel v-else-if="activeTab === 'knowledge'" />
 
       <section v-else class="flex flex-col gap-4 max-w-3xl">
         <div class="flex items-center justify-between">

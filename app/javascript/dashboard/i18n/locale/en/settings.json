@@ -779,6 +779,27 @@
         "DESCRIPTION": "Take an order or service request and its details."
       }
     },
+    "KNOWLEDGE": {
+      "TAB_LABEL": "Knowledge Base",
+      "SET_UP_BRAIN_FIRST": "Set up your Business Brain first, then come back here to add what your AI agent should know.",
+      "ADD_WEBSITE_TITLE": "Add a website page",
+      "NAME_LABEL": "Name",
+      "NAME_PLACEHOLDER": "e.g. Pricing page",
+      "URL_LABEL": "URL",
+      "ADD_BUTTON": "Add",
+      "SYNC_HELP": "Website pages are automatically kept up to date on a regular schedule, or you can sync one manually below.",
+      "ADD_PDF_TITLE": "Upload a document",
+      "PDF_LABEL": "PDF document",
+      "LIST_TITLE": "Added so far",
+      "EMPTY": "Nothing added yet. Add a website page or upload a document so your AI agent has something to answer from.",
+      "SYNC_BUTTON": "Sync now",
+      "SYNC_STARTED": "Sync started.",
+      "SYNC_ERROR": "Couldn't start sync. Please try again.",
+      "ADDED": "Added to the knowledge base.",
+      "ADD_ERROR": "Couldn't add that. Please check the details and try again.",
+      "DELETED": "Removed from the knowledge base.",
+      "DELETE_ERROR": "Couldn't remove that. Please try again."
+    },
     "ERRORS": {
       "FETCH": "Couldn't load your AI agent's actions. Please refresh and try again."
     }

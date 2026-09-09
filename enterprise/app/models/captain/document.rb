@@ -193,7 +193,12 @@ class Captain::Document < ApplicationRecord
   def validate_pdf_format
     return unless pdf_file.attached?
 
-    errors.add(:pdf_file, I18n.t('captain.documents.pdf_format_error')) unless pdf_file.blob.content_type == 'application/pdf'
+    # Don't trust the browser-supplied content_type header - it's
+    # client-controlled and easy to lie about. Sniff the actual file
+    # bytes (magic numbers) instead, the same way ActiveStorage/Marcel
+    # itself works, so a renamed non-PDF can't get past this check.
+    sniffed_type = pdf_file.blob.open { |file| Marcel::MimeType.for(file, name: pdf_file.filename.to_s) }
+    errors.add(:pdf_file, I18n.t('captain.documents.pdf_format_error')) unless sniffed_type == 'application/pdf'
   end
 
   def validate_file_attachment

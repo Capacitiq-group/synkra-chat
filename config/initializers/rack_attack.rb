@@ -334,6 +334,47 @@ class Rack::Attack
     "#{user_identifier}:#{match_data[:account_id]}" if user_identifier.present?
   end
 
+  ###-----------------------------------------------###
+  ###-----------Synkra Billing Throttling-----------###
+  ###-----------------------------------------------###
+
+  ## Paystack webhook - unauthenticated by necessity (no account_id in
+  ## the URL, no user session), so this can only be keyed by IP.
+  ## Signature verification already rejects forged payloads, but each
+  ## request still costs a full HMAC computation before that rejection
+  ## happens - this caps how many of those a single IP can force.
+  throttle('webhooks/paystack', limit: ENV.fetch('RATE_LIMIT_PAYSTACK_WEBHOOK', '60').to_i, period: 1.minute) do |req|
+    req.ip if req.path_without_extensions == '/webhooks/paystack' && req.post?
+  end
+
+  ## Billing checkout - admin-only, but nothing stops a compromised
+  ## admin session (or a frontend bug) from hammering Paystack's API
+  ## repeatedly. Checkout is a rare, deliberate action - a real admin
+  ## has no legitimate reason to hit this more than a handful of times
+  ## an hour.
+  throttle('billing/checkout', limit: ENV.fetch('RATE_LIMIT_BILLING_CHECKOUT', '10').to_i, period: 1.hour) do |req|
+    next unless req.post?
+
+    match_data = %r{\A/api/v1/accounts/(?<account_id>\d+)/billing/subscription/checkout\z}.match(req.path_without_extensions)
+    match_data[:account_id] if match_data.present?
+  end
+
+  ###-----------------------------------------------###
+  ###--------Synkra AI Agent Throttling--------------###
+  ###-----------------------------------------------###
+
+  ## Custom Tools test endpoint - SSRF-safe (routes through SafeFetch),
+  ## but nothing stops a business's own admin from using it to fire
+  ## repeated outbound requests at a third party through our server.
+  ## Testing a webhook a few times while configuring it is normal;
+  ## flooding one isn't.
+  throttle('captain/custom_tools/test', limit: ENV.fetch('RATE_LIMIT_CUSTOM_TOOLS_TEST', '20').to_i, period: 1.minute) do |req|
+    next unless req.post?
+
+    match_data = %r{\A/api/v1/accounts/(?<account_id>\d+)/captain/custom_tools/test\z}.match(req.path_without_extensions)
+    match_data[:account_id] if match_data.present?
+  end
+
   ## ----------------------------------------------- ##
 end
 

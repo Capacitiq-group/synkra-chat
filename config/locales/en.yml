@@ -393,6 +393,9 @@ en:
   synkra_identity_mailer:
     otp_code:
       subject: 'Your verification code'
+  user_security_mailer:
+    new_login_notification:
+      subject: 'New sign-in to your account'
   billing_mailer:
     usage_warning:
       subject: "You've used %{percent}% of your monthly message allowance"

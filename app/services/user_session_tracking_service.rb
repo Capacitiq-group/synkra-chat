@@ -14,10 +14,23 @@ class UserSessionTrackingService
 
   def create_or_update!
     session = @user.user_sessions.find_or_initialize_by(client_id: @client_id)
+    ip = @request.remote_ip
+    # Checked BEFORE this session's own row is updated below - if this
+    # exact device/session already had this ip on file, its own
+    # existing row already matches, so this correctly treats "same
+    # device, same network, just refreshing" as known. Only a truly
+    # new IP, across every device this user has ever signed in from,
+    # trips the notification below. A user's very first-ever login has
+    # no history to compare against, so it's never treated as "new" -
+    # there's nothing anomalous about it.
+    has_prior_sessions = @user.user_sessions.exists?
+    known_ip = ip.blank? || !has_prior_sessions || @user.user_sessions.where(ip_address: ip).exists?
+
     session.assign_attributes(session_attributes)
     session.last_activity_at = Time.current
     session.save!
     UserSessionIpLookupJob.perform_later(session) if session.ip_address.present?
+    notify_new_ip_login(session) unless known_ip
     session
   end
 
@@ -29,6 +42,14 @@ class UserSessionTrackingService
   end
 
   private
+
+  def notify_new_ip_login(session)
+    UserSecurityMailer.new_login_notification(user: @user, session: session).deliver_later
+  rescue StandardError => e
+    # Never let a notification failure interfere with an otherwise
+    # successful login.
+    Rails.logger.error "[UserSessionTrackingService] Failed to queue new-login notification for user #{@user.id}: #{e.message}"
+  end
 
   def session_attributes
     client_headers = mobile_client_headers

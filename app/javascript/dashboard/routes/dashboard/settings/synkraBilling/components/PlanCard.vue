@@ -30,17 +30,17 @@ const { t } = useI18n();
 
 <template>
   <div
-    class="rounded-xl border p-5 flex flex-col gap-4"
+    class="rounded-xl border p-6 flex flex-col gap-5 min-h-[15rem]"
     :class="
       isCurrent
         ? 'border-n-brand bg-n-brand/5'
         : 'border-n-weak bg-n-solid-2'
     "
   >
-    <div class="flex items-start justify-between">
+    <div class="flex items-start justify-between gap-2">
       <div>
-        <h3 class="text-base font-medium text-n-slate-12">{{ name }}</h3>
-        <p class="text-sm text-n-slate-11 mt-1">
+        <h3 class="text-lg font-medium text-n-slate-12">{{ name }}</h3>
+        <p class="text-base text-n-slate-11 mt-1.5">
           {{
             t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', { price: priceZar })
           }}
@@ -48,19 +48,19 @@ const { t } = useI18n();
       </div>
       <span
         v-if="isCurrent"
-        class="text-xs font-medium px-2 py-1 rounded-md bg-n-teal-3 text-n-teal-11"
+        class="text-xs font-medium px-2.5 py-1 rounded-md bg-n-teal-3 text-n-teal-11 flex-shrink-0"
       >
         {{ t('SYNKRA_BILLING_SETTINGS.PLANS.CURRENT') }}
       </span>
       <span
         v-else-if="isPending"
-        class="text-xs font-medium px-2 py-1 rounded-md bg-n-amber-3 text-n-amber-11"
+        class="text-xs font-medium px-2.5 py-1 rounded-md bg-n-amber-3 text-n-amber-11 flex-shrink-0"
       >
         {{ t('SYNKRA_BILLING_SETTINGS.PLANS.SCHEDULED') }}
       </span>
     </div>
-    <ul class="text-sm text-n-slate-11 flex flex-col gap-1.5">
-      <li class="flex items-center gap-2">
+    <ul class="text-sm text-n-slate-11 flex flex-col gap-2.5">
+      <li class="flex items-center gap-2.5">
         <Icon icon="i-lucide-message-square" class="size-4 flex-shrink-0" />
         {{
           t('SYNKRA_BILLING_SETTINGS.PLANS.MESSAGE_ALLOWANCE', {
@@ -68,7 +68,7 @@ const { t } = useI18n();
           })
         }}
       </li>
-      <li class="flex items-center gap-2">
+      <li class="flex items-center gap-2.5">
         <Icon icon="i-lucide-users" class="size-4 flex-shrink-0" />
         {{
           t('SYNKRA_BILLING_SETTINGS.PLANS.STAFF_LIMIT', {
@@ -79,13 +79,12 @@ const { t } = useI18n();
     </ul>
     <ButtonV4
       v-if="action"
-      sm
       :solid="action === 'upgrade'"
       :faded="action === 'downgrade'"
       :blue="action === 'upgrade'"
       :slate="action === 'downgrade'"
       :is-loading="isProcessing"
-      class="mt-auto"
+      class="mt-auto w-full"
       @click="emit('select', planKey)"
     >
       {{

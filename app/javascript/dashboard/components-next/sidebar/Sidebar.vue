@@ -122,6 +122,10 @@ const isChatwootBillingVisibleInV1 = false;
 // the Chatwoot billing nav entry above.
 const isSynkraBillingVisibleInV1 = true;
 
+// Synkra Chat V1: WhatsApp message templates aren't offered yet -
+// hidden until that's built out properly, not just left half-wired.
+const isTemplatesVisibleInV1 = false;
+
 // Synkra Chat V1: Macros are hidden from the settings menu (canned
 // responses + native automations already cover V1 needs). The route,
 // page, and underlying macro functionality are untouched - only this
@@ -882,12 +886,16 @@ const menuItems = computed(() => {
           ],
           to: accountScopedRoute('settings_inbox_list'),
         },
-        {
-          name: 'Settings Templates',
-          label: t('SIDEBAR.WHATSAPP_TEMPLATES'),
-          icon: 'i-lucide-layout-template',
-          to: accountScopedRoute('settings_templates'),
-        },
+        ...(isTemplatesVisibleInV1
+          ? [
+              {
+                name: 'Settings Templates',
+                label: t('SIDEBAR.WHATSAPP_TEMPLATES'),
+                icon: 'i-lucide-layout-template',
+                to: accountScopedRoute('settings_templates'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Labels',
           label: t('SIDEBAR.LABELS'),

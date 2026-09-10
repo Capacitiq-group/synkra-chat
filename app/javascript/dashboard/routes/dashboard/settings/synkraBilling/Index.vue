@@ -158,7 +158,7 @@ onMounted(async () => {
       />
     </template>
     <template #body>
-      <section class="grid gap-4 max-w-4xl">
+      <section class="grid gap-4 max-w-6xl">
         <Banner
           v-if="isConfirmingPayment"
           color="blue"
@@ -225,7 +225,7 @@ onMounted(async () => {
           :title="t('SYNKRA_BILLING_SETTINGS.PLANS.TITLE')"
           :description="t('SYNKRA_BILLING_SETTINGS.PLANS.DESCRIPTION')"
         />
-        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
           <PlanCard
             v-for="planOption in PLAN_CATALOGUE"
             :key="planOption.key"

@@ -5,6 +5,7 @@ import { useAlert } from 'dashboard/composables';
 import CaptainAssistantsAPI from 'dashboard/api/captainAssistants';
 import CaptainDocumentsAPI from 'dashboard/api/captainDocuments';
 import Input from 'dashboard/components-next/input/Input.vue';
+import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
 import ButtonV4 from 'next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 
@@ -18,6 +19,9 @@ const documents = ref([]);
 const websiteName = ref('');
 const websiteUrl = ref('');
 const isAddingWebsite = ref(false);
+const manualName = ref('');
+const manualContent = ref('');
+const isAddingManual = ref(false);
 const isUploadingPdf = ref(false);
 const fileInputRef = ref(null);
 const syncingIds = ref(new Set());
@@ -62,6 +66,33 @@ const handleAddWebsite = async () => {
     );
   } finally {
     isAddingWebsite.value = false;
+  }
+};
+
+const isManualDocument = doc =>
+  !doc.pdf_document && !!doc.external_link?.startsWith('Manual entry:');
+
+const handleAddManual = async () => {
+  if (!manualName.value.trim() || !manualContent.value.trim()) return;
+  isAddingManual.value = true;
+  try {
+    const response = await CaptainDocumentsAPI.create({
+      document: {
+        name: manualName.value.trim(),
+        content: manualContent.value.trim(),
+        assistant_id: assistantId.value,
+      },
+    });
+    documents.value = [response.data, ...documents.value];
+    manualName.value = '';
+    manualContent.value = '';
+    useAlert(t('AI_AGENT_SETTINGS.KNOWLEDGE.ADDED'));
+  } catch (error) {
+    useAlert(
+      error.response?.data?.message || t('AI_AGENT_SETTINGS.KNOWLEDGE.ADD_ERROR')
+    );
+  } finally {
+    isAddingManual.value = false;
   }
 };
 
@@ -171,6 +202,35 @@ onMounted(fetchAll);
 
     <div class="flex flex-col gap-2">
       <h3 class="text-sm font-medium text-n-slate-12">
+        {{ t('AI_AGENT_SETTINGS.KNOWLEDGE.ADD_MANUAL_TITLE') }}
+      </h3>
+      <Input
+        v-model="manualName"
+        :label="t('AI_AGENT_SETTINGS.KNOWLEDGE.NAME_LABEL')"
+        :placeholder="t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_NAME_PLACEHOLDER')"
+      />
+      <TextArea
+        v-model="manualContent"
+        :label="t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_CONTENT_LABEL')"
+        :placeholder="t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_CONTENT_PLACEHOLDER')"
+        :max-length="200000"
+        show-character-count
+        auto-height
+        min-height="6rem"
+        max-height="16rem"
+      />
+      <ButtonV4
+        solid
+        blue
+        class="self-start"
+        :is-loading="isAddingManual"
+        :label="t('AI_AGENT_SETTINGS.KNOWLEDGE.ADD_BUTTON')"
+        @click="handleAddManual"
+      />
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <h3 class="text-sm font-medium text-n-slate-12">
         {{ t('AI_AGENT_SETTINGS.KNOWLEDGE.LIST_TITLE') }}
       </h3>
       <p v-if="!documents.length" class="text-sm text-n-slate-11">
@@ -183,7 +243,13 @@ onMounted(fetchAll);
       >
         <div class="flex items-start gap-3 min-w-0">
           <Icon
-            :icon="doc.pdf_document ? 'i-lucide-file-text' : 'i-lucide-globe'"
+            :icon="
+              doc.pdf_document
+                ? 'i-lucide-file-text'
+                : isManualDocument(doc)
+                  ? 'i-lucide-pencil'
+                  : 'i-lucide-globe'
+            "
             class="size-5 flex-shrink-0 mt-0.5"
           />
           <div class="min-w-0">
@@ -191,14 +257,20 @@ onMounted(fetchAll);
               {{ doc.name }}
             </p>
             <p class="text-xs text-n-slate-11 truncate">
-              {{ doc.external_link || t('AI_AGENT_SETTINGS.KNOWLEDGE.PDF_LABEL') }}
+              {{
+                doc.pdf_document
+                  ? t('AI_AGENT_SETTINGS.KNOWLEDGE.PDF_LABEL')
+                  : isManualDocument(doc)
+                    ? t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_LABEL')
+                    : doc.external_link
+              }}
               <span v-if="doc.sync_status"> &middot; {{ doc.sync_status }}</span>
             </p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <ButtonV4
-            v-if="doc.external_link"
+            v-if="doc.external_link && !isManualDocument(doc)"
             sm
             faded
             slate

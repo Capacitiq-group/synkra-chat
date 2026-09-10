@@ -30,12 +30,19 @@ const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 
+// Synkra Chat V1: Copilot (Chatwoot's own agent-assist panel) isn't
+// offered yet - this stays independent of captain_integration itself,
+// which needs to stay on for the Synkra AI Agent (Business Brain /
+// Knowledge Base / Actions) to keep working.
+const isCopilotLauncherVisibleInV1 = false;
+
 const showCopilotLauncher = computed(() => {
   const isCaptainEnabled = isFeatureEnabledonAccount.value(
     currentAccountId.value,
     FEATURE_FLAGS.CAPTAIN
   );
   return (
+    isCopilotLauncherVisibleInV1 &&
     isCaptainEnabled &&
     !uiSettings.value.is_copilot_panel_open &&
     !isConversationRoute.value

@@ -14,8 +14,15 @@ const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 
-const showCopilotTab = computed(() =>
-  isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
+// Synkra Chat V1: Copilot isn't offered yet - kept independent of
+// captain_integration itself (needs to stay on for the Synkra AI
+// Agent). Same flag/reasoning as CopilotLauncher.vue.
+const isCopilotVisibleInV1 = false;
+
+const showCopilotTab = computed(
+  () =>
+    isCopilotVisibleInV1 &&
+    isFeatureEnabledonAccount.value(currentAccountId.value, FEATURE_FLAGS.CAPTAIN)
 );
 
 const { uiSettings } = useUISettings();

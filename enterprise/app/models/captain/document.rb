@@ -46,6 +46,7 @@ class Captain::Document < ApplicationRecord
   validate :validate_file_attachment, if: -> { pdf_file.attached? }
   before_validation :ensure_account_id
   before_validation :set_external_link_for_pdf
+  before_validation :set_external_link_for_manual_content
   before_validation :normalize_external_link
 
   enum status: {
@@ -216,6 +217,30 @@ class Captain::Document < ApplicationRecord
     # Format: PDF: filename_timestamp (without extension)
     timestamp = Time.current.strftime('%Y%m%d%H%M%S')
     self.external_link = "PDF: #{pdf_file.filename.base}_#{timestamp}"
+  end
+
+  # Handles 'type it in directly' documents - no crawl, no upload,
+  # just content the business owner typed or pasted straight into the
+  # knowledge base. external_link is NOT NULL at the DB level and
+  # required by validation for every non-PDF document, so this
+  # synthesizes one the same way set_external_link_for_pdf does above -
+  # it's never a real URL, just a stable, unique label.
+  #
+  # Also sets status directly to 'available' rather than the default
+  # 'in_progress': in_progress exists so enqueue_crawl_job knows there's
+  # a fetch still pending for a real URL. There's nothing to fetch here
+  # - the content already IS the content - so this skips the crawl step
+  # entirely (enqueue_crawl_job below already no-ops for anything not
+  # 'in_progress') and goes straight to available, which is what makes
+  # after_commit :enqueue_response_builder_job actually pick it up and
+  # build embeddings on this create.
+  def set_external_link_for_manual_content
+    return if pdf_file.attached?
+    return unless content.present? && external_link.blank?
+
+    timestamp = Time.current.strftime('%Y%m%d%H%M%S')
+    self.external_link = "Manual entry: #{name.presence || 'untitled'}_#{timestamp}"
+    self.status = 'available'
   end
 
   def normalize_external_link

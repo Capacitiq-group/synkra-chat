@@ -790,6 +790,7 @@
       "SYNC_HELP": "Website pages are automatically kept up to date on a regular schedule, or you can sync one manually below.",
       "ADD_PDF_TITLE": "Upload a document",
       "PDF_LABEL": "PDF document",
+      "DOCX_LABEL": "Word document",
       "ADD_MANUAL_TITLE": "Type it in directly",
       "MANUAL_NAME_PLACEHOLDER": "e.g. Return policy",
       "MANUAL_CONTENT_LABEL": "Content",

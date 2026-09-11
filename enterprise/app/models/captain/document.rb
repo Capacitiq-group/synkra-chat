@@ -30,6 +30,7 @@
 class Captain::Document < ApplicationRecord
   class LimitExceededError < StandardError; end
   SYNC_STALE_TIMEOUT = 2.hours
+  DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'.freeze
   self.table_name = 'captain_documents'
 
   belongs_to :assistant, class_name: 'Captain::Assistant'
@@ -41,11 +42,13 @@ class Captain::Document < ApplicationRecord
   validates :external_link, presence: true, unless: -> { pdf_file.attached? }
   validates :external_link, uniqueness: { scope: :assistant_id }, allow_blank: true
   validates :content, length: { maximum: 200_000 }
-  validates :pdf_file, presence: true, if: :pdf_document?
+  validates :pdf_file, presence: true, if: -> { pdf_document? || docx_document? }
   validate :validate_pdf_format, if: :pdf_document?
+  validate :validate_docx_format, if: :docx_document?
   validate :validate_file_attachment, if: -> { pdf_file.attached? }
   before_validation :ensure_account_id
   before_validation :set_external_link_for_pdf
+  before_validation :set_external_link_for_docx
   before_validation :set_external_link_for_manual_content
   before_validation :normalize_external_link
 
@@ -80,6 +83,13 @@ class Captain::Document < ApplicationRecord
     return true if external_link&.start_with?('PDF:')
 
     external_link&.ends_with?('.pdf')
+  end
+
+  def docx_document?
+    return true if pdf_file.attached? && pdf_file.blob.content_type == DOCX_CONTENT_TYPE
+    return true if external_link&.start_with?('DOCX:')
+
+    external_link&.ends_with?('.docx')
   end
 
   def content_type
@@ -202,6 +212,18 @@ class Captain::Document < ApplicationRecord
     errors.add(:pdf_file, I18n.t('captain.documents.pdf_format_error')) unless sniffed_type == 'application/pdf'
   end
 
+  def validate_docx_format
+    return unless pdf_file.attached?
+
+    # Same reasoning as validate_pdf_format above - sniff real bytes,
+    # don't trust the claimed content_type. Marcel distinguishes DOCX
+    # from other OOXML/zip formats (xlsx, pptx, plain zip) by
+    # inspecting the actual zip contents, not just the shared outer
+    # zip signature they all start with.
+    sniffed_type = pdf_file.blob.open { |file| Marcel::MimeType.for(file, name: pdf_file.filename.to_s) }
+    errors.add(:pdf_file, I18n.t('captain.documents.docx_format_error')) unless sniffed_type == DOCX_CONTENT_TYPE
+  end
+
   def validate_file_attachment
     return unless pdf_file.attached?
 
@@ -217,6 +239,14 @@ class Captain::Document < ApplicationRecord
     # Format: PDF: filename_timestamp (without extension)
     timestamp = Time.current.strftime('%Y%m%d%H%M%S')
     self.external_link = "PDF: #{pdf_file.filename.base}_#{timestamp}"
+  end
+
+  def set_external_link_for_docx
+    return unless pdf_file.attached? && external_link.blank?
+    return unless pdf_file.blob.content_type == DOCX_CONTENT_TYPE
+
+    timestamp = Time.current.strftime('%Y%m%d%H%M%S')
+    self.external_link = "DOCX: #{pdf_file.filename.base}_#{timestamp}"
   end
 
   # Handles 'type it in directly' documents - no crawl, no upload,

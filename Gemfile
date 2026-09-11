@@ -217,6 +217,17 @@ gem 'firecrawl-sdk', '~> 1.0', require: 'firecrawl'
 ### Gems required only in specific deployment environments ###
 ##############################################################
 
+# Synkra Chat: local text extraction for the AI Agent knowledge base
+# (PDF/DOCX -> text/markdown, feeding Captain::Document#content
+# directly instead of Chatwoot's own PDF pipeline, which uploads to
+# OpenAI's Files API and doesn't work against our self-hosted Ollama
+# setup). Pure-Ruby by design - no system binary dependency (no
+# poppler/pandoc), smaller security surface for parsing files
+# customers upload, at the cost of lower fidelity on complex/scanned
+# documents than a tool like pandoc would give.
+gem 'pdf-reader'
+gem 'docx'
+
 group :production do
   # we dont want request timing out in development while using byebug
   gem 'rack-timeout'

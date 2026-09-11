@@ -469,6 +469,7 @@ en:
     documents:
       limit_exceeded: 'Document limit exceeded'
       pdf_format_error: 'must be a PDF file'
+      docx_format_error: 'must be a Word (.docx) file'
       pdf_size_error: 'must be less than 10MB'
       sync_not_supported_for_pdf: 'Sync is not supported for PDF documents'
       sync_only_available_documents: 'Sync is only available for processed documents'

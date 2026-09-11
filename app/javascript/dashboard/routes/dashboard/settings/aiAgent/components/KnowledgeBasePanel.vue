@@ -72,6 +72,8 @@ const handleAddWebsite = async () => {
 const isManualDocument = doc =>
   !doc.pdf_document && !!doc.external_link?.startsWith('Manual entry:');
 
+const isDocxDocument = doc => !!doc.external_link?.startsWith('DOCX:');
+
 const handleAddManual = async () => {
   if (!manualName.value.trim() || !manualContent.value.trim()) return;
   isAddingManual.value = true;
@@ -193,7 +195,7 @@ onMounted(fetchAll);
       <input
         ref="fileInputRef"
         type="file"
-        accept="application/pdf"
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         class="text-sm text-n-slate-11"
         :disabled="isUploadingPdf"
         @change="handleFileSelected"
@@ -246,9 +248,11 @@ onMounted(fetchAll);
             :icon="
               doc.pdf_document
                 ? 'i-lucide-file-text'
-                : isManualDocument(doc)
-                  ? 'i-lucide-pencil'
-                  : 'i-lucide-globe'
+                : isDocxDocument(doc)
+                  ? 'i-lucide-file-text'
+                  : isManualDocument(doc)
+                    ? 'i-lucide-pencil'
+                    : 'i-lucide-globe'
             "
             class="size-5 flex-shrink-0 mt-0.5"
           />
@@ -260,9 +264,11 @@ onMounted(fetchAll);
               {{
                 doc.pdf_document
                   ? t('AI_AGENT_SETTINGS.KNOWLEDGE.PDF_LABEL')
-                  : isManualDocument(doc)
-                    ? t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_LABEL')
-                    : doc.external_link
+                  : isDocxDocument(doc)
+                    ? t('AI_AGENT_SETTINGS.KNOWLEDGE.DOCX_LABEL')
+                    : isManualDocument(doc)
+                      ? t('AI_AGENT_SETTINGS.KNOWLEDGE.MANUAL_LABEL')
+                      : doc.external_link
               }}
               <span v-if="doc.sync_status"> &middot; {{ doc.sync_status }}</span>
             </p>
@@ -270,7 +276,7 @@ onMounted(fetchAll);
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
           <ButtonV4
-            v-if="doc.external_link && !isManualDocument(doc)"
+            v-if="doc.external_link && !isManualDocument(doc) && !isDocxDocument(doc) && !doc.pdf_document"
             sm
             faded
             slate

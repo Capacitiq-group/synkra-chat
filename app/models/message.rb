@@ -336,7 +336,20 @@ class Message < ApplicationRecord
     subscription = synkra_subscription_for_billing
     return if subscription.nil? # fail open, see above
 
-    errors.add(:base, 'This account is restricted - outbound messages are paused until billing is resolved') if subscription.outbound_blocked?
+    if subscription.outbound_blocked?
+      errors.add(:base, 'This account is restricted - outbound messages are paused until billing is resolved')
+    elsif subscription.allowance_exhausted?
+      # Deliberately distinct from outbound_blocked? above: this is a
+      # volume cap, not a payment failure, so subscription.status
+      # never changes here - the account is still fully paid up and
+      # active, it's just used its plan's message allowance for this
+      # period. Inbound messages and internal notes are still
+      # completely unaffected either way (billable_outgoing_message?
+      # already excludes them) - staff can see everything coming in,
+      # they just have to reply outside the platform (email, etc.)
+      # until the period rolls over or they upgrade.
+      errors.add(:base, "This account has used its #{subscription.plan_config[:name]} plan's message allowance for this period - upgrade your plan or wait for it to renew to keep replying through the platform")
+    end
   end
 
   def record_synkra_usage_event

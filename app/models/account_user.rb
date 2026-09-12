@@ -43,6 +43,7 @@ class AccountUser < ApplicationRecord
   after_update_commit :invalidate_filtered_unread_count_visibility_update, if: :filtered_unread_count_visibility_changed?
 
   validates :user_id, uniqueness: { scope: :account_id }
+  validate :ensure_within_synkra_seat_limit, on: :create
 
   def create_notification_setting
     setting = user.notification_settings.new(account_id: account.id)
@@ -69,6 +70,27 @@ class AccountUser < ApplicationRecord
   end
 
   private
+
+  # Synkra Chat: per-plan seat limit. Only runs on create - changing
+  # an existing agent's role/availability/capacity policy should never
+  # get blocked by a seat count that was already fine when they were
+  # first added. Fails open (never blocks adding an agent) if the
+  # subscription can't be resolved for any reason - same philosophy as
+  # Message's billing enforcement: a billing-infrastructure hiccup
+  # should never lock a business out of its own team management.
+  def ensure_within_synkra_seat_limit
+    subscription = account.synkra_subscription
+    return if subscription.nil?
+
+    limit = subscription.plan_config[:staff_limit].to_i
+    return if limit <= 0 # no limit configured - fail open, not closed
+
+    return if account.account_users.count < limit
+
+    errors.add(:base, "This account's #{subscription.plan_config[:name]} plan allows up to #{limit} seats - upgrade your plan to add more")
+  rescue StandardError => e
+    Rails.logger.error "[SynkraBilling] Could not check seat limit for account #{account_id}: #{e.message}"
+  end
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(AGENT_ADDED, Time.zone.now, account: account)

@@ -93,6 +93,8 @@
   - Backend i18n → `en.yml`, Frontend i18n → `en.json`
 - **Frontend**:
   - Use `components-next/` for message bubbles (the rest is being deprecated)
+- **Automations (Chat ↔ Flow bridge)**:
+  - See `docs/synkra/automations-flow-bridge.md` for the full design. Never call this feature "Flow" or "Connect to Flow" in any user-facing string — it's "Automations", deliberately.
 
 ## Ruby Best Practices
 

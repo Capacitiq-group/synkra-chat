@@ -355,6 +355,7 @@
     "TEAMS": "Teams",
     "BILLING": "Billing",
     "AI_AGENT": "AI Agent",
+    "AUTOMATIONS": "Automations",
     "CUSTOM_VIEWS_FOLDER": "Folders",
     "CUSTOM_VIEWS_SEGMENTS": "Segments",
     "ALL_CONTACTS": "All Contacts",
@@ -700,6 +701,23 @@
       "PLAN_SCHEDULED": "Your plan change has been scheduled for the end of the current period.",
       "CANCELLED": "Your subscription has been scheduled for cancellation.",
       "RESUMED": "Your subscription has been resumed."
+    }
+  },
+  "AUTOMATIONS_SETTINGS": {
+    "TITLE": "Automations",
+    "DESCRIPTION": "Usage for the automations powering your AI agent and workflows.",
+    "LOADING": "Loading your automations usage...",
+    "PROVISIONING": "Setting up your automations - this usually takes a few seconds.",
+    "USAGE": {
+      "TITLE": "Usage this period",
+      "DESCRIPTION": "Shared across your AI agent replies and workflow automations.",
+      "AI_OPS": "AI operations",
+      "AI_OPS_ADDON_ONLY": "Your plan doesn't include AI operations - purchase add-on credits to use automations.",
+      "EMAILS": "Emails",
+      "EMAILS_ADDON_ONLY": "Your plan doesn't include emails - purchase add-on credits to send them."
+    },
+    "ERRORS": {
+      "FETCH": "Couldn't load your automations usage. Please refresh and try again."
     }
   },
   "AI_AGENT_SETTINGS": {

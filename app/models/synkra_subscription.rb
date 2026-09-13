@@ -1,7 +1,12 @@
 # Synkra Chat's own billing subscription - one per account. Deliberately
-# separate from Chatwoot's own billing concepts and from Flow's billing
-# (no cross-subsidy between products; connecting Flow just consumes the
-# business's own separate Flow subscription).
+# separate from Chatwoot's own billing concepts. Flow itself is a
+# separate product with its own billing (no cross-subsidy of the
+# Rand-value Paystack subscription below), but as of the "Automations"
+# bridge (12 Sep 2026) this account's usage of Flow's AI-ops/email
+# credits is NOT a separate Flow subscription the business holds - it's
+# a single shared balance on an auto-provisioned Flow shadow user this
+# account never sees or logs into. See Automations::FlowClient and
+# synkra-core/services/chat_shadow.py for the full design.
 class SynkraSubscription < ApplicationRecord
   STATUSES = %w[active past_due restricted cancelled].freeze
   # How long a failed payment gets to resolve (retries + reminders)
@@ -10,6 +15,8 @@ class SynkraSubscription < ApplicationRecord
   GRACE_PERIOD = 5.days
 
   belongs_to :account
+
+  encrypts :flow_api_key if Chatwoot.encryption_configured?
 
   validates :plan, inclusion: { in: SynkraPlan.names }
   validates :status, inclusion: { in: STATUSES }
@@ -131,6 +138,7 @@ class SynkraSubscription < ApplicationRecord
 
     if plan_rank(new_plan) > plan_rank(plan)
       update!(plan: new_plan, pending_plan: nil)
+      sync_flow_plan!(new_plan)
     else
       update!(pending_plan: new_plan)
     end
@@ -139,10 +147,31 @@ class SynkraSubscription < ApplicationRecord
   def apply_pending_plan_change!
     return if pending_plan.blank?
 
-    update!(plan: pending_plan, pending_plan: nil)
+    new_plan = pending_plan
+    update!(plan: new_plan, pending_plan: nil)
+    sync_flow_plan!(new_plan)
+  end
+
+  # Automations tab reads this - a thin passthrough to Flow's own
+  # included/used numbers for this account's shadow user, never a
+  # locally cached copy (see module comment: one shared balance).
+  def automations_credits
+    Automations::FlowClient.new(self).credits
   end
 
   private
+
+  # Best-effort, async, and never allowed to raise into the caller -
+  # a plan change must always succeed locally even if Flow is briefly
+  # unreachable. Automations::SyncFlowPlanJob retries with backoff; if
+  # it exhausts retries it logs rather than silently losing the sync -
+  # there is no separate reconciliation sweep yet, so a permanently
+  # failed sync stays out of sync until the next plan change touches
+  # it. Worth building a periodic reconciler if this proves not rare
+  # enough in practice.
+  def sync_flow_plan!(new_plan)
+    Automations::SyncFlowPlanJob.perform_later(account_id, new_plan)
+  end
 
   def plan_rank(plan_key)
     SynkraPlan.names.index(plan_key.to_s) || 0

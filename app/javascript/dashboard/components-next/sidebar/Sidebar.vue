@@ -1015,6 +1015,12 @@ const menuItems = computed(() => {
             ]
           : []),
         {
+          name: 'Settings Automations',
+          label: t('SIDEBAR.AUTOMATIONS'),
+          icon: 'i-lucide-zap',
+          to: accountScopedRoute('automations_settings_index'),
+        },
+        {
           name: 'Settings AI Agent',
           label: t('SIDEBAR.AI_AGENT'),
           icon: 'i-lucide-bot',

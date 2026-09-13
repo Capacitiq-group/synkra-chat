@@ -49,9 +49,15 @@ const cancelDialogRef = ref(null);
 // static catalogue here is simpler than building one. IMPORTANT:
 // prices/codes come from the real Plan objects on Paystack's own
 // dashboard (source of truth) - keep these in sync with synkra_plan.rb.
-// Message/seat numbers are still unconfirmed placeholders (Refilwe
+// This duplication is a real drift risk - currently in sync (checked
+// 13 Sep 2026) but nothing enforces that.
+// Message/seat numbers are STILL unconfirmed placeholders (Refilwe
 // confirmed "we cap volume, not features" but hasn't given exact
-// numbers per tier) and aren't enforced anywhere today either way.
+// numbers per tier) - see synkra_plan.rb's header comment. CORRECTED
+// 13 Sep 2026: they ARE enforced now (backend, since the 12 Sep
+// "Enforce message and seat limits per plan" commit - not yet
+// deployed as of this comment) - this comment previously said
+// otherwise and was stale.
 const PLAN_CATALOGUE = [
   {
     key: 'free',

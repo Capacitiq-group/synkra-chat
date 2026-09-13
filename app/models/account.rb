@@ -212,6 +212,12 @@ class Account < ApplicationRecord
       sub.current_period_start = Time.current
       sub.current_period_end = 1.month.from_now
     end
+    # "Automations" (Chat<->Flow bridge, 12 Sep 2026) - provisions a
+    # Flow shadow client for every account on creation, not lazily on
+    # first use. Async: this must never slow down or fail account
+    # signup if Flow is briefly unreachable. See
+    # Automations::ProvisionFlowJob and Automations::FlowClient.
+    Automations::ProvisionFlowJob.perform_later(id)
   end
 
   def clear_unread_conversation_counts_cache

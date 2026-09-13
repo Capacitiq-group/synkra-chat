@@ -395,6 +395,9 @@ Rails.application.routes.draw do
               post :resume
             end
           end
+          namespace :automations do
+            resource :credits, only: [:show], controller: 'credits'
+          end
           namespace :integrations do
             resources :apps, only: [:index, :show]
             resources :hooks, only: [:show, :create, :update, :destroy] do

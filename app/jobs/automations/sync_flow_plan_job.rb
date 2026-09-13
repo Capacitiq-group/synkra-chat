@@ -18,9 +18,15 @@ class Automations::SyncFlowPlanJob < ApplicationJob
       chat_plan: chat_plan
     )
 
-    return if result.success?
+    unless result.success?
+      Rails.logger.error("Automations::SyncFlowPlanJob failed for account #{account.id} (plan=#{chat_plan}): #{result.error}")
+      raise SyncError, result.error.to_s
+    end
 
-    Rails.logger.error("Automations::SyncFlowPlanJob failed for account #{account.id} (plan=#{chat_plan}): #{result.error}")
-    raise SyncError, result.error.to_s
+    # Only stamp if the subscription's plan is STILL what we just synced -
+    # another change could have landed while this job was running/retrying,
+    # in which case that later change (and its own sync job) is the one
+    # that should get to claim "synced".
+    subscription.update!(flow_plan_synced_at: Time.current) if subscription.reload.plan == chat_plan
   end
 end

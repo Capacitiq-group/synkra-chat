@@ -84,3 +84,20 @@ synkra_billing_grace_period_job:
   cron: '0 * * * *'
   class: 'Billing::RestrictOverdueSubscriptionsJob'
   queue: scheduled_jobs
+
+# executed hourly
+# Automations (Chat<->Flow bridge): self-heals a plan sync that never
+# landed on Flow - see Automations::ReconcileFlowPlanJob and
+# SynkraSubscription#plan_sync_stale?.
+automations_reconcile_flow_plan_job:
+  cron: '15 * * * *'
+  class: 'Automations::ReconcileFlowPlanJob'
+  queue: scheduled_jobs
+
+# executed hourly
+# Automations (Chat<->Flow bridge): self-heals shadow-client provisioning
+# that never landed on Flow - see Automations::RetryStuckProvisioningJob.
+automations_retry_stuck_provisioning_job:
+  cron: '45 * * * *'
+  class: 'Automations::RetryStuckProvisioningJob'
+  queue: scheduled_jobs

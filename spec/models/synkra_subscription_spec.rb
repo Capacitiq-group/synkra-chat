@@ -88,4 +88,151 @@ RSpec.describe SynkraSubscription do
       subscription.automations_credits
     end
   end
+
+  describe '#effective_seat_limit' do
+    it 'is the plan staff_limit plus purchased extra seats' do
+      subscription.update!(plan: 'starter', purchased_extra_seats: 3)
+      expect(subscription.effective_seat_limit).to eq(7 + 3)
+    end
+  end
+
+  describe '#purchase_extra_seats!' do
+    it 'rejects a non-positive quantity without calling Paystack' do
+      expect(Billing::PaystackService).not_to receive(:new)
+      result = subscription.purchase_extra_seats!(0)
+      expect(result.success?).to be false
+    end
+
+    it 'rejects when there is no card on file' do
+      subscription.update!(paystack_authorization_code: nil)
+      expect(Billing::PaystackService).not_to receive(:new)
+      result = subscription.purchase_extra_seats!(2)
+      expect(result.success?).to be false
+      expect(result.error).to match(/No card on file/)
+    end
+
+    it 'charges quantity * EXTRA_SEAT_PRICE_ZAR and increments the seat count on success' do
+      subscription.update!(paystack_authorization_code: 'AUTH_123', purchased_extra_seats: 1)
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      expect(paystack).to receive(:charge_authorization)
+        .with(hash_including(amount_zar: 2 * SynkraPlan::EXTRA_SEAT_PRICE_ZAR, authorization_code: 'AUTH_123'))
+        .and_return(Billing::PaystackService::Result.new(success?: true, data: {}))
+
+      expect { subscription.purchase_extra_seats!(2) }
+        .to change { subscription.reload.purchased_extra_seats }.from(1).to(3)
+    end
+
+    it 'does not increment the seat count when the charge fails' do
+      subscription.update!(paystack_authorization_code: 'AUTH_123', purchased_extra_seats: 1)
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      allow(paystack).to receive(:charge_authorization)
+        .and_return(Billing::PaystackService::Result.new(success?: false, error: 'card declined'))
+
+      expect { subscription.purchase_extra_seats!(2) }
+        .not_to(change { subscription.reload.purchased_extra_seats })
+    end
+  end
+
+  describe '#bill_extra_seats_for_renewal!' do
+    before { subscription.update!(paystack_authorization_code: 'AUTH_123', purchased_extra_seats: 4) }
+
+    it 'does nothing when there are no purchased extra seats' do
+      subscription.update!(purchased_extra_seats: 0)
+      expect(Billing::PaystackService).not_to receive(:new)
+      subscription.bill_extra_seats_for_renewal!('txn_ref_1')
+    end
+
+    it 'does nothing without a reference, rather than risk an unguarded charge' do
+      expect(Billing::PaystackService).not_to receive(:new)
+      subscription.bill_extra_seats_for_renewal!(nil)
+    end
+
+    it 'charges for the FULL current seat count (not an increment) and stamps the reference' do
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      expect(paystack).to receive(:charge_authorization)
+        .with(hash_including(amount_zar: 4 * SynkraPlan::EXTRA_SEAT_PRICE_ZAR))
+        .and_return(Billing::PaystackService::Result.new(success?: true, data: {}))
+
+      subscription.bill_extra_seats_for_renewal!('txn_ref_1')
+      expect(subscription.reload.extra_seats_billed_for_reference).to eq('txn_ref_1')
+    end
+
+    it 'is idempotent - a redelivered webhook for the same renewal never charges twice' do
+      subscription.update!(extra_seats_billed_for_reference: 'txn_ref_1')
+      expect(Billing::PaystackService).not_to receive(:new)
+
+      subscription.bill_extra_seats_for_renewal!('txn_ref_1')
+    end
+
+    it 'charges again for a genuinely new renewal (different reference)' do
+      subscription.update!(extra_seats_billed_for_reference: 'txn_ref_1')
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      expect(paystack).to receive(:charge_authorization)
+        .and_return(Billing::PaystackService::Result.new(success?: true, data: {}))
+
+      subscription.bill_extra_seats_for_renewal!('txn_ref_2')
+      expect(subscription.reload.extra_seats_billed_for_reference).to eq('txn_ref_2')
+    end
+
+    it 'fails open - a failed charge never removes seats the business already has' do
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      allow(paystack).to receive(:charge_authorization)
+        .and_return(Billing::PaystackService::Result.new(success?: false, error: 'card declined'))
+
+      expect { subscription.bill_extra_seats_for_renewal!('txn_ref_1') }
+        .not_to(change { subscription.reload.purchased_extra_seats })
+      expect(subscription.reload.extra_seats_billed_for_reference).to be_nil
+    end
+  end
+
+  describe '#allowance_exhausted? and purchased message credits' do
+    it 'is false while the plan allowance still has room, regardless of purchased credits' do
+      allow(subscription).to receive(:business_initiated_messages_used).and_return(0)
+      subscription.update!(purchased_message_credits: 0)
+      expect(subscription).not_to be_allowance_exhausted
+    end
+
+    it 'is false once the plan allowance is used up if purchased credits remain' do
+      allow(subscription).to receive(:plan_allowance_exhausted?).and_return(true)
+      subscription.update!(purchased_message_credits: 10)
+      expect(subscription).not_to be_allowance_exhausted
+    end
+
+    it 'is true only once both the plan allowance AND purchased credits are exhausted' do
+      allow(subscription).to receive(:plan_allowance_exhausted?).and_return(true)
+      subscription.update!(purchased_message_credits: 0)
+      expect(subscription).to be_allowance_exhausted
+    end
+  end
+
+  describe '#consume_purchased_message_credit_if_over_plan_allowance!' do
+    it 'does not touch the purchased balance while plan allowance remains' do
+      allow(subscription).to receive(:plan_allowance_exhausted?).and_return(false)
+      subscription.update!(purchased_message_credits: 5)
+
+      expect { subscription.consume_purchased_message_credit_if_over_plan_allowance! }
+        .not_to(change { subscription.reload.purchased_message_credits })
+    end
+
+    it 'decrements the purchased balance by one once the plan allowance is exhausted' do
+      allow(subscription).to receive(:plan_allowance_exhausted?).and_return(true)
+      subscription.update!(purchased_message_credits: 5)
+
+      expect { subscription.consume_purchased_message_credit_if_over_plan_allowance! }
+        .to change { subscription.reload.purchased_message_credits }.from(5).to(4)
+    end
+
+    it 'never goes negative' do
+      allow(subscription).to receive(:plan_allowance_exhausted?).and_return(true)
+      subscription.update!(purchased_message_credits: 0)
+
+      expect { subscription.consume_purchased_message_credit_if_over_plan_allowance! }
+        .not_to(change { subscription.reload.purchased_message_credits })
+    end
+  end
 end

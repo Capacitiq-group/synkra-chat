@@ -35,29 +35,60 @@ class SynkraSubscription < ApplicationRecord
     plan_config[:staff_limit].to_i + purchased_extra_seats
   end
 
-  # Charges for and grants N extra seats immediately - see
-  # Billing::ExtraSeatsController for the important caveat: this
-  # builds the ONE-TIME charge for adding seats now. It does NOT build
-  # automatic monthly re-billing at each renewal - that needs live
-  # Paystack verification before it can be trusted with recurring
-  # money movement, and hasn't had it yet.
+  # Charges for and grants N extra seats immediately, on top of
+  # whatever is already purchased. This is a one-time charge covering
+  # from now until the account's next plan renewal (NOT a fresh
+  # month) - see bill_extra_seats_for_renewal! below for the recurring
+  # side. KNOWN LIMITATION, not fixed here: if seats are purchased
+  # mid-period, this charges a full EXTRA_SEAT_PRICE_ZAR now, and the
+  # very next renewal (which could be only days later) bills the full
+  # amount again for the new period - there is no proration. Refilwe
+  # flagged this as a real open decision (prorate the first charge?
+  # something else?), not a bug to silently paper over with a guessed
+  # formula.
   def purchase_extra_seats!(quantity)
-    result_class = Billing::PaystackService::Result
-    return result_class.new(success?: false, error: 'Quantity must be positive') if quantity.to_i <= 0
-    if paystack_authorization_code.blank?
-      return result_class.new(success?: false, error: 'No card on file - complete a plan checkout first')
-    end
+    return invalid_seat_purchase_result('Quantity must be positive') if quantity.to_i <= 0
+    return invalid_seat_purchase_result('No card on file - complete a plan checkout first') if paystack_authorization_code.blank?
 
-    amount = quantity.to_i * SynkraPlan::EXTRA_SEAT_PRICE_ZAR
-    result = Billing::PaystackService.new.charge_authorization(
-      email: account.administrators.first&.email || account.users.first&.email,
-      amount_zar: amount,
-      authorization_code: paystack_authorization_code,
-      metadata: { synkra_account_id: account_id, purchase_type: 'extra_seats', quantity: quantity.to_i }
-    )
+    result = charge_for_extra_seats(quantity.to_i, purchase_type_metadata: 'extra_seats')
     return result unless result.success?
 
     increment!(:purchased_extra_seats, quantity.to_i)
+    result
+  end
+
+  # The recurring side: re-bills the FULL current purchased_extra_seats
+  # count (not an increment) every plan renewal, so the charge stays
+  # aligned to the same billing cycle as the base plan price. Called
+  # from Billing::PaystackWebhookHandler#bill_extra_seats_for_renewal
+  # as part of handling the plan's own charge.success renewal event -
+  # never called directly from a controller.
+  #
+  # reference is the RENEWAL charge's own Paystack transaction
+  # reference (not this seat charge's) - it's the idempotency key.
+  # Paystack redelivers webhooks on retry, and a redelivered webhook
+  # for the same renewal must NEVER charge the card twice for seats -
+  # unlike start_new_period!, which merely resets a clock and is
+  # harmless to re-run, charge_authorization moves real money.
+  def bill_extra_seats_for_renewal!(reference)
+    return if purchased_extra_seats <= 0
+    return if reference.blank? # can't safely guarantee idempotency without one - skip rather than risk a double charge
+    return if extra_seats_billed_for_reference == reference # already billed for this exact renewal event
+
+    result = charge_for_extra_seats(purchased_extra_seats, purchase_type_metadata: 'extra_seats')
+    if result.success?
+      update!(extra_seats_billed_for_reference: reference)
+    else
+      # Fails open, matching this codebase's established philosophy
+      # (Message/AccountUser billing enforcement) - a failed recurring
+      # seat charge must never lock the business out of the seats they
+      # already have. There is currently no dunning/retry mechanism
+      # specific to extra seats (unlike the base plan, which has
+      # Billing::RestrictOverdueSubscriptionsJob) - a permanently
+      # failing card silently keeps granting the seats. Worth revisiting
+      # if this proves to matter in practice.
+      Rails.logger.error("[SynkraBilling] Extra-seat renewal charge failed for account #{account_id}: #{result.error}")
+    end
     result
   end
 
@@ -248,6 +279,25 @@ class SynkraSubscription < ApplicationRecord
 
   def plan_rank(plan_key)
     SynkraPlan.names.index(plan_key.to_s) || 0
+  end
+
+  # Shared by purchase_extra_seats! (charges for a quantity being
+  # added) and bill_extra_seats_for_renewal! (charges for the full
+  # current count, every period) - same underlying Paystack call,
+  # different amount semantics, so kept as separate public methods
+  # with this as their common plumbing.
+  def charge_for_extra_seats(seat_count, purchase_type_metadata:)
+    amount = seat_count * SynkraPlan::EXTRA_SEAT_PRICE_ZAR
+    Billing::PaystackService.new.charge_authorization(
+      email: account.administrators.first&.email || account.users.first&.email,
+      amount_zar: amount,
+      authorization_code: paystack_authorization_code,
+      metadata: { synkra_account_id: account_id, purchase_type: purchase_type_metadata, quantity: seat_count }
+    )
+  end
+
+  def invalid_seat_purchase_result(message)
+    Billing::PaystackService::Result.new(success?: false, error: message)
   end
 
   def set_default_period

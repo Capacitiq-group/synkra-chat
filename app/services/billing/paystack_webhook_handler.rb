@@ -34,6 +34,22 @@ class Billing::PaystackWebhookHandler
   end
 
   def handle_charge_success
+    # Message add-on and extra-seat purchases are one-time/on-demand
+    # charges, NOT a plan renewal - they must never fall through into
+    # the subscription lifecycle logic below (mark_active!,
+    # start_new_period!, apply_pending_plan_change! would all be wrong
+    # here). Extra seats specifically: purchase_extra_seats! already
+    # completes synchronously via charge_authorization's direct API
+    # response and grants the seats immediately - this webhook for
+    # that same charge is a pure no-op, not a second completion step.
+    purchase_type = @data.dig('metadata', 'purchase_type')
+    if purchase_type == 'message_addon'
+      handle_message_addon_purchase
+      return
+    elsif purchase_type == 'extra_seats'
+      return
+    end
+
     subscription = find_subscription
     return if subscription.nil?
 
@@ -49,6 +65,27 @@ class Billing::PaystackWebhookHandler
 
     subscription.start_new_period!
     subscription.apply_pending_plan_change!
+  end
+
+  # Credits MessageAddonPurchase#units onto the subscription's
+  # purchased_message_credits balance - see
+  # SynkraSubscription#consume_purchased_message_credit_if_over_plan_allowance!
+  # for how it's spent. Idempotent: Paystack can and does redeliver
+  # webhooks, and completed is a one-way state, so a duplicate
+  # charge.success for the same reference is a no-op rather than
+  # double-crediting.
+  def handle_message_addon_purchase
+    reference = @data['reference']
+    return if reference.blank?
+
+    purchase = MessageAddonPurchase.find_by(paystack_reference: reference)
+    return if purchase.nil? || purchase.status == 'completed'
+
+    ActiveRecord::Base.transaction do
+      purchase.update!(status: 'completed')
+      subscription = SynkraSubscription.find_by(account_id: purchase.account_id)
+      subscription&.increment!(:purchased_message_credits, purchase.units)
+    end
   end
 
   # Stores the card/direct-debit authorization from this charge so a

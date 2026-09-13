@@ -27,6 +27,40 @@ class SynkraSubscription < ApplicationRecord
     SynkraPlan.find(plan)
   end
 
+  # The plan's own staff_limit plus any purchased extra seats
+  # (SynkraPlan::EXTRA_SEAT_PRICE_ZAR/seat/month) - see
+  # AccountUser#ensure_within_synkra_seat_limit, which is the actual
+  # enforcement point.
+  def effective_seat_limit
+    plan_config[:staff_limit].to_i + purchased_extra_seats
+  end
+
+  # Charges for and grants N extra seats immediately - see
+  # Billing::ExtraSeatsController for the important caveat: this
+  # builds the ONE-TIME charge for adding seats now. It does NOT build
+  # automatic monthly re-billing at each renewal - that needs live
+  # Paystack verification before it can be trusted with recurring
+  # money movement, and hasn't had it yet.
+  def purchase_extra_seats!(quantity)
+    result_class = Billing::PaystackService::Result
+    return result_class.new(success?: false, error: 'Quantity must be positive') if quantity.to_i <= 0
+    if paystack_authorization_code.blank?
+      return result_class.new(success?: false, error: 'No card on file - complete a plan checkout first')
+    end
+
+    amount = quantity.to_i * SynkraPlan::EXTRA_SEAT_PRICE_ZAR
+    result = Billing::PaystackService.new.charge_authorization(
+      email: account.administrators.first&.email || account.users.first&.email,
+      amount_zar: amount,
+      authorization_code: paystack_authorization_code,
+      metadata: { synkra_account_id: account_id, purchase_type: 'extra_seats', quantity: quantity.to_i }
+    )
+    return result unless result.success?
+
+    increment!(:purchased_extra_seats, quantity.to_i)
+    result
+  end
+
   def active?
     status == 'active'
   end
@@ -73,8 +107,37 @@ class SynkraSubscription < ApplicationRecord
     [business_initiated_messages_used.to_f / allowance, 1.0].min
   end
 
-  def allowance_exhausted?
+  # The plan's own period allowance only - deliberately NOT including
+  # purchased_message_credits. Usage-warning emails (next_unnotified_threshold
+  # below) are about "you're approaching your plan's included amount",
+  # which stays meaningful regardless of whether a safety-net add-on
+  # balance exists. Message#enforce_synkra_billing_restriction uses the
+  # separate allowance_exhausted? below (which DOES consider purchased
+  # credits) to decide whether to actually block sending.
+  def plan_allowance_exhausted?
     business_initiated_messages_used >= business_initiated_message_allowance
+  end
+
+  # True only once there is genuinely nothing left to send with - the
+  # plan's period allowance AND any purchased add-on credit
+  # (Billing::MessageAddonPack) are both exhausted. This is what
+  # actually blocks sending; plan_allowance_exhausted? alone does not.
+  def allowance_exhausted?
+    plan_allowance_exhausted? && purchased_message_credits <= 0
+  end
+
+  # Draws down the purchased add-on balance by one, but ONLY once the
+  # plan's own period allowance is used up - a business should never
+  # burn a paid-for add-on credit while they still have free plan
+  # allowance left. Call this after a message is confirmed sent (see
+  # Message#record_synkra_usage_event), not before - it must reflect
+  # the allowance state at the moment the message actually went
+  # through, not a pre-check.
+  def consume_purchased_message_credit_if_over_plan_allowance!
+    return unless plan_allowance_exhausted?
+    return if purchased_message_credits <= 0
+
+    decrement!(:purchased_message_credits)
   end
 
   # Returns the threshold (0.7/0.9/1.0) that should trigger a

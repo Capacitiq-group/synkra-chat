@@ -82,12 +82,12 @@ class AccountUser < ApplicationRecord
     subscription = account.synkra_subscription
     return if subscription.nil?
 
-    limit = subscription.plan_config[:staff_limit].to_i
+    limit = subscription.effective_seat_limit
     return if limit <= 0 # no limit configured - fail open, not closed
 
     return if account.account_users.count < limit
 
-    errors.add(:base, "This account's #{subscription.plan_config[:name]} plan allows up to #{limit} seats - upgrade your plan to add more")
+    errors.add(:base, "This account's #{subscription.plan_config[:name]} plan allows up to #{limit} seats - upgrade your plan or buy extra seats to add more")
   rescue StandardError => e
     Rails.logger.error "[SynkraBilling] Could not check seat limit for account #{account_id}: #{e.message}"
   end

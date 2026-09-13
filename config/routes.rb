@@ -394,6 +394,8 @@ Rails.application.routes.draw do
               post :cancel
               post :resume
             end
+            resources :message_addons, only: %i[index create]
+            resources :extra_seats, only: [:create]
           end
           namespace :automations do
             resource :credits, only: [:show], controller: 'credits'

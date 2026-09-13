@@ -51,6 +51,33 @@ class Automations::FlowClient
     handle_response(response)
   end
 
+  # --- Internal, secret-authed: ops key management ---
+  # No customer-facing equivalent exists on purpose - a business never
+  # manages its own Automations key (see the module comment). These
+  # exist for support/incident response (e.g. a key needs revoking) -
+  # see lib/tasks/automations.rake.
+
+  def add_key!(chat_account_id:)
+    return Result.new(success?: false, error: 'CHAT_SHARED_SECRET is not configured') unless configured?
+
+    response = internal_connection.post("/internal/chat-accounts/#{chat_account_id}/keys")
+    handle_response(response)
+  end
+
+  def list_keys(chat_account_id:)
+    return Result.new(success?: false, error: 'CHAT_SHARED_SECRET is not configured') unless configured?
+
+    response = internal_connection.get("/internal/chat-accounts/#{chat_account_id}/keys")
+    handle_response(response)
+  end
+
+  def revoke_key!(chat_account_id:, key_id:)
+    return Result.new(success?: false, error: 'CHAT_SHARED_SECRET is not configured') unless configured?
+
+    response = internal_connection.delete("/internal/chat-accounts/#{chat_account_id}/keys/#{key_id}")
+    handle_response(response)
+  end
+
   # --- Per-account, key-authed ---
 
   def credits

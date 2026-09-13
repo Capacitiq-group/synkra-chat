@@ -47,7 +47,18 @@ Two requirements drove the design (Refilwe, 12 Sep 2026):
   one business's shadow user, nothing else in Flow.
 - Plan changes (`SynkraSubscription#change_plan!` /
   `#apply_pending_plan_change!`) push the new plan to Flow asynchronously
-  via `Automations::SyncFlowPlanJob`, which flips the shadow user's `tier`.
+  via `Automations::SyncFlowPlanJob`, which flips the shadow user's `tier`
+  and stamps `flow_plan_synced_at`.
+- Two hourly sweeps self-heal jobs that exhausted their retries or never
+  ran (process died mid-flight): `Automations::ReconcileFlowPlanJob`
+  re-syncs any subscription where `plan_sync_stale?` is true (compares
+  `flow_plan_synced_at` against the dedicated `plan_changed_at` column,
+  deliberately not the generic `updated_at` — see the migration comment
+  for why that would be racy), and `Automations::RetryStuckProvisioningJob`
+  retries provisioning for any account still unprovisioned 2+ hours after
+  creation. Both registered in `config/schedule.yml`.
+- Ops-only key rotation/revocation lives in `lib/tasks/automations.rake` -
+  no customer-facing equivalent, on purpose.
 
 ## Tier mapping
 
@@ -80,7 +91,25 @@ documented in `synkra-client-hub/POCKETBASE_COLLECTIONS.md`:
 These collections must be created by hand in the PocketBase admin
 (`pb.synkra.co.za`) — there's no migration tooling for PocketBase in this
 stack; `pb_schema.json` is the reference, not something applied
-automatically.
+automatically. **Except:** `synkra-client-hub` already has a deploy-time
+seeding script (`scripts/seed-pocketbase.mjs`) that applies the full
+`pb_schema.json` (`collections` array + `userFields`) idempotently —
+creating missing collections, adding missing fields/indexes, never
+touching what already exists. Checked: it is NOT currently wired into any
+CI/CD step in this repo (no package.json script, no workflow references
+it) — it has to be run by hand. It also does two other things beyond
+schema (touches the `SEED_OWNER_EMAIL` portal user's profile/password and
+syncs workflow templates), so running it isn't schema-only — read the
+script header before running in production:
+
+```bash
+cd synkra-client-hub
+POCKETBASE_URL=https://pb.synkra.co.za \
+PB_ADMIN_EMAIL=<existing superuser email> \
+PB_ADMIN_PASSWORD=<existing superuser password> \
+SEED_OWNER_PASSWORD=<the real owner password, or this run will overwrite it> \
+node scripts/seed-pocketbase.mjs
+```
 
 ## Env vars
 
@@ -89,17 +118,18 @@ automatically.
   secret.
 - `FLOW_API_BASE_URL` — defaults to `https://api.synkra.co.za`.
 
-## Known gaps (as of 12 Sep 2026, not yet deployed)
+## Known gaps (as of 13 Sep 2026, not yet deployed)
 
-- No periodic reconciliation sweep if `Automations::SyncFlowPlanJob`
-  exhausts its retries — a permanently failed plan sync stays stale until
-  the next plan change touches that account. Worth building if this turns
-  out not to be rare in practice.
-- The credits endpoint's frontend UI (an actual "Automations" tab a
-  business sees) hasn't been built yet — only the backend
-  (`Api::V1::Accounts::Automations::CreditsController`) exists so far.
-- No tests written yet for any of `Automations::*`.
-- Whether a business can request an additional key or needs to revoke one
-  is currently only exposed via `synkra-core`'s internal
-  (`/internal/chat-accounts/{id}/keys`) endpoints — no Chat-side UI or
-  route calls them yet.
+- No tests for the Python side (`synkra-core`) — the Ruby side now has
+  specs (`spec/services/automations/`, `spec/jobs/automations/`,
+  `spec/models/synkra_subscription_spec.rb`,
+  `spec/requests/api/v1/accounts/automations/`), but `synkra-core` has
+  zero test infrastructure of any kind (not just for this feature) —
+  introducing pytest there is a separate decision, not made yet.
+- Key rotation/revocation is ops-only (`lib/tasks/automations.rake`) —
+  no customer-facing UI, deliberately, since a business managing its own
+  Flow API key would undercut the "Automations" framing.
+- The `CHAT_SHARED_SECRET` env var still needs generating and setting on
+  both deploys (matching exactly) before any of this works.
+- The two PocketBase collections still need applying — see the
+  `seed-pocketbase.mjs` command above.

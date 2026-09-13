@@ -137,7 +137,7 @@ class SynkraSubscription < ApplicationRecord
     return unless SynkraPlan.valid?(new_plan)
 
     if plan_rank(new_plan) > plan_rank(plan)
-      update!(plan: new_plan, pending_plan: nil)
+      update!(plan: new_plan, pending_plan: nil, plan_changed_at: Time.current)
       sync_flow_plan!(new_plan)
     else
       update!(pending_plan: new_plan)
@@ -148,7 +148,7 @@ class SynkraSubscription < ApplicationRecord
     return if pending_plan.blank?
 
     new_plan = pending_plan
-    update!(plan: new_plan, pending_plan: nil)
+    update!(plan: new_plan, pending_plan: nil, plan_changed_at: Time.current)
     sync_flow_plan!(new_plan)
   end
 
@@ -159,16 +159,26 @@ class SynkraSubscription < ApplicationRecord
     Automations::FlowClient.new(self).credits
   end
 
+  # True when this subscription has a shadow client (flow_provisioned_at
+  # present) but its Flow-side tier may not reflect the current plan -
+  # either no sync has ever landed, or the plan changed after the last
+  # one did. Automations::ReconcileFlowPlanJob uses this to self-heal a
+  # SyncFlowPlanJob that exhausted its retries or never ran at all
+  # (e.g. the process died before an enqueued job executed).
+  def plan_sync_stale?
+    return false if flow_provisioned_at.blank? || plan_changed_at.blank?
+
+    flow_plan_synced_at.blank? || flow_plan_synced_at < plan_changed_at
+  end
+
   private
 
   # Best-effort, async, and never allowed to raise into the caller -
   # a plan change must always succeed locally even if Flow is briefly
-  # unreachable. Automations::SyncFlowPlanJob retries with backoff; if
-  # it exhausts retries it logs rather than silently losing the sync -
-  # there is no separate reconciliation sweep yet, so a permanently
-  # failed sync stays out of sync until the next plan change touches
-  # it. Worth building a periodic reconciler if this proves not rare
-  # enough in practice.
+  # unreachable. Automations::SyncFlowPlanJob retries with backoff and
+  # stamps flow_plan_synced_at on success; Automations::ReconcileFlowPlanJob
+  # sweeps hourly for any subscription where that stamp is missing or
+  # predates the last plan change, and retries - see plan_sync_stale?.
   def sync_flow_plan!(new_plan)
     Automations::SyncFlowPlanJob.perform_later(account_id, new_plan)
   end

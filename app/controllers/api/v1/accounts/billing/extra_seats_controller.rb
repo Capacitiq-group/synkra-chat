@@ -1,23 +1,19 @@
 # Extra seats beyond a plan's staff_limit - R69/seat/month
 # (SynkraPlan::EXTRA_SEAT_PRICE_ZAR, confirmed by Refilwe 13 Sep 2026).
 #
-# IMPORTANT, READ BEFORE RELYING ON THIS IN PRODUCTION: this only
-# builds the ONE-TIME charge for adding N seats right now (via
-# Billing::PaystackService#charge_authorization against the card
-# already on file from the account's last plan payment). It does NOT
-# build automatic monthly re-billing of extra seats at each
-# subscription renewal - unlike the base plan price (which rides
-# Paystack's own recurring subscription billing), there is currently
-# no mechanism that re-charges purchased_extra_seats * 69 every period.
-# This needs a real decision (prorate first charge? bill extra seats
-# as a separate recurring line item alongside
-# Billing::PaystackWebhookHandler#handle_charge_success's existing
-# renewal handling?) AND live testing against a real Paystack account
-# before it can be trusted to touch a customer's card automatically -
-# neither has happened yet. Right now, purchasing extra seats is a
-# one-time charge that permanently raises the seat limit with no
-# further billing - fine for manual/ops use, not yet fine as a
-# self-serve recurring product feature.
+# Recurring billing: this controller only handles the initial purchase
+# (a one-time charge covering now-until-next-renewal - see
+# SynkraSubscription#purchase_extra_seats!). The actual monthly
+# re-charge happens automatically at each plan renewal via
+# Billing::PaystackWebhookHandler#bill_extra_seats_for_renewal, not
+# through this controller - there is no separate customer-facing
+# action for it. KNOWN LIMITATION, not fixed: purchasing seats
+# mid-period is not prorated against the next renewal, which could
+# follow only days later - see purchase_extra_seats!'s comment. This
+# recurring mechanism has NOT been tested against a real Paystack
+# account (no live credentials were available while building it) -
+# verify it end-to-end (purchase seats, then simulate/wait for a
+# renewal webhook) before relying on it for real customer billing.
 class Api::V1::Accounts::Billing::ExtraSeatsController < Api::V1::Accounts::BaseController
   before_action -> { check_authorization(SynkraSubscription) }
   before_action :fetch_subscription

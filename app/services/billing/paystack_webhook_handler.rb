@@ -65,6 +65,18 @@ class Billing::PaystackWebhookHandler
 
     subscription.start_new_period!
     subscription.apply_pending_plan_change!
+    bill_extra_seats_for_renewal(subscription)
+  end
+
+  # See SynkraSubscription#bill_extra_seats_for_renewal! for the actual
+  # charge and its idempotency guard - this just supplies the renewal
+  # charge's own Paystack reference as the idempotency key. Called
+  # AFTER start_new_period!/apply_pending_plan_change! above, so this
+  # never blocks or delays the plan renewal itself succeeding, even if
+  # the extra-seat charge fails (that method fails open - see its
+  # comment).
+  def bill_extra_seats_for_renewal(subscription)
+    subscription.bill_extra_seats_for_renewal!(@data['reference'])
   end
 
   # Credits MessageAddonPurchase#units onto the subscription's

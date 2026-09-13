@@ -51,41 +51,37 @@ const cancelDialogRef = ref(null);
 // dashboard (source of truth) - keep these in sync with synkra_plan.rb.
 // This duplication is a real drift risk - currently in sync (checked
 // 13 Sep 2026) but nothing enforces that.
-// Message/seat numbers are STILL unconfirmed placeholders (Refilwe
-// confirmed "we cap volume, not features" but hasn't given exact
-// numbers per tier) - see synkra_plan.rb's header comment. CORRECTED
-// 13 Sep 2026: they ARE enforced now (backend, since the 12 Sep
-// "Enforce message and seat limits per plan" commit - not yet
-// deployed as of this comment) - this comment previously said
-// otherwise and was stale.
+// Message/seat numbers CONFIRMED 13 Sep 2026 (Refilwe) - final, and
+// enforced (not just displayed) since the 12 Sep "Enforce message and
+// seat limits per plan" commit.
 const PLAN_CATALOGUE = [
   {
     key: 'free',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.FREE_NAME'),
     priceZar: 0,
-    messageAllowance: 100,
+    messageAllowance: 250,
     staffLimit: 1,
   },
   {
     key: 'starter',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.STARTER_NAME'),
     priceZar: 299,
-    messageAllowance: 1000,
-    staffLimit: 5,
+    messageAllowance: 3000,
+    staffLimit: 7,
   },
   {
     key: 'business',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.BUSINESS_NAME'),
     priceZar: 599,
-    messageAllowance: 4000,
+    messageAllowance: 8000,
     staffLimit: 15,
   },
   {
     key: 'pro',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.PRO_NAME'),
     priceZar: 999,
-    messageAllowance: 10000,
-    staffLimit: 30,
+    messageAllowance: 25000,
+    staffLimit: 50,
   },
 ];
 

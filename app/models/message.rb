@@ -342,13 +342,15 @@ class Message < ApplicationRecord
       # Deliberately distinct from outbound_blocked? above: this is a
       # volume cap, not a payment failure, so subscription.status
       # never changes here - the account is still fully paid up and
-      # active, it's just used its plan's message allowance for this
-      # period. Inbound messages and internal notes are still
-      # completely unaffected either way (billable_outgoing_message?
-      # already excludes them) - staff can see everything coming in,
-      # they just have to reply outside the platform (email, etc.)
-      # until the period rolls over or they upgrade.
-      errors.add(:base, "This account has used its #{subscription.plan_config[:name]} plan's message allowance for this period - upgrade your plan or wait for it to renew to keep replying through the platform")
+      # active, it's just used its plan's message allowance AND any
+      # purchased add-on credit (see
+      # SynkraSubscription#allowance_exhausted?) for this period.
+      # Inbound messages and internal notes are still completely
+      # unaffected either way (billable_outgoing_message? already
+      # excludes them) - staff can see everything coming in, they just
+      # have to reply outside the platform (email, etc.) until the
+      # period rolls over, they upgrade, or they buy an add-on pack.
+      errors.add(:base, "This account has used its #{subscription.plan_config[:name]} plan's message allowance for this period - upgrade your plan, buy a message add-on pack, or wait for it to renew to keep replying through the platform")
     end
   end
 
@@ -361,6 +363,13 @@ class Message < ApplicationRecord
       source: 'agent_reply',
       reference: self
     )
+
+    # Only draws from the purchased add-on balance once the plan's own
+    # period allowance is used up - see
+    # SynkraSubscription#consume_purchased_message_credit_if_over_plan_allowance!.
+    # A billing-infra hiccup here must never affect the message that
+    # was already sent, same fail-open reasoning as the rescue below.
+    synkra_subscription_for_billing&.consume_purchased_message_credit_if_over_plan_allowance!
   rescue StandardError => e
     # Usage metering must never take down message sending - log and move on.
     Rails.logger.error "[SynkraBilling] Failed to record usage event for message #{id}: #{e.message}"

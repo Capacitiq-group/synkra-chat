@@ -17,21 +17,24 @@ class Billing::PaystackService
     @secret_key.present?
   end
 
-  # Starts a checkout for a subscription. Returns the authorization_url
-  # to redirect the customer to. Paystack automatically creates the
-  # recurring subscription once this initial transaction succeeds,
-  # provided a plan code is supplied.
-  def initialize_transaction(email:, amount_zar:, plan_code:, callback_url:, metadata: {})
+  # Starts a checkout. When plan_code is given, Paystack automatically
+  # creates the recurring subscription once this initial transaction
+  # succeeds. When it's nil, this is a genuine one-time charge (e.g. a
+  # message add-on pack purchase - see Billing::MessageAddonPack) and
+  # Paystack does not create any subscription. Either way, returns the
+  # authorization_url to redirect the customer to.
+  def initialize_transaction(email:, amount_zar:, callback_url:, plan_code: nil, metadata: {})
     return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
 
     response = connection.post('/transaction/initialize') do |req|
-      req.body = {
+      body = {
         email: email,
         amount: (amount_zar.to_f * 100).to_i, # Paystack expects the amount in cents
-        plan: plan_code,
         callback_url: callback_url,
         metadata: metadata
       }
+      body[:plan] = plan_code if plan_code.present?
+      req.body = body
     end
 
     handle_response(response)
@@ -41,6 +44,30 @@ class Billing::PaystackService
     return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
 
     response = connection.get("/transaction/verify/#{reference}")
+    handle_response(response)
+  end
+
+  # Charges a previously-captured card/direct-debit authorization
+  # on-demand, outside the normal subscription billing cycle. Used for
+  # extra seats (Billing::ExtraSeatsController) - seats aren't part of
+  # the recurring plan amount, so they can't ride on Paystack's own
+  # subscription billing the way the base plan price does. Requires an
+  # authorization_code, which only exists after this account's first
+  # successful plan payment (see PaystackWebhookHandler#capture_authorization) -
+  # callers must check SynkraSubscription#paystack_authorization_code.present?
+  # before calling this.
+  def charge_authorization(email:, amount_zar:, authorization_code:, metadata: {})
+    return Result.new(success?: false, error: 'Paystack is not configured') unless configured?
+
+    response = connection.post('/transaction/charge_authorization') do |req|
+      req.body = {
+        email: email,
+        amount: (amount_zar.to_f * 100).to_i,
+        authorization_code: authorization_code,
+        metadata: metadata
+      }
+    end
+
     handle_response(response)
   end
 

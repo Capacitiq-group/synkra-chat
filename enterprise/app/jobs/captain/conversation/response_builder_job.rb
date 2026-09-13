@@ -102,6 +102,12 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     end
     return unless message
 
+    # Automations (Chat<->Flow bridge): only a real, sent reply consumes
+    # the shared ai_ops balance - never a handoff (see
+    # process_v2_handoff_response's credits_consumed: 0.0, same
+    # distinction). Fire-and-forget - see Automations::UsageTracker.
+    Automations::UsageTracker.track_ai_op!(account)
+
     capture_assistant_session(result_message: message, credits_consumed: 1.0)
     record_v2_response_completed(message) if captain_v2_enabled?
   end

@@ -33,6 +33,8 @@ Rails.application.routes.draw do
 
     resource :widget, only: [:show]
     get '/widget/verify_email', to: 'contact_email_verifications#show'
+    get '/unsubscribe/marketing', to: 'marketing_unsubscriptions#show'
+    get '/unsubscribe/business_marketing', to: 'contact_marketing_unsubscriptions#show'
     get '/widget/continue_conversation', to: 'contact_continuations#show'
     post '/webhooks/paystack', to: 'billing/paystack_webhooks#create'
     namespace :survey do

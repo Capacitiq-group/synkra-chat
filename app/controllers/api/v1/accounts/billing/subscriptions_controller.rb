@@ -87,7 +87,16 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
       usage: {
         business_initiated_messages_used: @subscription.business_initiated_messages_used,
         business_initiated_message_allowance: @subscription.business_initiated_message_allowance,
-        usage_fraction: @subscription.usage_fraction
+        usage_fraction: @subscription.usage_fraction,
+        purchased_message_credits: @subscription.purchased_message_credits,
+        seats_used: Current.account.account_users.count,
+        effective_seat_limit: @subscription.effective_seat_limit,
+        purchased_extra_seats: @subscription.purchased_extra_seats,
+        # storage_used_mb is cached, up to ~24h stale - see
+        # Billing::RecalculateStorageUsageJob.
+        storage_used_mb: @subscription.storage_used_mb,
+        storage_mb_allowance: @subscription.plan_config[:storage_mb_allowance],
+        storage_overage_gb: @subscription.storage_overage_gb
       }
     }
   end

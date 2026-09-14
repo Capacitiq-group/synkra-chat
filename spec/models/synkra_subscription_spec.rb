@@ -220,4 +220,75 @@ RSpec.describe SynkraSubscription do
         .not_to(change { subscription.reload.purchased_message_credits })
     end
   end
+
+  describe '#storage_overage_gb' do
+    it 'is zero when usage is within the plan allowance' do
+      subscription.update!(plan: 'starter', storage_used_mb: 1000) # starter allowance is 3072MB
+      expect(subscription.storage_overage_gb).to eq(0)
+    end
+
+    it 'rounds up to the next whole GB, even by a single byte over' do
+      subscription.update!(plan: 'starter', storage_used_mb: 3072 + 1) # 1MB over
+      expect(subscription.storage_overage_gb).to eq(1)
+    end
+
+    it 'computes multiple whole GB of overage correctly' do
+      subscription.update!(plan: 'starter', storage_used_mb: 3072 + 2049) # just over 2GB over
+      expect(subscription.storage_overage_gb).to eq(3)
+    end
+  end
+
+  describe '#bill_storage_overage_for_renewal!' do
+    before do
+      subscription.update!(
+        plan: 'starter', storage_used_mb: 3072 + 1024, # exactly 1GB over
+        paystack_authorization_code: 'AUTH_123'
+      )
+    end
+
+    it 'does nothing when there is no overage' do
+      subscription.update!(storage_used_mb: 100)
+      expect(Billing::PaystackService).not_to receive(:new)
+      subscription.bill_storage_overage_for_renewal!('txn_ref_1')
+    end
+
+    it 'does nothing without a reference' do
+      expect(Billing::PaystackService).not_to receive(:new)
+      subscription.bill_storage_overage_for_renewal!(nil)
+    end
+
+    it 'does nothing without a card on file - fails open, never blocks' do
+      subscription.update!(paystack_authorization_code: nil)
+      expect(Billing::PaystackService).not_to receive(:new)
+      subscription.bill_storage_overage_for_renewal!('txn_ref_1')
+    end
+
+    it 'charges overage_gb * EXTRA_STORAGE_PRICE_ZAR_PER_GB and stamps the reference' do
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      expect(paystack).to receive(:charge_authorization)
+        .with(hash_including(amount_zar: 1 * SynkraPlan::EXTRA_STORAGE_PRICE_ZAR_PER_GB))
+        .and_return(Billing::PaystackService::Result.new(success?: true, data: {}))
+
+      subscription.bill_storage_overage_for_renewal!('txn_ref_1')
+      expect(subscription.reload.storage_overage_billed_for_reference).to eq('txn_ref_1')
+    end
+
+    it 'is idempotent - a redelivered webhook for the same renewal never bills twice' do
+      subscription.update!(storage_overage_billed_for_reference: 'txn_ref_1')
+      expect(Billing::PaystackService).not_to receive(:new)
+
+      subscription.bill_storage_overage_for_renewal!('txn_ref_1')
+    end
+
+    it 'fails open on a failed charge - never touches the billed-for-reference stamp' do
+      paystack = instance_double(Billing::PaystackService)
+      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
+      allow(paystack).to receive(:charge_authorization)
+        .and_return(Billing::PaystackService::Result.new(success?: false, error: 'card declined'))
+
+      subscription.bill_storage_overage_for_renewal!('txn_ref_1')
+      expect(subscription.reload.storage_overage_billed_for_reference).to be_nil
+    end
+  end
 end

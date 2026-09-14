@@ -213,12 +213,32 @@ onMounted(async () => {
               :value="pendingPlan"
             />
           </div>
-          <div v-if="usage" class="px-5">
+          <div v-if="usage" class="px-5 grid gap-4">
             <BillingMeter
               :title="t('SYNKRA_BILLING_SETTINGS.USAGE.MESSAGES')"
               :consumed="usage.business_initiated_messages_used"
               :total-count="usage.business_initiated_message_allowance"
             />
+            <BillingMeter
+              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.SEATS')"
+              :consumed="usage.seats_used"
+              :total-count="usage.effective_seat_limit"
+            />
+            <BillingMeter
+              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.STORAGE')"
+              :consumed="usage.storage_used_mb"
+              :total-count="usage.storage_mb_allowance"
+            />
+            <p
+              v-if="usage.storage_overage_gb > 0"
+              class="text-xs text-n-amber-11"
+            >
+              {{
+                t('SYNKRA_BILLING_SETTINGS.USAGE.STORAGE_OVERAGE', {
+                  gb: usage.storage_overage_gb,
+                })
+              }}
+            </p>
           </div>
         </BillingCard>
 

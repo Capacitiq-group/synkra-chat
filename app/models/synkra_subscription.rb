@@ -35,26 +35,25 @@ class SynkraSubscription < ApplicationRecord
     plan_config[:staff_limit].to_i + purchased_extra_seats
   end
 
-  # Charges for and grants N extra seats immediately, on top of
-  # whatever is already purchased. This is a one-time charge covering
-  # from now until the account's next plan renewal (NOT a fresh
-  # month) - see bill_extra_seats_for_renewal! below for the recurring
-  # side. KNOWN LIMITATION, not fixed here: if seats are purchased
-  # mid-period, this charges a full EXTRA_SEAT_PRICE_ZAR now, and the
-  # very next renewal (which could be only days later) bills the full
-  # amount again for the new period - there is no proration. Refilwe
-  # flagged this as a real open decision (prorate the first charge?
-  # something else?), not a bug to silently paper over with a guessed
-  # formula.
+  # Grants N extra seats immediately, on top of whatever is already
+  # purchased - NO CHARGE at the moment of purchase. The first real
+  # charge happens automatically at the account's next plan renewal,
+  # via bill_extra_seats_for_renewal! below (already built, already
+  # idempotent). Decided 13 Sep 2026 (Refilwe, on Claude's
+  # recommendation) over prorating the first charge: day-based
+  # proration is the "more correct" approach most SaaS platforms use,
+  # but adds real complexity (partial-amount math, period-boundary
+  # edge cases) for a small amount (R69/seat). This way can never
+  # double-charge, which proration risks getting subtly wrong without
+  # live Paystack testing. The accepted tradeoff: a business that buys
+  # seats right after a renewal gets that first month free (bounded,
+  # one-time per purchase, not a recurring loss).
   def purchase_extra_seats!(quantity)
     return invalid_seat_purchase_result('Quantity must be positive') if quantity.to_i <= 0
     return invalid_seat_purchase_result('No card on file - complete a plan checkout first') if paystack_authorization_code.blank?
 
-    result = charge_for_extra_seats(quantity.to_i, purchase_type_metadata: 'extra_seats')
-    return result unless result.success?
-
     increment!(:purchased_extra_seats, quantity.to_i)
-    result
+    Billing::PaystackService::Result.new(success?: true, data: { 'granted_seats' => quantity.to_i })
   end
 
   # The recurring side: re-bills the FULL current purchased_extra_seats

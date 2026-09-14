@@ -97,7 +97,7 @@ RSpec.describe SynkraSubscription do
   end
 
   describe '#purchase_extra_seats!' do
-    it 'rejects a non-positive quantity without calling Paystack' do
+    it 'rejects a non-positive quantity without touching Paystack' do
       expect(Billing::PaystackService).not_to receive(:new)
       result = subscription.purchase_extra_seats!(0)
       expect(result.success?).to be false
@@ -111,27 +111,12 @@ RSpec.describe SynkraSubscription do
       expect(result.error).to match(/No card on file/)
     end
 
-    it 'charges quantity * EXTRA_SEAT_PRICE_ZAR and increments the seat count on success' do
+    it 'grants the seats immediately with NO charge - billing happens at the next renewal instead' do
       subscription.update!(paystack_authorization_code: 'AUTH_123', purchased_extra_seats: 1)
-      paystack = instance_double(Billing::PaystackService)
-      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
-      expect(paystack).to receive(:charge_authorization)
-        .with(hash_including(amount_zar: 2 * SynkraPlan::EXTRA_SEAT_PRICE_ZAR, authorization_code: 'AUTH_123'))
-        .and_return(Billing::PaystackService::Result.new(success?: true, data: {}))
+      expect(Billing::PaystackService).not_to receive(:new)
 
       expect { subscription.purchase_extra_seats!(2) }
         .to change { subscription.reload.purchased_extra_seats }.from(1).to(3)
-    end
-
-    it 'does not increment the seat count when the charge fails' do
-      subscription.update!(paystack_authorization_code: 'AUTH_123', purchased_extra_seats: 1)
-      paystack = instance_double(Billing::PaystackService)
-      allow(Billing::PaystackService).to receive(:new).and_return(paystack)
-      allow(paystack).to receive(:charge_authorization)
-        .and_return(Billing::PaystackService::Result.new(success?: false, error: 'card declined'))
-
-      expect { subscription.purchase_extra_seats!(2) }
-        .not_to(change { subscription.reload.purchased_extra_seats })
     end
   end
 

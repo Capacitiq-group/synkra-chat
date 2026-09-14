@@ -264,6 +264,62 @@ class SynkraSubscription < ApplicationRecord
     flow_plan_synced_at.blank? || flow_plan_synced_at < plan_changed_at
   end
 
+  # How many whole GB this account is over its plan's storage
+  # allowance right now, based on the CACHED storage_used_mb (see
+  # Billing::RecalculateStorageUsageJob - this can be up to ~24h
+  # stale). Rounds up: being 1 byte into the next GB still counts as a
+  # full GB of overage, matching how EXTRA_STORAGE_PRICE_ZAR_PER_GB is
+  # a per-GB rate, not a per-byte one.
+  def storage_overage_gb
+    over_mb = storage_used_mb - plan_config[:storage_mb_allowance].to_i
+    return 0 if over_mb <= 0
+
+    (over_mb / 1024.0).ceil
+  end
+
+  # Storage overage is billed automatically, metered on actual usage -
+  # NOT a pre-purchased quantity like extra seats (there is no
+  # "purchase storage" action a business takes; they just use more,
+  # and get billed for the overage at each renewal). Deliberately does
+  # NOT block uploads when over the allowance - unlike messages/seats,
+  # which explicitly block once exhausted (confirmed product decision
+  # for those), whether storage should also block was never asked or
+  # decided, and industry norm for storage overage (S3, Google
+  # Workspace, etc.) is bill-for-more rather than lock-out. Flagged as
+  # an assumption, not silently built as if it were an obvious
+  # extension of the messages/seats pattern.
+  #
+  # reference is the renewal charge's own Paystack transaction
+  # reference - same idempotency reasoning as
+  # bill_extra_seats_for_renewal!: charge_authorization moves real
+  # money, Paystack redelivers webhooks, a redelivered renewal must
+  # never bill overage twice.
+  def bill_storage_overage_for_renewal!(reference)
+    overage_gb = storage_overage_gb
+    return if overage_gb <= 0
+    return if reference.blank?
+    return if storage_overage_billed_for_reference == reference
+    return if paystack_authorization_code.blank? # no card on file - nothing to charge against, fail open
+
+    amount = overage_gb * SynkraPlan::EXTRA_STORAGE_PRICE_ZAR_PER_GB
+    result = Billing::PaystackService.new.charge_authorization(
+      email: account.administrators.first&.email || account.users.first&.email,
+      amount_zar: amount,
+      authorization_code: paystack_authorization_code,
+      metadata: { synkra_account_id: account_id, purchase_type: 'storage_overage', overage_gb: overage_gb }
+    )
+    if result.success?
+      update!(storage_overage_billed_for_reference: reference)
+    else
+      # Fails open, same as bill_extra_seats_for_renewal! - a failed
+      # overage charge must never block or restrict the business's
+      # existing data. No dunning/retry mechanism specific to storage
+      # overage exists yet, same limitation as extra seats.
+      Rails.logger.error("[SynkraBilling] Storage overage renewal charge failed for account #{account_id}: #{result.error}")
+    end
+    result
+  end
+
   private
 
   # Best-effort, async, and never allowed to raise into the caller -
@@ -280,11 +336,10 @@ class SynkraSubscription < ApplicationRecord
     SynkraPlan.names.index(plan_key.to_s) || 0
   end
 
-  # Shared by purchase_extra_seats! (charges for a quantity being
-  # added) and bill_extra_seats_for_renewal! (charges for the full
-  # current count, every period) - same underlying Paystack call,
-  # different amount semantics, so kept as separate public methods
-  # with this as their common plumbing.
+  # Used by bill_extra_seats_for_renewal! only (purchase_extra_seats!
+  # no longer charges anything at purchase time - see its comment).
+  # Kept as its own method in case a future recurring seat-billing path
+  # needs the same plumbing.
   def charge_for_extra_seats(seat_count, purchase_type_metadata:)
     amount = seat_count * SynkraPlan::EXTRA_SEAT_PRICE_ZAR
     Billing::PaystackService.new.charge_authorization(

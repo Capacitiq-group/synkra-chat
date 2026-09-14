@@ -25,6 +25,15 @@
 # add-ons) top it up - see that class for the purchase flow. Once the
 # seat limit is hit, extra seats are R69/seat/month - see
 # Billing::ExtraSeatService.
+#
+# storage_mb_allowance CONFIRMED same day: Free 1GB, Starter 3GB,
+# Business 10GB, Pro 15GB, extra storage R30/GB. NOT YET TRACKED OR
+# ENFORCED ANYWHERE - unlike messages/seats, nothing currently measures
+# an account's actual storage usage at all (no ActiveStorage blob-size
+# query, no scheduled job, no controller). storage_mb_allowance and
+# EXTRA_STORAGE_PRICE_ZAR_PER_GB below are confirmed numbers with
+# nothing wired to them yet - a real gap, not display-only like the
+# message/seat numbers briefly were.
 class SynkraPlan
   PLANS = {
     'free' => {
@@ -32,7 +41,7 @@ class SynkraPlan
       price_zar: 0,
       staff_limit: 1,
       business_initiated_message_allowance: 250,
-      storage_mb_allowance: 256,
+      storage_mb_allowance: 1024,
       # No Paystack plan code - genuinely free, never goes through
       # checkout at all (only ever reached via change_plan/downgrade).
       paystack_plan_code: nil
@@ -42,7 +51,7 @@ class SynkraPlan
       price_zar: 299,
       staff_limit: 7,
       business_initiated_message_allowance: 3000,
-      storage_mb_allowance: 2048,
+      storage_mb_allowance: 3072,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER', nil)
     },
     'business' => {
@@ -50,7 +59,7 @@ class SynkraPlan
       price_zar: 599,
       staff_limit: 15,
       business_initiated_message_allowance: 8000,
-      storage_mb_allowance: 8192,
+      storage_mb_allowance: 10_240,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS', nil)
     },
     'pro' => {
@@ -58,10 +67,15 @@ class SynkraPlan
       price_zar: 999,
       staff_limit: 50,
       business_initiated_message_allowance: 25_000,
-      storage_mb_allowance: 20_480,
+      storage_mb_allowance: 15_360,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO', nil)
     }
   }.freeze
+
+  # Confirmed 13 Sep 2026 (Refilwe): R30/GB/month for storage beyond a
+  # plan's storage_mb_allowance. Not yet wired to anything - see the
+  # class comment above.
+  EXTRA_STORAGE_PRICE_ZAR_PER_GB = 30
 
   # Confirmed 13 Sep 2026 (Refilwe): R69/seat/month for any seat beyond
   # the plan's staff_limit - see Billing::ExtraSeatService.

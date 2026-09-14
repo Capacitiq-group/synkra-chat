@@ -1,19 +1,19 @@
 # Extra seats beyond a plan's staff_limit - R69/seat/month
 # (SynkraPlan::EXTRA_SEAT_PRICE_ZAR, confirmed by Refilwe 13 Sep 2026).
 #
-# Recurring billing: this controller only handles the initial purchase
-# (a one-time charge covering now-until-next-renewal - see
-# SynkraSubscription#purchase_extra_seats!). The actual monthly
-# re-charge happens automatically at each plan renewal via
-# Billing::PaystackWebhookHandler#bill_extra_seats_for_renewal, not
-# through this controller - there is no separate customer-facing
-# action for it. KNOWN LIMITATION, not fixed: purchasing seats
-# mid-period is not prorated against the next renewal, which could
-# follow only days later - see purchase_extra_seats!'s comment. This
-# recurring mechanism has NOT been tested against a real Paystack
-# account (no live credentials were available while building it) -
-# verify it end-to-end (purchase seats, then simulate/wait for a
-# renewal webhook) before relying on it for real customer billing.
+# This controller grants seats immediately with NO CHARGE at purchase
+# time - see SynkraSubscription#purchase_extra_seats!'s comment for
+# why (decided over proration: simpler, can't double-charge, small
+# accepted tradeoff of up to one free month per purchase). The actual
+# first and all subsequent charges happen automatically at each plan
+# renewal via
+# Billing::PaystackWebhookHandler#bill_extra_seats_for_renewal - not
+# through this controller, and there is no separate customer-facing
+# action for it. This recurring mechanism has NOT been tested against
+# a real Paystack account (no live credentials were available while
+# building it) - verify it end-to-end (purchase seats, then
+# simulate/wait for a renewal webhook, confirm exactly one charge for
+# the right amount) before relying on it for real customer billing.
 class Api::V1::Accounts::Billing::ExtraSeatsController < Api::V1::Accounts::BaseController
   before_action -> { check_authorization(SynkraSubscription) }
   before_action :fetch_subscription

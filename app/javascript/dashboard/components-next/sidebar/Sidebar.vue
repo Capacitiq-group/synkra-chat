@@ -819,12 +819,6 @@ const menuItems = computed(() => {
       label: t('SIDEBAR.SETTINGS'),
       icon: 'i-lucide-bolt',
       children: [
-        {
-          name: 'Settings Account Settings',
-          label: t('SIDEBAR.ACCOUNT_SETTINGS'),
-          icon: 'i-lucide-briefcase',
-          to: accountScopedRoute('general_settings_index'),
-        },
         // {
         //   name: 'Settings Captain',
         //   label: t('SIDEBAR.CAPTAIN_AI'),
@@ -961,22 +955,10 @@ const menuItems = computed(() => {
             ]
           : []),
         {
-          name: 'Settings Audit Logs',
-          label: t('SIDEBAR.AUDIT_LOGS'),
-          icon: 'i-lucide-briefcase',
-          to: accountScopedRoute('auditlogs_list'),
-        },
-        {
           name: 'Settings Custom Roles',
           label: t('SIDEBAR.CUSTOM_ROLES'),
           icon: 'i-lucide-shield-plus',
           to: accountScopedRoute('custom_roles_list'),
-        },
-        {
-          name: 'Settings Sla',
-          label: t('SIDEBAR.SLA'),
-          icon: 'i-lucide-clock-alert',
-          to: accountScopedRoute('sla_list'),
         },
         {
           name: 'Conversation Workflow',
@@ -994,6 +976,30 @@ const menuItems = computed(() => {
               },
             ]
           : []),
+        {
+          name: 'Settings Automations',
+          label: t('SIDEBAR.AUTOMATIONS'),
+          icon: 'i-lucide-zap',
+          to: accountScopedRoute('automations_settings_index'),
+        },
+        {
+          name: 'Settings AI Agent',
+          label: t('SIDEBAR.AI_AGENT'),
+          icon: 'i-lucide-bot',
+          to: accountScopedRoute('ai_agent_settings_index'),
+        },
+        {
+          name: 'Settings Sla',
+          label: t('SIDEBAR.SLA'),
+          icon: 'i-lucide-clock-alert',
+          to: accountScopedRoute('sla_list'),
+        },
+        {
+          name: 'Settings Audit Logs',
+          label: t('SIDEBAR.AUDIT_LOGS'),
+          icon: 'i-lucide-briefcase',
+          to: accountScopedRoute('auditlogs_list'),
+        },
         ...(isChatwootBillingVisibleInV1
           ? [
               {
@@ -1015,16 +1021,10 @@ const menuItems = computed(() => {
             ]
           : []),
         {
-          name: 'Settings Automations',
-          label: t('SIDEBAR.AUTOMATIONS'),
-          icon: 'i-lucide-zap',
-          to: accountScopedRoute('automations_settings_index'),
-        },
-        {
-          name: 'Settings AI Agent',
-          label: t('SIDEBAR.AI_AGENT'),
-          icon: 'i-lucide-bot',
-          to: accountScopedRoute('ai_agent_settings_index'),
+          name: 'Settings Account Settings',
+          label: t('SIDEBAR.ACCOUNT_SETTINGS'),
+          icon: 'i-lucide-briefcase',
+          to: accountScopedRoute('general_settings_index'),
         },
       ],
     },

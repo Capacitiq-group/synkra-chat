@@ -1,13 +1,14 @@
-import Vue from 'vue';
-import Vuex from 'vuex';
+import { createStore } from 'vuex';
 
 import accounts from './modules/accounts';
 import agentBots from './modules/agentBots';
+import agentCapacityPolicies from './modules/agentCapacityPolicies';
 import agents from './modules/agents';
+import assignmentPolicies from './modules/assignmentPolicies';
 import articles from './modules/helpCenterArticles';
 import attributes from './modules/attributes';
-import auth from './modules/auth';
 import auditlogs from './modules/auditlogs';
+import auth from './modules/auth';
 import automations from './modules/automations';
 import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
@@ -24,11 +25,13 @@ import conversations from './modules/conversations';
 import conversationSearch from './modules/conversationSearch';
 import conversationStats from './modules/conversationStats';
 import conversationTypingStatus from './modules/conversationTypingStatus';
+import conversationUnreadCounts from './modules/conversationUnreadCounts';
 import conversationWatchers from './modules/conversationWatchers';
 import csat from './modules/csat';
-import customViews from './modules/customViews';
 import customRole from './modules/customRole';
+import customViews from './modules/customViews';
 import dashboardApps from './modules/dashboardApps';
+import draftMessages from './modules/draftMessages';
 import globalConfig from 'shared/store/globalConfig';
 import inboxAssignableAgents from './modules/inboxAssignableAgents';
 import inboxes from './modules/inboxes';
@@ -40,26 +43,40 @@ import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
 import reports from './modules/reports';
 import sla from './modules/sla';
+import slaReports from './modules/SLAReports';
+import sidebarSortPreferences from './modules/sidebarSortPreferences';
+import summaryReports from './modules/summaryReports';
 import teamMembers from './modules/teamMembers';
 import teams from './modules/teams';
 import userNotificationSettings from './modules/userNotificationSettings';
 import webhooks from './modules/webhooks';
-import draftMessages from './modules/draftMessages';
-import SLAReports from './modules/SLAReports';
+import captainAgentSessions from './captain/agentSessions';
+import captainAssistants from './captain/assistant';
+import captainDocuments from './captain/document';
+import captainResponses from './captain/response';
+import captainFaqSuggestions from './captain/faqSuggestions';
+import captainInboxes from './captain/inboxes';
+import captainBulkActions from './captain/bulkActions';
+import copilotThreads from './captain/copilotThreads';
+import copilotMessages from './captain/copilotMessages';
+import captainScenarios from './captain/scenarios';
+import captainTools from './captain/tools';
+import captainCustomTools from './captain/customTools';
 
 const plugins = [];
 
-Vue.use(Vuex);
-export default new Vuex.Store({
+export default createStore({
   modules: {
     accounts,
     agentBots,
+    agentCapacityPolicies,
     agents,
+    assignmentPolicies,
     articles,
     attributes,
+    auditlogs,
     auth,
     automations,
-    auditlogs,
     bulkActions,
     campaigns,
     cannedResponse,
@@ -75,11 +92,13 @@ export default new Vuex.Store({
     conversationSearch,
     conversationStats,
     conversationTypingStatus,
+    conversationUnreadCounts,
     conversationWatchers,
     csat,
-    customViews,
     customRole,
+    customViews,
     dashboardApps,
+    draftMessages,
     globalConfig,
     inboxAssignableAgents,
     inboxes,
@@ -90,13 +109,26 @@ export default new Vuex.Store({
     notifications,
     portals,
     reports,
+    sla,
+    slaReports,
+    sidebarSortPreferences,
+    summaryReports,
     teamMembers,
     teams,
     userNotificationSettings,
     webhooks,
-    draftMessages,
-    sla,
-    slaReports: SLAReports,
+    captainAgentSessions,
+    captainAssistants,
+    captainDocuments,
+    captainResponses,
+    captainFaqSuggestions,
+    captainInboxes,
+    captainBulkActions,
+    copilotThreads,
+    copilotMessages,
+    captainScenarios,
+    captainTools,
+    captainCustomTools,
   },
   plugins,
 });

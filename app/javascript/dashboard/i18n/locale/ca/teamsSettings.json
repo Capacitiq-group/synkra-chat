@@ -5,6 +5,9 @@
     "LOADING": "Fetching teams",
     "DESCRIPTION": "Teams allow you to organize agents into groups based on their responsibilities. An agent can belong to multiple teams. When working collaboratively, you can assign conversations to specific teams.",
     "LEARN_MORE": "Learn more about teams",
+    "COUNT": "{n} team | {n} teams",
+    "SEARCH_PLACEHOLDER": "Cerca equips...",
+    "NO_RESULTS": "No teams found matching your search",
     "LIST": {
       "404": "No hi ha cap equip creat en aquest compte.",
       "EDIT_TEAM": "Edita l'equip",
@@ -17,26 +20,21 @@
       },
       "AGENTS": {
         "BUTTON_TEXT": "Afegir agents a l'equip",
-        "TITLE": "Afegeix agents a l'equip - %{teamName}",
+        "TITLE": "Afegeix agents a l'equip - {teamName}",
         "DESC": "Afegeix agents al teu equip acabat de crear. Això et permet col·laborar com a equip en converses, rebre notificacions sobre esdeveniments nous a la mateixa conversa."
       },
-      "WIZARD": [
-        {
-          "title": "Crear",
-          "route": "settings_teams_new",
-          "body": "Crea un nou equip d'agents."
-        },
-        {
-          "title": "Afegir agents",
-          "route": "settings_teams_add_agents",
-          "body": "Afegeix agents a l'equip."
-        },
-        {
-          "title": "Finalitza",
-          "route": "settings_teams_finish",
-          "body": "Ja estàs preparat!"
-        }
-      ]
+      "WIZARD_CREATE": {
+        "TITLE": "Crear",
+        "BODY": "Crea un nou equip d'agents."
+      },
+      "WIZARD_ADD_AGENTS": {
+        "TITLE": "Afegir agents",
+        "BODY": "Afegeix agents a l'equip."
+      },
+      "WIZARD_FINISH": {
+        "TITLE": "Finalitza",
+        "BODY": "Ja estàs preparat!"
+      }
     },
     "EDIT_FLOW": {
       "CREATE": {
@@ -46,45 +44,43 @@
       },
       "AGENTS": {
         "BUTTON_TEXT": "Actualitza els agents de l'equip",
-        "TITLE": "Afegeix agents a l'equip - %{teamName}",
+        "TITLE": "Afegeix agents a l'equip - {teamName}",
         "DESC": "Afegeix agents al teu equip acabat de crear. Tots els agents afegits rebran una notificació quan s'assigni una conversa a aquest equip."
       },
-      "WIZARD": [
-        {
-          "title": "Detalls de l'equip",
-          "route": "settings_teams_edit",
-          "body": "Canvia el nom, la descripció i altres detalls."
-        },
-        {
-          "title": "Edita agents",
-          "route": "settings_teams_edit_members",
-          "body": "Edita agents en el teu equip."
-        },
-        {
-          "title": "Finalitza",
-          "route": "settings_teams_edit_finish",
-          "body": "Ja estàs preparat!"
-        }
-      ]
+      "EDIT_WIZARD_DETAILS": {
+        "TITLE": "Detalls de l'equip",
+        "ROUTE": "settings_teams_edit",
+        "BODY": "Canvia el nom, la descripció i altres detalls."
+      },
+      "EDIT_WIZARD_AGENTS": {
+        "TITLE": "Edita agents",
+        "ROUTE": "settings_teams_edit_members",
+        "BODY": "Edita agents en el teu equip."
+      },
+      "EDIT_WIZARD_FINISH": {
+        "TITLE": "Finalitza",
+        "ROUTE": "settings_teams_edit_finish",
+        "BODY": "Ja estàs preparat!"
+      }
     },
     "TEAM_FORM": {
       "ERROR_MESSAGE": "No s'han pogut desar els detalls de l'equip. Torna-ho a provar."
     },
     "AGENTS": {
-      "AGENT": "AGENT",
+      "AGENT": "Agent",
       "EMAIL": "Correu electrònic",
       "BUTTON_TEXT": "Afegir agents",
       "ADD_AGENTS": "S'estan afegint agents al teu equip...",
       "SELECT": "selecciona",
       "SELECT_ALL": "selecciona tots els agents",
-      "SELECTED_COUNT": "%{selected} de %{total} agents seleccionats."
+      "SELECTED_COUNT": "{selected} de {total} agents seleccionats."
     },
     "ADD": {
-      "TITLE": "Afegeix agents a l'equip - %{teamName}",
+      "TITLE": "Afegeix agents a l'equip - {teamName}",
       "DESC": "Afegeix agents al teu equip acabat de crear. Això et permet col·laborar com a equip en converses, rebre notificacions sobre esdeveniments nous a la mateixa conversa.",
       "SELECT": "selecciona",
       "SELECT_ALL": "selecciona tots els agents",
-      "SELECTED_COUNT": "%{selected} de %{total} agents seleccionats.",
+      "SELECTED_COUNT": "{selected} de {total} agents seleccionats.",
       "BUTTON_TEXT": "Afegir agents",
       "AGENT_VALIDATION_ERROR": "Selecciona almenys un agent."
     },

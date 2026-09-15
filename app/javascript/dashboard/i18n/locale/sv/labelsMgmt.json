@@ -5,16 +5,20 @@
     "LOADING": "Hämtar etiketter",
     "DESCRIPTION": "Labels help you categorize and prioritize conversations and leads. You can assign a label to a conversation or contact using the side panel.",
     "LEARN_MORE": "Learn more about labels",
+    "COUNT": "{n} label | {n} labels",
+    "SEARCH_PLACEHOLDER": "Sök etiketter...",
+    "NO_RESULTS": "No labels found matching your search",
     "SEARCH_404": "Det finns inga objekt som matchar denna fråga",
     "LIST": {
       "404": "Det finns inga etiketter tillgängliga på detta konto.",
       "TITLE": "Hantera etiketter",
       "DESC": "Etiketter låter dig gruppera ihop konversationer.",
-      "TABLE_HEADER": [
-        "Namn",
-        "Beskrivning",
-        "Färg"
-      ]
+      "TABLE_HEADER": {
+        "NAME": "Namn",
+        "DESCRIPTION": "Beskrivning",
+        "COLOR": "Färg",
+        "ACTION": "Åtgärder"
+      }
     },
     "FORM": {
       "NAME": {

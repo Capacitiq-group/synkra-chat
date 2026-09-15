@@ -1,10 +1,11 @@
+import { FEATURE_FLAGS } from '../../../../featureFlags';
 import { frontendURL } from '../../../../helper/URLHelper';
 import {
   ROLES,
   CONVERSATION_PERMISSIONS,
 } from 'dashboard/constants/permissions.js';
-const SettingsWrapper = () => import('../SettingsWrapper.vue');
-const CannedHome = () => import('./Index.vue');
+import SettingsWrapper from '../SettingsWrapper.vue';
+import CannedHome from './Index.vue';
 
 export default {
   routes: [
@@ -14,12 +15,15 @@ export default {
       children: [
         {
           path: '',
-          redirect: 'list',
+          redirect: to => {
+            return { name: 'canned_list', params: to.params };
+          },
         },
         {
           path: 'list',
           name: 'canned_list',
           meta: {
+            featureFlag: FEATURE_FLAGS.CANNED_RESPONSES,
             permissions: [...ROLES, ...CONVERSATION_PERMISSIONS],
           },
           component: CannedHome,

@@ -1,0 +1,8 @@
+<tr>
+  <td>
+    <p>Hi {{ user_name }},</p>
+    <p>We noticed a new sign-in to your account from an IP address we haven't seen before ({{ ip_address }}{% if location %}, {{ location }}{% endif %}){% if sign_in_time %} on {{ sign_in_time }}{% endif %}.</p>
+    <p>If this was you, there's nothing you need to do.</p>
+    <p>If you don't recognize this sign-in, we'd recommend changing your password and enabling two-factor authentication from your account settings.</p>
+  </td>
+</tr>

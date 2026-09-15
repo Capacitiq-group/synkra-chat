@@ -86,14 +86,13 @@ const menuItems = computed(() => {
       },
     },
     {
-      // Synkra Chat V1: unconditionally hidden (not relying on the
-      // indirect showOnCustomBrandedInstance check) - points at
-      // Chatwoot's own docs, which we don't have an equivalent for yet.
-      show: false,
-      showOnCustomBrandedInstance: false,
+      // Enabled 15 Sep 2026 (Refilwe) - now that Synkra's own docs
+      // site exists, pointing here instead of Chatwoot's.
+      show: true,
+      showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.DOCS'),
       icon: 'i-lucide-book',
-      link: 'https://www.chatwoot.com/hc/user-guide/en',
+      link: 'https://www.docs.synkra.co.za/chat',
       nativeLink: true,
       target: '_blank',
     },

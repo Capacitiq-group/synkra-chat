@@ -223,7 +223,10 @@ export default {
         ];
       }
 
+      // Hidden 15 Sep 2026 (Refilwe) - deliberately disabled, not
+      // removed. Revert by dropping the `false &&` to re-enable.
       if (
+        false &&
         this.isFeatureEnabledonAccount(this.accountId, FEATURE_FLAGS.AGENT_BOTS)
       ) {
         visibleToAllChannelTabs = [

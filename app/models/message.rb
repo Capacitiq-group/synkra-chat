@@ -370,6 +370,17 @@ class Message < ApplicationRecord
     # A billing-infra hiccup here must never affect the message that
     # was already sent, same fail-open reasoning as the rescue below.
     synkra_subscription_for_billing&.consume_purchased_message_credit_if_over_plan_allowance!
+
+    # Temporary Chat-local email tracking (15 Sep 2026, confirmed by
+    # Refilwe: "one email is 1 sent email"). A message sent through an
+    # Email-channel inbox IS an actual email - counts against both the
+    # message allowance (above, unconditionally) and the email
+    # allowance (here, additionally). Deliberately not the AI Agent's
+    # "Send email" action - that's a Flow-dependent CustomTool preset,
+    # hidden (see aiAgent/Index.vue) since Flow isn't reachable.
+    if conversation.inbox.channel_type == 'Channel::Email'
+      SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'agent_reply', reference: self)
+    end
   rescue StandardError => e
     # Usage metering must never take down message sending - log and move on.
     Rails.logger.error "[SynkraBilling] Failed to record usage event for message #{id}: #{e.message}"

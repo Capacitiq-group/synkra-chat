@@ -976,12 +976,23 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        {
-          name: 'Settings Automations',
-          label: t('SIDEBAR.AUTOMATIONS'),
-          icon: 'i-lucide-zap',
-          to: accountScopedRoute('automations_settings_index'),
-        },
+        // Hidden 15 Sep 2026 (Refilwe) - Flow, which powers this
+        // entirely, is not launching soon. Deliberately disabled, not
+        // removed - the whole Chat<->Flow bridge behind this tab
+        // (Automations::*, the shadow-client system) stays fail-open
+        // by design, so leaving the backend as-is is harmless; this
+        // just stops showing a tab for a system that won't actually
+        // be reachable. Revert by dropping `false &&` below.
+        ...(false
+          ? [
+              {
+                name: 'Settings Automations',
+                label: t('SIDEBAR.AUTOMATIONS'),
+                icon: 'i-lucide-zap',
+                to: accountScopedRoute('automations_settings_index'),
+              },
+            ]
+          : []),
         {
           name: 'Settings AI Agent',
           label: t('SIDEBAR.AI_AGENT'),

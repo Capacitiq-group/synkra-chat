@@ -3,7 +3,7 @@
 # never recomputes usage by scanning conversations/messages after the
 # fact.
 class SynkraUsageEvent < ApplicationRecord
-  RESOURCE_TYPES = %w[business_initiated_message storage_mb ai_request voice_minute].freeze
+  RESOURCE_TYPES = %w[business_initiated_message storage_mb ai_request voice_minute email].freeze
 
   belongs_to :account
 

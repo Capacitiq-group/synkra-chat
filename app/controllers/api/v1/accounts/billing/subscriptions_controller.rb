@@ -96,7 +96,13 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
         # Billing::RecalculateStorageUsageJob.
         storage_used_mb: @subscription.storage_used_mb,
         storage_mb_allowance: @subscription.plan_config[:storage_mb_allowance],
-        storage_overage_gb: @subscription.storage_overage_gb
+        storage_overage_gb: @subscription.storage_overage_gb,
+        # Temporary Chat-local tracking while Flow (and Automations)
+        # is hidden - see synkra_plan.rb's header comment.
+        ai_ops_used: @subscription.ai_ops_used,
+        ai_ops_allowance: @subscription.ai_ops_allowance,
+        emails_used: @subscription.emails_used,
+        email_allowance: @subscription.email_allowance
       }
     }
   end

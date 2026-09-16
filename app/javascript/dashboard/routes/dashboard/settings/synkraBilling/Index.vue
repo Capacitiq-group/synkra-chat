@@ -229,6 +229,16 @@ onMounted(async () => {
               :consumed="usage.storage_used_mb"
               :total-count="usage.storage_mb_allowance"
             />
+            <BillingMeter
+              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.AI_OPS')"
+              :consumed="usage.ai_ops_used"
+              :total-count="usage.ai_ops_allowance"
+            />
+            <BillingMeter
+              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.EMAILS')"
+              :consumed="usage.emails_used"
+              :total-count="usage.email_allowance"
+            />
             <p
               v-if="usage.storage_overage_gb > 0"
               class="text-xs text-n-amber-11"

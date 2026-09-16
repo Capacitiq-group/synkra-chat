@@ -16,6 +16,20 @@
 # be resolved - a billing-infra hiccup should never lock a business out
 # of its own team or conversations.
 #
+# ai_ops_allowance / email_allowance CONFIRMED 15 Sep 2026 (Refilwe) -
+# temporary CHAT-LOCAL numbers, tracked independently of Flow (see
+# SynkraSubscription#ai_ops_used / #emails_used and
+# SynkraUsageEvent's 'ai_request'/'email' resource types). This
+# supersedes the Flow-shadow-client numbers referenced elsewhere in
+# this codebase (Automations::*, docs/synkra/help-center/
+# credits-and-addons.md) - Flow isn't launching soon, so that whole
+# system is hidden (not removed - see Sidebar.vue), and these
+# Chat-local numbers are what's actually live. Tracking only, no
+# enforcement/blocking - matches this codebase's existing principle
+# that the AI Agent never stops replying over a credit shortfall.
+# Business deliberately gets +750 over Starter on both - no longer
+# forced to share a number the way Flow's "basic" tier did.
+#
 # CONFIRMED 13 Sep 2026 (Refilwe) - the numbers below were placeholders
 # until this date; they are now final. "Message" means every individual
 # outgoing agent message (not grouped by conversation) - confirmed
@@ -42,6 +56,8 @@ class SynkraPlan
       staff_limit: 1,
       business_initiated_message_allowance: 250,
       storage_mb_allowance: 1024,
+      ai_ops_allowance: 0,
+      email_allowance: 300,
       # No Paystack plan code - genuinely free, never goes through
       # checkout at all (only ever reached via change_plan/downgrade).
       paystack_plan_code: nil
@@ -52,6 +68,8 @@ class SynkraPlan
       staff_limit: 7,
       business_initiated_message_allowance: 3000,
       storage_mb_allowance: 3072,
+      ai_ops_allowance: 1000,
+      email_allowance: 2000,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER', nil)
     },
     'business' => {
@@ -60,6 +78,8 @@ class SynkraPlan
       staff_limit: 15,
       business_initiated_message_allowance: 8000,
       storage_mb_allowance: 10_240,
+      ai_ops_allowance: 1750,
+      email_allowance: 2750,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS', nil)
     },
     'pro' => {
@@ -68,6 +88,8 @@ class SynkraPlan
       staff_limit: 50,
       business_initiated_message_allowance: 25_000,
       storage_mb_allowance: 15_360,
+      ai_ops_allowance: 1750,
+      email_allowance: 5000,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO', nil)
     }
   }.freeze

@@ -663,7 +663,9 @@
       "MESSAGES": "Messages",
       "SEATS": "Seats",
       "STORAGE": "Storage (MB)",
-      "STORAGE_OVERAGE": "{gb}GB over your plan's storage allowance - billed automatically at your next renewal"
+      "STORAGE_OVERAGE": "{gb}GB over your plan's storage allowance - billed automatically at your next renewal",
+      "AI_OPS": "AI operations",
+      "EMAILS": "Emails"
     },
     "STATUS": {
       "PAST_DUE": "Your last payment failed. Please update your payment method within the grace period to avoid interruption.",

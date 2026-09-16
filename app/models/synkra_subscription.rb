@@ -137,6 +137,37 @@ class SynkraSubscription < ApplicationRecord
     [business_initiated_messages_used.to_f / allowance, 1.0].min
   end
 
+  # Temporary Chat-local AI-ops/email tracking (15 Sep 2026) - see the
+  # class comment at the top of synkra_plan.rb for why this exists
+  # instead of the Flow-shadow-client numbers used elsewhere. Tracking
+  # only, deliberately no enforcement - mirrors business_initiated_messages_used's
+  # shape but never blocks anything if exhausted.
+  def ai_ops_used(period_start = current_period_start)
+    return 0 if period_start.blank?
+
+    account.synkra_usage_events
+           .where(resource_type: 'ai_request')
+           .where('occurred_at >= ?', period_start)
+           .sum(:quantity).to_i
+  end
+
+  def ai_ops_allowance
+    plan_config[:ai_ops_allowance]
+  end
+
+  def emails_used(period_start = current_period_start)
+    return 0 if period_start.blank?
+
+    account.synkra_usage_events
+           .where(resource_type: 'email')
+           .where('occurred_at >= ?', period_start)
+           .sum(:quantity).to_i
+  end
+
+  def email_allowance
+    plan_config[:email_allowance]
+  end
+
   # The plan's own period allowance only - deliberately NOT including
   # purchased_message_credits. Usage-warning emails (next_unnotified_threshold
   # below) are about "you're approaching your plan's included amount",

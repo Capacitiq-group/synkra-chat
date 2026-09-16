@@ -106,7 +106,24 @@ class Captain::Conversation::ResponseBuilderJob < ApplicationJob
     # the shared ai_ops balance - never a handoff (see
     # process_v2_handoff_response's credits_consumed: 0.0, same
     # distinction). Fire-and-forget - see Automations::UsageTracker.
+    # Left in place even though Flow isn't launching soon and
+    # Automations is hidden (15 Sep 2026) - harmless, fails open,
+    # matches the "hide don't remove" instruction. The line below is
+    # the one that actually matters right now.
     Automations::UsageTracker.track_ai_op!(account)
+
+    # Temporary Chat-local tracking (15 Sep 2026, supersedes the Flow
+    # call above while Flow is hidden) - see
+    # SynkraSubscription#ai_ops_used. Same reasoning as
+    # record_synkra_usage_event elsewhere in this codebase: metering
+    # must never affect whether the reply itself was sent, so this
+    # happens after the message is already created, and a failure here
+    # is only ever logged, never raised.
+    begin
+      SynkraUsageEvent.record!(account: account, resource_type: 'ai_request', source: 'ai_agent_reply', reference: message)
+    rescue StandardError => e
+      Rails.logger.error("[SynkraBilling] Failed to record ai_request usage event for account #{account.id}: #{e.message}")
+    end
 
     capture_assistant_session(result_message: message, credits_consumed: 1.0)
     record_v2_response_completed(message) if captain_v2_enabled?

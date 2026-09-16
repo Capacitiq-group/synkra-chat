@@ -1,12 +1,15 @@
 <script setup>
 import { ref, computed, onBeforeMount } from 'vue';
 import { useStore } from 'vuex';
+import { useRoute } from 'vue-router';
 import SignupForm from './components/Signup/Form.vue';
 import Testimonials from './components/Testimonials/Index.vue';
 import Spinner from 'shared/components/Spinner.vue';
 import signupBg from 'assets/images/auth/signup-bg.jpg';
+import { capturePendingPlanFromQuery } from 'dashboard/composables/usePendingPlanCheckout';
 
 const store = useStore();
+const route = useRoute();
 
 const isLoading = ref(false);
 const globalConfig = computed(() => store.getters['globalConfig/get']);
@@ -16,6 +19,11 @@ const isAChatwootInstance = computed(
 
 onBeforeMount(() => {
   isLoading.value = isAChatwootInstance.value;
+  // "Chat first-time checkout" (15 Sep 2026) - a marketing-site link
+  // like /app/signup?plan=starter lands here. Capture it now, redeemed
+  // once the user actually reaches the dashboard post-verification -
+  // see App.vue's mounted hook.
+  capturePendingPlanFromQuery(route.query);
 });
 
 const resizeContainers = () => {

@@ -15,6 +15,7 @@ import { setColorTheme } from './helper/themeHelper';
 import { isOnOnboardingView } from 'v3/helpers/RouteHelper';
 import { useAccount } from 'dashboard/composables/useAccount';
 import { useFontSize } from 'dashboard/composables/useFontSize';
+import { redeemPendingPlanCheckout } from 'dashboard/composables/usePendingPlanCheckout';
 import {
   registerSubscription,
   verifyServiceWorkerExistence,
@@ -86,6 +87,11 @@ export default {
     this.setLocale(
       this.uiSettings?.locale || window.chatwootConfig.selectedLocale
     );
+    // "Chat first-time checkout" (15 Sep 2026) - if the user picked a
+    // paid plan on the marketing site before signing up, this is
+    // where that gets redeemed. See composables/usePendingPlanCheckout.js
+    // for why localStorage rather than a threaded query param.
+    redeemPendingPlanCheckout(this.currentAccountId);
   },
   unmounted() {
     if (this.reconnectService) {

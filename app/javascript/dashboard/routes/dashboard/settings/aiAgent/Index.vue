@@ -89,7 +89,11 @@ onMounted(() => {
         >
           {{ t('AI_AGENT_SETTINGS.KNOWLEDGE.TAB_LABEL') }}
         </button>
+        <!-- Hidden 15 Sep 2026 (Refilwe) - every preset in
+             actionPresets.js sends to a Flow webhook trigger, and
+             Flow isn't reachable. Deliberately disabled, not removed. -->
         <button
+          v-if="false"
           type="button"
           class="px-3 py-2 text-sm font-medium border-b-2 -mb-px"
           :class="

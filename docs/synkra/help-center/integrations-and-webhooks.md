@@ -16,9 +16,9 @@ under Settings → Integrations → Webhooks.
 ## What's the difference between a webhook and a custom tool used by the AI Agent?
 
 A webhook is a one-way notification you configure to react to Chat
-events elsewhere. A [custom tool/action](./ai-agent.md#actions) is
-something your AI Agent actively calls during a conversation to take
-an action. Related concepts, different purposes.
+events elsewhere. Custom tools the AI Agent can call during a
+conversation to take an action are a related but currently unavailable
+capability — see [Synkra AI Agent](./ai-agent.md).
 
 ## Who can manage integrations and webhooks?
 

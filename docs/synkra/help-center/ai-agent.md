@@ -1,8 +1,8 @@
 # Synkra AI Agent
 
 Your AI Agent can answer customer questions automatically, using your
-own business information and documents, and can take actions on your
-behalf. It's configured under Settings → AI Agent, in three tabs.
+own business information and documents. It's configured under
+Settings → AI Agent.
 
 ## Business Brain
 
@@ -27,33 +27,23 @@ The more relevant, accurate information you give it here, the better
 your AI Agent's answers will be. Uploaded documents count toward your
 plan's [storage allowance](./billing-and-plans.md).
 
-## Actions
+## Can my AI Agent take actions, not just answer questions?
 
-Actions let your AI Agent do things, not just answer questions.
-Available action types:
-
-- **Trigger a Flow** — run a custom automated workflow
-- **Send email** — send an email as part of the conversation
-- **Create lead** — create a lead record
-- **Book appointment** — schedule an appointment
-- **Create order** — create an order record
-
-Each action you configure is essentially a tool your AI Agent can
-choose to use when it decides it's the right moment — for example,
-recognizing that a customer wants to book something and using the
-"Book appointment" action rather than just describing how to do it.
+Not currently — that capability is being rebuilt and isn't available
+at the moment. Your AI Agent can answer using its Business Brain and
+Knowledge Base as above.
 
 ## Does using the AI Agent cost anything extra?
 
-Each AI Agent reply and action uses one AI-op from your Automations
-allowance — see [Credits and add-ons](./credits-and-addons.md) for how
-many you get per plan and what happens if you run out. Your AI Agent
-never stops responding to customers because of this; see that page for
-the details.
+Each AI Agent reply uses one AI-op from your allowance — see
+[Credits and add-ons](./credits-and-addons.md) for how many you get
+per plan and what happens if you run out. Your AI Agent never stops
+responding to customers because of this; see that page for the
+details.
 
 ## Who can configure the AI Agent?
 
 AI Agent settings are administrator-only. Agents on your team can see
 your AI Agent's replies in conversations as normal, but only account
-administrators can change its Business Brain, Knowledge Base, or
-Actions.
+administrators can change its Business Brain or Knowledge Base.
+

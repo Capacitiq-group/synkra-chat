@@ -1,52 +1,39 @@
 # Credits and add-ons
 
 Beyond your plan's message/seat/storage allowances (see
-[Plans and pricing](./billing-and-plans.md)), your Synkra AI Agent and
-Automations draw from a separate pool of **AI-ops** and **email**
-credits. This page covers what those are, how much you get, and what
-happens when you run out — plus how to top any of these up.
+[Plans and pricing](./billing-and-plans.md)), your Synkra AI Agent
+draws from a separate pool of **AI-ops** and **email** credits. This
+page covers what those are, how much you get, and what happens when
+you run out.
 
 ## What's an "AI operation" (AI-op)?
 
 One AI-op is roughly one meaningful action your Synkra AI Agent takes
-— generating a reply to a customer, looking something up in your
-Knowledge Base, or running a step in an automated workflow. Every real
-reply your AI Agent sends counts as one AI-op.
+— generating a reply to a customer, or looking something up in your
+Knowledge Base. Every real reply your AI Agent sends counts as one
+AI-op.
+
+## What counts as an "email"?
+
+One outgoing message sent through an Email-channel inbox. It counts
+against both your message allowance and your email allowance.
 
 ## How many AI-ops and emails do I get per plan?
 
 | | Free | Starter | Business | Pro |
 |---|---|---|---|---|
-| AI-ops/month | 0 | 1,000 | 1,000 | 1,750 |
-| Emails/month | 300 | 2,000 | 2,000 | 5,000 |
+| AI-ops/month | 0 | 1,000 | 1,750 | 1,750 |
+| Emails/month | 300 | 2,000 | 2,750 | 5,000 |
 
-A couple of things worth knowing about these numbers:
-
-- **On the Free plan, AI-ops are add-on only** — you get 0 included,
-  so your AI Agent needs a purchased add-on pack to do anything. You
-  still get 300 included emails on Free, though.
-- **Starter and Business currently share the same AI-ops/email
-  allowance.** This isn't a typo — both plans draw from the same
-  underlying automation tier. If you're on Business specifically for
-  higher AI-ops/email volume rather than the extra seats/messages, get
-  in touch and we can talk through options.
+On the Free plan, AI-ops are 0 included — your AI Agent needs a higher
+plan to do anything there, though you still get 300 included emails.
 
 ## What happens when I run out of AI-ops or emails?
 
-Your AI Agent keeps replying — running out of AI-ops does **not**
-stop it from responding to customers. What happens instead depends on
-whether you have credit available:
-
-- If you're still within your plan's included allowance, nothing
-  changes.
-- If you've used your included allowance but have purchased add-on
-  credit available, it draws from that instead.
-- If you're out of both, the usage is still tracked, but there's
-  currently no automatic top-up — reach out or buy an add-on pack to
-  keep your AI Agent's usage comfortably covered.
-
-The one thing that never happens is your AI Agent going silent or a
-customer being left without a response because of a credit shortfall.
+Your AI Agent keeps replying regardless — running out of AI-ops or
+emails never stops it from responding to customers, and never leaves a
+customer without an answer. Usage is tracked against your allowance for
+visibility, not enforcement.
 
 ## Message add-on packs
 
@@ -94,6 +81,6 @@ blocks uploads.
 
 ## Where do I see my current usage?
 
-Settings → Billing shows your current message, seat, and storage
-usage against your plan's allowances. Settings → Automations shows
-your AI-ops and email usage specifically.
+Settings → Billing shows your current message, seat, storage, AI-ops,
+and email usage, all against your plan's allowances, in one place.
+

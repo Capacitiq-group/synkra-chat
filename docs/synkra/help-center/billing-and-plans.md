@@ -66,10 +66,8 @@ runs out; you're never downgraded mid-cycle.
 
 ## Does Synkra Chat include AI features?
 
-Yes — every plan includes the Synkra AI Agent (an AI agent that can
-answer customer questions, look things up in your knowledge base, and
-take actions like sending emails or triggering workflows) and
-Automations (workflow and integration capability). These draw from a
-separate pool of AI-ops and email credits — see
+Yes — every plan includes the Synkra AI Agent, which can answer
+customer questions and look things up in your knowledge base. It
+draws from a separate pool of AI-ops and email credits — see
 [Credits and add-ons](./credits-and-addons.md) for how those work and
 exactly how many are included per plan.

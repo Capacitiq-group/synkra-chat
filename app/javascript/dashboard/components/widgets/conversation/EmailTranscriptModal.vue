@@ -2,7 +2,12 @@
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, email } from '@vuelidate/validators';
 import { useAlert } from 'dashboard/composables';
+import NextButton from 'dashboard/components-next/button/Button.vue';
+
 export default {
+  components: {
+    NextButton,
+  },
   props: {
     show: {
       type: Boolean,
@@ -13,6 +18,7 @@ export default {
       default: () => ({}),
     },
   },
+  emits: ['cancel', 'update:show'],
   setup() {
     return { v$: useVuelidate() };
   },
@@ -31,6 +37,14 @@ export default {
     },
   },
   computed: {
+    localShow: {
+      get() {
+        return this.show;
+      },
+      set(value) {
+        this.$emit('update:show', value);
+      },
+    },
     sentToOtherEmailAddress() {
       return this.selectedType === 'other_email_address';
     },
@@ -71,7 +85,12 @@ export default {
         useAlert(this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_SUCCESS'));
         this.onCancel();
       } catch (error) {
-        useAlert(this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_ERROR'));
+        const status = error?.response?.status;
+        if (status === 402) {
+          useAlert(this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_PAYMENT_REQUIRED'));
+        } else {
+          useAlert(this.$t('EMAIL_TRANSCRIPT.SEND_EMAIL_ERROR'));
+        }
       } finally {
         this.isSubmitting = false;
       }
@@ -80,9 +99,8 @@ export default {
 };
 </script>
 
-<!-- eslint-disable vue/no-mutating-props -->
 <template>
-  <woot-modal :show.sync="show" :on-close="onCancel">
+  <woot-modal v-model:show="localShow" :on-close="onCancel">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header
         :header-title="$t('EMAIL_TRANSCRIPT.TITLE')"
@@ -105,7 +123,13 @@ export default {
               $t('EMAIL_TRANSCRIPT.FORM.SEND_TO_CONTACT')
             }}</label>
           </div>
-          <div v-if="currentChat.meta.assignee" class="flex items-center gap-2">
+          <div
+            v-if="
+              currentChat.meta.assignee &&
+              currentChat.meta.assignee_type !== 'AgentBot'
+            "
+            class="flex items-center gap-2"
+          >
             <input
               id="assignee"
               v-model="selectedType"
@@ -132,7 +156,7 @@ export default {
           <div v-if="sentToOtherEmailAddress" class="w-[50%] mt-1">
             <label :class="{ error: v$.email.$error }">
               <input
-                v-model.trim="email"
+                v-model="email"
                 type="text"
                 :placeholder="$t('EMAIL_TRANSCRIPT.FORM.EMAIL.PLACEHOLDER')"
                 @input="v$.email.$touch"
@@ -144,13 +168,18 @@ export default {
           </div>
         </div>
         <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
-          <woot-submit-button
-            :button-text="$t('EMAIL_TRANSCRIPT.SUBMIT')"
+          <NextButton
+            faded
+            slate
+            type="reset"
+            :label="$t('EMAIL_TRANSCRIPT.CANCEL')"
+            @click.prevent="onCancel"
+          />
+          <NextButton
+            type="submit"
+            :label="$t('EMAIL_TRANSCRIPT.SUBMIT')"
             :disabled="!isFormValid"
           />
-          <button class="button clear" @click.prevent="onCancel">
-            {{ $t('EMAIL_TRANSCRIPT.CANCEL') }}
-          </button>
         </div>
       </form>
     </div>

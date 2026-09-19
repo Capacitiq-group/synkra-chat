@@ -5,6 +5,8 @@ RSpec.describe Integrations::App do
   let(:app) { apps.find(id: app_name) }
   let(:account) { create(:account) }
 
+  before { allow(Integrations::Openai::KeyValidator).to receive(:valid?).and_return(true) }
+
   describe '#name' do
     let(:app_name) { 'slack' }
 
@@ -21,6 +23,24 @@ RSpec.describe Integrations::App do
     end
   end
 
+  describe '#visible_properties' do
+    context 'when the app has visible properties' do
+      let(:app_name) { 'dialogflow' }
+
+      it 'returns the configured property names as strings' do
+        expect(app.visible_properties).to contain_exactly('project_id', 'region', 'language_code')
+      end
+    end
+
+    context 'when the app has no visible properties configured' do
+      let(:app_name) { 'webhook' }
+
+      it 'defaults to an empty list' do
+        expect(app.visible_properties).to eq([])
+      end
+    end
+  end
+
   describe '#action' do
     let(:app_name) { 'slack' }
 
@@ -30,12 +50,13 @@ RSpec.describe Integrations::App do
 
     context 'when the app is slack' do
       it 'returns the action URL with client_id and redirect_uri' do
-        with_modified_env SLACK_CLIENT_ID: 'dummy_client_id' do
-          expect(app.action).to include('client_id=dummy_client_id')
-          expect(app.action).to include(
-            "/app/accounts/#{account.id}/settings/integrations/slack"
-          )
-        end
+        allow(GlobalConfigService).to receive(:load).and_call_original
+        allow(GlobalConfigService).to receive(:load).with('SLACK_CLIENT_ID', nil).and_return('dummy_client_id')
+
+        expect(app.action).to include('client_id=dummy_client_id')
+        expect(app.action).to include(
+          "/app/accounts/#{account.id}/settings/integrations/slack"
+        )
       end
     end
   end
@@ -45,45 +66,44 @@ RSpec.describe Integrations::App do
 
     context 'when the app is slack' do
       it 'returns true if SLACK_CLIENT_SECRET is present' do
-        with_modified_env SLACK_CLIENT_SECRET: 'random_secret' do
-          expect(app.active?(account)).to be true
-        end
+        allow(GlobalConfigService).to receive(:load).with('SLACK_CLIENT_SECRET', nil).and_return('random_secret')
+
+        expect(app.active?(account)).to be true
+      end
+    end
+
+    context 'when the app is shopify' do
+      let(:app_name) { 'shopify' }
+
+      it 'returns true if the shopify integration feature is enabled' do
+        account.enable_features('shopify_integration')
+        allow(GlobalConfigService).to receive(:load).with('SHOPIFY_CLIENT_ID', nil).and_return('client_id')
+        expect(app.active?(account)).to be true
+      end
+
+      it 'returns false if the shopify integration feature is disabled' do
+        allow(GlobalConfigService).to receive(:load).with('SHOPIFY_CLIENT_ID', nil).and_return('client_id')
+        expect(app.active?(account)).to be false
+      end
+
+      it 'returns false if SHOPIFY_CLIENT_ID is not present, even if feature is enabled' do
+        account.enable_features('shopify_integration')
+        allow(GlobalConfigService).to receive(:load).with('SHOPIFY_CLIENT_ID', nil).and_return(nil)
+        expect(app.active?(account)).to be false
       end
     end
 
     context 'when the app is linear' do
       let(:app_name) { 'linear' }
 
-      it 'returns true if the linear integration feature is disabled' do
+      it 'returns false if the linear integration feature is disabled' do
         expect(app.active?(account)).to be false
       end
 
-      it 'returns false if the linear integration feature is enabled' do
+      it 'returns true if the linear integration feature is enabled' do
         account.enable_features('linear_integration')
         account.save!
-
-        expect(app.active?(account)).to be true
-      end
-    end
-
-    context 'when the app is captain' do
-      let(:app_name) { 'captain' }
-
-      it 'returns false is the captain feature is not enabled' do
-        expect(app.active?(account)).to be false
-      end
-
-      it 'returns false if the captain app url is not present' do
-        account.enable_features('captain_integration')
-        account.save!
-        expect(InstallationConfig.find_by(name: 'CAPTAIN_APP_URL')).to be_nil
-        expect(app.active?(account)).to be false
-      end
-
-      it 'returns true if the captain feature is enabled and the captain app url is present' do
-        account.enable_features('captain_integration')
-        account.save!
-        InstallationConfig.where(name: 'CAPTAIN_APP_URL').first_or_create(value: 'https://app.chatwoot.com')
+        allow(GlobalConfigService).to receive(:load).with('LINEAR_CLIENT_ID', nil).and_return('client_id')
         expect(app.active?(account)).to be true
       end
     end

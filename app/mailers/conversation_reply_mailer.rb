@@ -1,5 +1,11 @@
 class ConversationReplyMailer < ApplicationMailer
+  # We needs to expose large attachments to the view as links
+  # Small attachments are linked as mail attachments directly
+  attr_reader :large_attachments
+
   include ConversationReplyMailerHelper
+  include ReferencesHeaderBuilder
+  include EmailAddressParseable
   default from: ENV.fetch('MAILER_SENDER_EMAIL', 'Chatwoot <accounts@chatwoot.com>')
   layout :choose_layout
 
@@ -30,12 +36,11 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def email_reply(message)
-    return unless smtp_config_set_or_development?
-
     init_conversation_attributes(message.conversation)
+    return unless smtp_config_set_or_development? || email_smtp_enabled? || (email_imap_enabled? && email_oauth_enabled?)
+
     @message = message
-    reply_mail_object = prepare_mail(true)
-    message.update(source_id: reply_mail_object.message_id)
+    prepare_mail(true)
   end
 
   def conversation_transcript(conversation, to_email)
@@ -64,6 +69,8 @@ class ConversationReplyMailer < ApplicationMailer
     @agent = @conversation.assignee
     @inbox = @conversation.inbox
     @channel = @inbox.channel
+    Current.account = @account
+    Current.inbox = @inbox
   end
 
   def should_use_conversation_email_address?
@@ -84,8 +91,13 @@ class ConversationReplyMailer < ApplicationMailer
 
   def sender_name(sender_email)
     if @inbox.friendly?
-      I18n.t('conversations.reply.email.header.friendly_name', sender_name: custom_sender_name, business_name: business_name,
-                                                               from_email: sender_email)
+      Email::SenderNameBuilder.new(
+        account: @account,
+        sender: current_message&.sender,
+        sender_email: sender_email,
+        sender_name: custom_sender_name,
+        business_name: business_name
+      ).build
     else
       I18n.t('conversations.reply.email.header.professional_name', business_name: business_name, from_email: sender_email)
     end
@@ -96,11 +108,11 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def custom_sender_name
-    current_message&.sender&.available_name || @agent&.available_name || 'Notifications'
+    current_message&.sender&.available_name || @agent&.available_name || I18n.t('conversations.reply.email.header.notifications')
   end
 
   def business_name
-    @inbox.business_name || @inbox.name
+    @inbox.sanitized_business_name
   end
 
   def from_email
@@ -135,10 +147,6 @@ class ConversationReplyMailer < ApplicationMailer
     sender_name(@channel.email)
   end
 
-  def parse_email(email_string)
-    Mail::Address.new(email_string).address
-  end
-
   def inbox_from_email_address
     return @inbox.email_address if @inbox.email_address
 
@@ -156,6 +164,7 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def conversation_reply_email_id
+    # Find the last incoming message's message_id to reply to
     content_attributes = @conversation.messages.incoming.last&.content_attributes
 
     if content_attributes && content_attributes['email'] && content_attributes['email']['message_id']
@@ -165,8 +174,12 @@ class ConversationReplyMailer < ApplicationMailer
     nil
   end
 
+  def references_header
+    build_references_header(@conversation, in_reply_to_email)
+  end
+
   def cc_bcc_emails
-    content_attributes = @conversation.messages.outgoing.last&.content_attributes
+    content_attributes = current_message&.content_attributes
 
     return [] unless content_attributes
     return [] unless content_attributes[:cc_emails] || content_attributes[:bcc_emails]
@@ -175,7 +188,7 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def to_emails_from_content_attributes
-    content_attributes = @conversation.messages.outgoing.last&.content_attributes
+    content_attributes = current_message&.content_attributes
 
     return [] unless content_attributes
     return [] unless content_attributes[:to_emails]
@@ -194,8 +207,24 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def choose_layout
+    return 'mailer/base' if branded_email_layout_action?
     return false if action_name == 'reply_without_summary' || action_name == 'email_reply'
 
     'mailer/base'
+  end
+
+  def branded_email_layout_action?
+    return false unless action_name.in?(%w[email_reply reply_without_summary])
+    return @inbox.branded_email_layout_available? if @inbox&.email?
+
+    @account&.feature_enabled?(:branded_email_templates) && EmailTemplate.account_branded_layout_template_for(@account).present?
+  end
+
+  def liquid_droppables
+    super.merge({
+                  agent: current_message&.sender || @agent,
+                  contact: @contact,
+                  message: @message || @messages&.last
+                })
   end
 end

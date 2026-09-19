@@ -1,4 +1,6 @@
 class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::Conversations::BaseController
+  before_action :ensure_api_inbox, only: :update
+
   def index
     @messages = message_finder.perform
   end
@@ -11,6 +13,11 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     render_could_not_create_error(e.message)
   end
 
+  def update
+    Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
+    @message = message
+  end
+
   def destroy
     ActiveRecord::Base.transaction do
       message.update!(content: I18n.t('conversations.messages.deleted'), content_type: :text, content_attributes: { deleted: true })
@@ -21,8 +28,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   def retry
     return if message.blank?
 
-    message.update!(status: :sent, content_attributes: {})
-    ::SendReplyJob.perform_later(message.id)
+    ::SendReplyJob.perform_later(message.id) if claim_message_retry
   rescue StandardError => e
     render_could_not_create_error(e.message)
   end
@@ -43,6 +49,9 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     end
 
     render json: { content: translated_content }
+  rescue Google::Cloud::Error => e
+    # `details` carries the clean human message; `message` includes gRPC debug noise
+    render_could_not_create_error(e.details.presence || e.message)
   end
 
   private
@@ -55,11 +64,33 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
     @message_finder ||= MessageFinder.new(@conversation, params)
   end
 
+  def claim_message_retry
+    message.with_lock do
+      next false unless message.failed?
+
+      Messages::StatusUpdateService.new(message, 'sent').perform
+      previous_source_id = message.source_id
+      retry_attributes = { content_attributes: {} }
+      retry_attributes[:source_id] = nil unless @conversation.inbox.api? || @conversation.inbox.web_widget?
+      message.update!(retry_attributes)
+      if retry_attributes.key?(:source_id) && previous_source_id.present?
+        Rails.logger.info "Cleared older source ID #{previous_source_id} for message #{message.id}"
+      end
+      true
+    end
+  end
+
   def permitted_params
-    params.permit(:id, :target_language)
+    params.permit(:id, :target_language, :status, :external_error)
   end
 
   def already_translated_content_available?
     message.translations.present? && message.translations[permitted_params[:target_language]].present?
+  end
+
+  # API inbox check
+  def ensure_api_inbox
+    # Only API inboxes can update messages
+    render json: { error: 'Message status update is only allowed for API inboxes' }, status: :forbidden unless @conversation.inbox.api?
   end
 end

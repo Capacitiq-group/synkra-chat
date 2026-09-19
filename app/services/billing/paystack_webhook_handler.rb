@@ -34,11 +34,11 @@ class Billing::PaystackWebhookHandler
   end
 
   def handle_charge_success
-    # Message add-on, extra-seat, and storage-overage purchases are
+    # Message add-on, extra-seat, and extra-storage purchases are
     # one-time/on-demand charges, NOT a plan renewal - they must never
     # fall through into the subscription lifecycle logic below
     # (mark_active!, start_new_period!, apply_pending_plan_change!
-    # would all be wrong here). Extra seats and storage overage
+    # would all be wrong here). Extra seats and extra storage
     # specifically: both complete synchronously via
     # charge_authorization's direct API response - this webhook for
     # that same charge is a pure no-op, not a second completion step.
@@ -46,7 +46,7 @@ class Billing::PaystackWebhookHandler
     if purchase_type == 'message_addon'
       handle_message_addon_purchase
       return
-    elsif %w[extra_seats storage_overage].include?(purchase_type)
+    elsif %w[extra_seats extra_storage].include?(purchase_type)
       return
     end
 
@@ -66,7 +66,7 @@ class Billing::PaystackWebhookHandler
     subscription.start_new_period!
     subscription.apply_pending_plan_change!
     bill_extra_seats_for_renewal(subscription)
-    bill_storage_overage_for_renewal(subscription)
+    bill_extra_storage_for_renewal(subscription)
   end
 
   # See SynkraSubscription#bill_extra_seats_for_renewal! for the actual
@@ -80,12 +80,13 @@ class Billing::PaystackWebhookHandler
     subscription.bill_extra_seats_for_renewal!(@data['reference'])
   end
 
-  # See SynkraSubscription#bill_storage_overage_for_renewal! - same
+  # See SynkraSubscription#bill_extra_storage_for_renewal! - same
   # idempotency/fail-open reasoning as bill_extra_seats_for_renewal
-  # above, different resource (metered actual usage, not a
-  # pre-purchased quantity).
-  def bill_storage_overage_for_renewal(subscription)
-    subscription.bill_storage_overage_for_renewal!(@data['reference'])
+  # above. Storage moved to the same pre-purchased-quantity model as
+  # extra seats on 16 Sep 2026 (previously: automatic metered overage
+  # billing with no purchase step - see that migration's comment).
+  def bill_extra_storage_for_renewal(subscription)
+    subscription.bill_extra_storage_for_renewal!(@data['reference'])
   end
 
   # Credits MessageAddonPurchase#units onto the subscription's

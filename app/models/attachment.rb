@@ -43,6 +43,7 @@ class Attachment < ApplicationRecord
   has_one_attached :file
   before_save :set_extension
   validate :acceptable_file
+  validate :enforce_synkra_storage_limit, on: :create
   validates :external_url, length: { maximum: Limits::URL_LENGTH_LIMIT }
   enum file_type: { :image => 0, :audio => 1, :video => 2, :file => 3, :location => 4, :fallback => 5, :share => 6, :story_mention => 7,
                     :contact => 8, :ig_reel => 9, :ig_post => 10, :ig_story => 11, :embed => 12 }
@@ -196,6 +197,21 @@ class Attachment < ApplicationRecord
 
     validate_file_size(file.byte_size)
     validate_file_content_type(file.content_type)
+  end
+
+  # Only blocks OUTGOING attachments (a business/AI Agent sending a
+  # file) - an incoming attachment (a customer sending the business a
+  # file) is never blocked, same "receiving is never affected"
+  # principle already established for message allowance blocking
+  # (Message#enforce_synkra_billing_restriction).
+  def enforce_synkra_storage_limit
+    return unless message&.outgoing?
+
+    subscription = account&.synkra_subscription
+    return if subscription.nil? # fail open - a missing subscription record must never block a legitimate upload
+    return unless subscription.storage_blocked?
+
+    errors.add(:base, "This account has reached its storage allowance - buy extra storage or upgrade your plan to send attachments")
   end
 
   def validate_file_content_type(file_content_type)

@@ -60,6 +60,13 @@ class Captain::Document < ApplicationRecord
   enum :sync_status, { syncing: 0, synced: 1, failed: 2 }, prefix: :sync
 
   before_create :ensure_within_plan_limit
+  # Synkra storage block (16 Sep 2026) - separate from the
+  # Chatwoot-native document COUNT limit above (ensure_within_plan_limit).
+  # A PDF/DOCX upload here is one of the two things that actually
+  # consumes the storage allowance Billing::StorageUsageCalculator
+  # measures - see Attachment's identical check for message
+  # attachments, the other one.
+  before_create :ensure_within_synkra_storage_limit
   after_create_commit :enqueue_crawl_job
   after_create_commit :update_document_usage
   after_destroy :update_document_usage
@@ -199,6 +206,20 @@ class Captain::Document < ApplicationRecord
   def ensure_within_plan_limit
     limits = account.usage_limits[:captain][:documents]
     raise LimitExceededError, I18n.t('captain.documents.limit_exceeded') unless limits[:current_available].positive?
+  end
+
+  # Only blocks when there's actually a file involved (PDF/DOCX) -
+  # external_link-only documents (crawled web pages) don't consume any
+  # of the account's storage allowance, so they're never blocked here.
+  def ensure_within_synkra_storage_limit
+    return unless pdf_file.attached?
+
+    subscription = account.synkra_subscription
+    return if subscription.nil? # fail open - a missing subscription record must never block a legitimate upload
+
+    return unless subscription.storage_blocked?
+
+    raise LimitExceededError, I18n.t('captain.documents.storage_limit_exceeded')
   end
 
   def validate_pdf_format

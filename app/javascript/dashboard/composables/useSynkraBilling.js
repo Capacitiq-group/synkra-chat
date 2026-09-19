@@ -131,6 +131,30 @@ export function useSynkraBilling() {
     }
   };
 
+  // Message packs are a real one-time Paystack charge - same
+  // redirect-then-webhook-confirms flow as checkout above, not a
+  // synchronous success the way extra seats/storage are (those charge
+  // an already-stored card directly, no redirect needed).
+  const buyMessageAddon = async ({ packKey }) => {
+    const response = await SynkraBillingAPI.buyMessageAddon(packKey);
+    window.location.href = response.data.authorization_url;
+  };
+
+  // Synchronous - grants immediately, no charge until next renewal
+  // (see SynkraSubscription#purchase_extra_seats!). Refreshes the
+  // subscription so the seat meter reflects the new total right away.
+  const buyExtraSeats = async ({ quantity }) => {
+    await SynkraBillingAPI.buyExtraSeats(quantity);
+    await fetchSubscription({ silent: true });
+    useAlert(t('SYNKRA_BILLING_SETTINGS.SUCCESS.SEATS_PURCHASED'));
+  };
+
+  const buyExtraStorage = async ({ quantity }) => {
+    await SynkraBillingAPI.buyExtraStorage(quantity);
+    await fetchSubscription({ silent: true });
+    useAlert(t('SYNKRA_BILLING_SETTINGS.SUCCESS.STORAGE_PURCHASED'));
+  };
+
   return {
     subscription,
     plan,
@@ -151,5 +175,8 @@ export function useSynkraBilling() {
     scheduleDowngrade,
     cancelSubscription,
     resumeSubscription,
+    buyMessageAddon,
+    buyExtraSeats,
+    buyExtraStorage,
   };
 }

@@ -13,6 +13,7 @@ import DetailItem from '../billing/components/DetailItem.vue';
 import BillingMeter from '../billing/components/BillingMeter.vue';
 import PlanCard from './components/PlanCard.vue';
 import CancelSubscriptionDialog from './components/CancelSubscriptionDialog.vue';
+import AddonPurchaseDialog from './components/AddonPurchaseDialog.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
 import ButtonV4 from 'next/button/Button.vue';
 
@@ -40,9 +41,25 @@ const {
   scheduleDowngrade,
   cancelSubscription,
   resumeSubscription,
+  buyMessageAddon,
+  buyExtraSeats,
+  buyExtraStorage,
 } = useSynkraBilling();
 
 const cancelDialogRef = ref(null);
+const messageAddonDialogRef = ref(null);
+const extraSeatsDialogRef = ref(null);
+const extraStorageDialogRef = ref(null);
+
+// Mirrors Billing::MessageAddonPack::PACKS (synkra_chat's own repo) -
+// same drift-risk caveat as PLAN_CATALOGUE below.
+const MESSAGE_PACKS = [
+  { key: 'pack_5k', price_zar: 50, units: 5_000 },
+  { key: 'pack_10k', price_zar: 100, units: 10_000 },
+  { key: 'pack_25k', price_zar: 250, units: 25_000 },
+  { key: 'pack_50k', price_zar: 500, units: 50_000 },
+  { key: 'pack_100k', price_zar: 1_000, units: 100_000 },
+];
 
 // Mirrors app/models/synkra_plan.rb - there's no API endpoint that
 // lists all plans (only the account's own current one), so a small
@@ -214,21 +231,61 @@ onMounted(async () => {
             />
           </div>
           <div v-if="usage" class="px-5 grid gap-4">
-            <BillingMeter
-              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.MESSAGES')"
-              :consumed="usage.business_initiated_messages_used"
-              :total-count="usage.business_initiated_message_allowance"
-            />
-            <BillingMeter
-              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.SEATS')"
-              :consumed="usage.seats_used"
-              :total-count="usage.effective_seat_limit"
-            />
-            <BillingMeter
-              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.STORAGE')"
-              :consumed="usage.storage_used_mb"
-              :total-count="usage.storage_mb_allowance"
-            />
+            <Banner
+              v-if="usage.storage_blocked"
+              color="ruby"
+              class="mb-1"
+            >
+              {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.STORAGE.BLOCKED_BANNER') }}
+            </Banner>
+            <div class="flex items-end gap-2">
+              <BillingMeter
+                class="flex-1"
+                :title="t('SYNKRA_BILLING_SETTINGS.USAGE.MESSAGES')"
+                :consumed="usage.business_initiated_messages_used"
+                :total-count="usage.business_initiated_message_allowance"
+              />
+              <ButtonV4
+                sm
+                faded
+                slate
+                @click="messageAddonDialogRef?.dialogRef?.open()"
+              >
+                {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
+              </ButtonV4>
+            </div>
+            <div class="flex items-end gap-2">
+              <BillingMeter
+                class="flex-1"
+                :title="t('SYNKRA_BILLING_SETTINGS.USAGE.SEATS')"
+                :consumed="usage.seats_used"
+                :total-count="usage.effective_seat_limit"
+              />
+              <ButtonV4
+                sm
+                faded
+                slate
+                @click="extraSeatsDialogRef?.dialogRef?.open()"
+              >
+                {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
+              </ButtonV4>
+            </div>
+            <div class="flex items-end gap-2">
+              <BillingMeter
+                class="flex-1"
+                :title="t('SYNKRA_BILLING_SETTINGS.USAGE.STORAGE')"
+                :consumed="usage.storage_used_mb"
+                :total-count="usage.storage_mb_allowance"
+              />
+              <ButtonV4
+                sm
+                faded
+                slate
+                @click="extraStorageDialogRef?.dialogRef?.open()"
+              >
+                {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
+              </ButtonV4>
+            </div>
             <BillingMeter
               :title="t('SYNKRA_BILLING_SETTINGS.USAGE.AI_OPS')"
               :consumed="usage.ai_ops_used"
@@ -239,16 +296,6 @@ onMounted(async () => {
               :consumed="usage.emails_used"
               :total-count="usage.email_allowance"
             />
-            <p
-              v-if="usage.storage_overage_gb > 0"
-              class="text-xs text-n-amber-11"
-            >
-              {{
-                t('SYNKRA_BILLING_SETTINGS.USAGE.STORAGE_OVERAGE', {
-                  gb: usage.storage_overage_gb,
-                })
-              }}
-            </p>
           </div>
         </BillingCard>
 
@@ -278,6 +325,22 @@ onMounted(async () => {
       <CancelSubscriptionDialog
         ref="cancelDialogRef"
         @confirm="handleCancelConfirm"
+      />
+      <AddonPurchaseDialog
+        ref="messageAddonDialogRef"
+        type="messages"
+        :packs="MESSAGE_PACKS"
+        :on-purchase="buyMessageAddon"
+      />
+      <AddonPurchaseDialog
+        ref="extraSeatsDialogRef"
+        type="seats"
+        :on-purchase="buyExtraSeats"
+      />
+      <AddonPurchaseDialog
+        ref="extraStorageDialogRef"
+        type="storage"
+        :on-purchase="buyExtraStorage"
       />
     </template>
   </SettingsLayout>

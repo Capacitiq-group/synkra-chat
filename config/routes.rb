@@ -398,6 +398,7 @@ Rails.application.routes.draw do
             end
             resources :message_addons, only: %i[index create]
             resources :extra_seats, only: [:create]
+            resources :extra_storage, only: [:create]
           end
           namespace :automations do
             resource :credits, only: [:show], controller: 'credits'

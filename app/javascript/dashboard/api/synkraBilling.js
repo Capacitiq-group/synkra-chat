@@ -31,6 +31,27 @@ class SynkraBillingAPI extends ApiClient {
   resume() {
     return axios.post(`${this.url}/resume`);
   }
+
+  buyMessageAddon(packKey) {
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/billing/message_addons`,
+      { pack_key: packKey }
+    );
+  }
+
+  buyExtraSeats(quantity) {
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/billing/extra_seats`,
+      { quantity }
+    );
+  }
+
+  buyExtraStorage(gb) {
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/billing/extra_storage`,
+      { gb }
+    );
+  }
 }
 
 export default new SynkraBillingAPI();

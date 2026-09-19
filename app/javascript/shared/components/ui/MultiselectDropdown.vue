@@ -1,146 +1,169 @@
-<script>
-import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
+<script setup>
+import { computed } from 'vue';
+import { OnClickOutside } from '@vueuse/components';
+import { useToggle } from '@vueuse/core';
+
+import Button from 'dashboard/components-next/button/Button.vue';
+import Avatar from 'next/avatar/Avatar.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
+import EmojiIcon from 'dashboard/components-next/emoji-icon-picker/EmojiIcon.vue';
 import MultiselectDropdownItems from 'shared/components/ui/MultiselectDropdownItems.vue';
-export default {
-  components: {
-    Thumbnail,
-    MultiselectDropdownItems,
-  },
-  props: {
-    options: {
-      type: Array,
-      default: () => [],
-    },
-    selectedItem: {
-      type: Object,
-      default: () => ({}),
-    },
-    hasThumbnail: {
-      type: Boolean,
-      default: true,
-    },
-    multiselectorTitle: {
-      type: String,
-      default: '',
-    },
-    multiselectorPlaceholder: {
-      type: String,
-      default: 'None',
-    },
-    noSearchResult: {
-      type: String,
-      default: 'No results found',
-    },
-    inputPlaceholder: {
-      type: String,
-      default: 'Search',
-    },
-  },
-  data() {
-    return {
-      showSearchDropdown: false,
-    };
-  },
-  computed: {
-    hasValue() {
-      if (this.selectedItem && this.selectedItem.id) {
-        return true;
-      }
-      return false;
-    },
-  },
-  methods: {
-    toggleDropdown() {
-      this.showSearchDropdown = !this.showSearchDropdown;
-    },
 
-    onCloseDropdown() {
-      this.showSearchDropdown = false;
-    },
-
-    onClickSelectItem(value) {
-      this.$emit('click', value);
-      this.onCloseDropdown();
-    },
+const props = defineProps({
+  options: {
+    type: Array,
+    default: () => [],
   },
+  selectedItem: {
+    type: Object,
+    default: () => ({}),
+  },
+  hasThumbnail: {
+    type: Boolean,
+    default: true,
+  },
+  multiselectorTitle: {
+    type: String,
+    default: '',
+  },
+  multiselectorPlaceholder: {
+    type: String,
+    default: 'None',
+  },
+  noSearchResult: {
+    type: String,
+    default: 'No results found',
+  },
+  inputPlaceholder: {
+    type: String,
+    default: 'Search',
+  },
+  showEmojiIcon: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const emit = defineEmits(['select']);
+const [showSearchDropdown, toggleDropdown] = useToggle(false);
+
+const onCloseDropdown = () => toggleDropdown(false);
+const onClickSelectItem = value => {
+  emit('select', value);
+  onCloseDropdown();
 };
+
+const hasValue = computed(() => {
+  if (props.selectedItem && props.selectedItem.id) {
+    return true;
+  }
+  return false;
+});
+
+const hasIcon = computed(() => {
+  return props.selectedItem?.icon || false;
+});
+
+const isAgentBot = computed(
+  () => props.selectedItem?.assignee_type === 'AgentBot'
+);
+
+const selectedItemName = computed(() =>
+  !props.selectedItem?.name && isAgentBot.value ? '-' : props.selectedItem?.name
+);
+
+const selectedThumbnail = computed(
+  () => props.selectedItem?.thumbnail || props.selectedItem?.avatar_url
+);
 </script>
 
 <template>
-  <div
-    v-on-clickaway="onCloseDropdown"
-    class="relative w-full mb-2"
-    @keyup.esc="onCloseDropdown"
-  >
-    <woot-button
-      variant="hollow"
-      color-scheme="secondary"
-      class="w-full border border-solid border-slate-100 dark:border-slate-700 px-2 hover:border-slate-75 dark:hover:border-slate-600"
-      @click="toggleDropdown"
-    >
-      <div class="flex gap-1">
-        <Thumbnail
-          v-if="hasValue && hasThumbnail"
-          :src="selectedItem.thumbnail"
-          size="24px"
-          :status="selectedItem.availability_status"
-          :username="selectedItem.name"
-        />
-        <div class="flex justify-between w-full min-w-0 items-center">
-          <h4
-            v-if="!hasValue"
-            class="text-ellipsis text-sm text-slate-800 dark:text-slate-100"
-          >
+  <OnClickOutside @trigger="onCloseDropdown">
+    <div class="relative w-full mb-2" @keyup.esc="onCloseDropdown">
+      <Button
+        slate
+        outline
+        trailing-icon
+        :icon="
+          showSearchDropdown ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+        "
+        class="w-full !px-2"
+        @click="
+          () => toggleDropdown() // ensure that the event is not passed to the button
+        "
+      >
+        <div class="flex items-center justify-between w-full min-w-0">
+          <h4 v-if="!hasValue" class="text-sm text-ellipsis text-n-slate-12">
             {{ multiselectorPlaceholder }}
           </h4>
           <h4
             v-else
-            class="items-center leading-tight overflow-hidden whitespace-nowrap text-ellipsis text-sm text-slate-800 dark:text-slate-100"
-            :title="selectedItem.name"
+            class="items-center overflow-hidden text-sm leading-tight whitespace-nowrap text-ellipsis text-n-slate-12"
+            :title="selectedItemName"
           >
-            {{ selectedItem.name }}
+            {{ selectedItemName }}
           </h4>
-          <i
-            v-if="showSearchDropdown"
-            class="icon ion-chevron-up text-slate-600 mr-1"
-          />
-          <i v-else class="icon ion-chevron-down text-slate-600 mr-1" />
         </div>
-      </div>
-    </woot-button>
-    <div
-      :class="{ 'dropdown-pane--open': showSearchDropdown }"
-      class="dropdown-pane"
-    >
-      <div class="flex justify-between items-center mb-1">
-        <h4
-          class="text-sm text-slate-800 dark:text-slate-100 m-0 overflow-hidden whitespace-nowrap text-ellipsis"
+        <Avatar
+          v-if="hasValue && hasThumbnail && (isAgentBot || !hasIcon)"
+          :src="selectedThumbnail"
+          :status="selectedItem.availability_status"
+          :name="selectedItemName"
+          :icon-name="isAgentBot ? 'i-lucide-bot' : undefined"
+          :size="24"
+          hide-offline-status
+          rounded-full
         >
-          {{ multiselectorTitle }}
-        </h4>
-        <woot-button
-          icon="dismiss"
-          size="tiny"
-          color-scheme="secondary"
-          variant="clear"
-          @click="onCloseDropdown"
+          <template v-if="isAgentBot && selectedThumbnail" #badge>
+            <div
+              class="absolute z-20 flex items-center justify-center rounded-full outline outline-1 outline-n-weak bg-n-solid-1 -bottom-0.5 ltr:-right-0.5 rtl:-left-0.5 size-3.5"
+            >
+              <Icon icon="i-lucide-bot" class="text-n-slate-11 size-2.5" />
+            </div>
+          </template>
+        </Avatar>
+        <div
+          v-else-if="hasValue && hasIcon && showEmojiIcon"
+          class="flex items-center justify-center flex-shrink-0 text-sm rounded-full size-6 outline outline-1 -outline-offset-1 outline-n-weak"
+        >
+          <EmojiIcon
+            :value="selectedItem.icon"
+            :color="selectedItem.icon_color"
+            class="size-3.5 !text-sm"
+          />
+        </div>
+        <Icon
+          v-else-if="hasValue && hasIcon"
+          :icon="selectedItem.icon"
+          class="size-5 text-n-slate-11"
+        />
+      </Button>
+      <div
+        :class="{
+          'block visible': showSearchDropdown,
+          'hidden invisible': !showSearchDropdown,
+        }"
+        class="box-border top-[2.625rem] w-full border rounded-lg bg-n-alpha-3 backdrop-blur-[100px] absolute shadow-lg border-n-strong dark:border-n-strong p-2 z-[9999]"
+      >
+        <div class="flex items-center justify-between mb-1">
+          <h4
+            class="m-0 overflow-hidden text-sm text-n-slate-11 whitespace-nowrap text-ellipsis"
+          >
+            {{ multiselectorTitle }}
+          </h4>
+          <Button ghost slate xs icon="i-lucide-x" @click="onCloseDropdown" />
+        </div>
+        <MultiselectDropdownItems
+          v-if="showSearchDropdown"
+          :options="options"
+          :selected-items="[selectedItem]"
+          :has-thumbnail="hasThumbnail"
+          :input-placeholder="inputPlaceholder"
+          :no-search-result="noSearchResult"
+          :show-emoji-icon="showEmojiIcon"
+          @select="onClickSelectItem"
         />
       </div>
-      <MultiselectDropdownItems
-        v-if="showSearchDropdown"
-        :options="options"
-        :selected-items="[selectedItem]"
-        :has-thumbnail="hasThumbnail"
-        :input-placeholder="inputPlaceholder"
-        :no-search-result="noSearchResult"
-        @click="onClickSelectItem"
-      />
     </div>
-  </div>
+  </OnClickOutside>
 </template>
-
-<style lang="scss" scoped>
-.dropdown-pane {
-  @apply box-border top-[2.625rem] w-full;
-}
-</style>

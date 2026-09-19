@@ -1,5 +1,11 @@
 {
   "GENERAL_SETTINGS": {
+    "LIMIT_MESSAGES": {
+      "CONVERSATION": "You have exceeded the conversation limit. Hacker plan allows only 500 conversations.",
+      "INBOXES": "You have exceeded the inbox limit. Hacker plan only supports website live-chat. Additional inboxes like email, WhatsApp etc. require a paid plan.",
+      "AGENTS": "You have exceeded the agent limit. Your plan only allows {allowedAgents} agents.",
+      "NON_ADMIN": "Please contact your administrator to upgrade the plan and continue using all features."
+    },
     "TITLE": "Fiókbeállítások",
     "SUBMIT": "Beállítások frissítése",
     "BACK": "Vissza",
@@ -7,6 +13,26 @@
     "UPDATE": {
       "ERROR": "Beállítás frissítés sikertelen, kérjük próbáld később!",
       "SUCCESS": "Fiókbeállítások frissítve"
+    },
+    "ACCOUNT_DELETE_SECTION": {
+      "TITLE": "Delete your Account",
+      "NOTE": "Once you delete your account, all your data will be deleted.",
+      "BUTTON_TEXT": "Delete Your Account",
+      "CONFIRM": {
+        "TITLE": "Delete Account",
+        "MESSAGE": "Deleting your Account is irreversible. Enter your account name below to confirm you want to permanently delete it.",
+        "BUTTON_TEXT": "Törlés",
+        "DISMISS": "Mégse",
+        "PLACE_HOLDER": "Kérlek gépeld be, hogy {accountName} a megerősítéshez"
+      },
+      "SUCCESS": "Account marked for deletion",
+      "FAILURE": "Could not delete account, try again!",
+      "SCHEDULED_DELETION": {
+        "TITLE": "Account Scheduled for Deletion",
+        "MESSAGE_MANUAL": "This account is scheduled for deletion on {deletionDate}. This was requested by an administrator. You can cancel the deletion before this date.",
+        "MESSAGE_INACTIVITY": "This account is scheduled for deletion on {deletionDate} due to account inactivity. You can cancel the deletion before this date.",
+        "CLEAR_BUTTON": "Cancel Scheduled Deletion"
+      }
     },
     "FORM": {
       "ERROR": "Kérjük javítsd ki az űrlaphibákat",
@@ -17,6 +43,34 @@
       "ACCOUNT_ID": {
         "TITLE": "Fiók Azonosító",
         "NOTE": "Ez a személyazonosság akkor használható, ha API-alapú integrációt építesz"
+      },
+      "AUTO_RESOLVE": {
+        "TITLE": "Auto-resolve conversations",
+        "NOTE": "This configuration would allow you to automatically resolve the conversation after a certain period of inactivity.",
+        "DURATION": {
+          "LABEL": "Inactivity duration",
+          "HELP": "Time period of inactivity after which conversation is auto-resolved",
+          "PLACEHOLDER": "30",
+          "ERROR": "Auto resolve duration should be between 10 minutes and 999 days",
+          "API": {
+            "SUCCESS": "Auto resolve settings updated successfully",
+            "ERROR": "Failed to update auto resolve settings"
+          }
+        },
+        "MESSAGE": {
+          "LABEL": "Custom auto-resolution message",
+          "PLACEHOLDER": "Conversation was marked resolved by system due to 15 days of inactivity",
+          "HELP": "Message sent to the customer after conversation is auto-resolved"
+        },
+        "PREFERENCES": "Preferences",
+        "LABEL": {
+          "LABEL": "Add label after auto-resolution",
+          "PLACEHOLDER": "Select a label"
+        },
+        "IGNORE_WAITING": {
+          "LABEL": "Skip conversations waiting for agent’s reply"
+        },
+        "UPDATE_BUTTON": "Save Changes"
       },
       "NAME": {
         "LABEL": "Fióknév",
@@ -38,19 +92,41 @@
         "PLACEHOLDER": "A vállalati támogatási e-mailcímed",
         "ERROR": ""
       },
+      "AUTO_RESOLVE_IGNORE_WAITING": {
+        "LABEL": "Exclude unattended conversations",
+        "HELP": "When enabled, the system will skip resolving conversations that are still waiting for an agent's reply."
+      },
+      "AUDIO_TRANSCRIPTION": {
+        "TITLE": "Transcribe Audio Messages",
+        "NOTE": "Automatically transcribe audio messages in conversations. Generate a text transcript whenever an audio message is sent or received, and display it alongside the message.",
+        "API": {
+          "SUCCESS": "Audio transcription setting updated successfully",
+          "ERROR": "Failed to update audio transcription setting"
+        }
+      },
       "AUTO_RESOLVE_DURATION": {
-        "LABEL": "A napok száma, mely után a ticketek automatikusan megoldódnak, ha nincs aktivitás",
+        "LABEL": "Inactivity duration for resolution",
+        "HELP": "Duration after a conversation should auto resolve if there is no activity",
         "PLACEHOLDER": "30",
-        "ERROR": "Kérjük helyes auto feloldási időszakot adj meg (minimum 1 nap, maximum 999 nap)"
+        "ERROR": "Auto resolve duration should be between 10 minutes and 999 days",
+        "API": {
+          "SUCCESS": "Auto resolve settings updated successfully",
+          "ERROR": "Failed to update auto resolve settings"
+        },
+        "UPDATE_BUTTON": "Frissítés",
+        "MESSAGE_LABEL": "Custom resolution message",
+        "MESSAGE_PLACEHOLDER": "Conversation was marked resolved by system due to 15 days of inactivity",
+        "MESSAGE_HELP": "This message is sent to the customer when a conversation is automatically resolved by the system due to inactivity."
       },
       "FEATURES": {
         "INBOUND_EMAIL_ENABLED": "A beszélgetésfolytonosság e-maillel már elérhető a fiókodban.",
         "CUSTOM_EMAIL_DOMAIN_ENABLED": "Most már goadhatsz e-maileket az egyedi domaineden."
       }
     },
-    "UPDATE_CHATWOOT": "Egy frissítés elérhető a Chatwoothoz %{latestChatwootVersion}. Kérjük frissítsd a telepítésed.",
+    "UPDATE_CHATWOOT": "Egy frissítés elérhető a Chatwoothoz {latestChatwootVersion}. Kérjük frissítsd a telepítésed.",
     "LEARN_MORE": "Tudj meg többet",
     "PAYMENT_PENDING": "A fizetésed folyamatban van. Kérlek, frissítsd fizetési adataitat a Chatwoot használatának folytatásához",
+    "UPGRADE": "Upgrade to continue using Chatwoot",
     "LIMITS_UPGRADE": "A fiókod túllépte a használati korlátokat. Kérjük, frissítsd tervedet a Chatwoot használatának folytatásához",
     "OPEN_BILLING": "Számlázási beállítások megnyitása"
   },
@@ -58,6 +134,7 @@
     "MULTISELECT": {
       "ENTER_TO_SELECT": "Enter-rel válaszd ki",
       "ENTER_TO_REMOVE": "Enter-rel távolítsd el",
+      "NO_OPTIONS": "List is empty",
       "SELECT_ONE": "Válassz egyet",
       "SELECT": "Kiválasztás"
     }
@@ -105,6 +182,7 @@
   },
   "COMMAND_BAR": {
     "SEARCH_PLACEHOLDER": "Keresés vagy ugrás ide:",
+    "SNOOZE_PLACEHOLDER": "Type a time e.g. tomorrow, 2 hours, next friday, jan 15...",
     "SECTIONS": {
       "GENERAL": "Általános",
       "REPORTS": "Jelentések",
@@ -122,20 +200,36 @@
       "SNOOZE_NOTIFICATION": "Snooze Notification"
     },
     "COMMANDS": {
+      "GO_TO_MY_INBOX": "Go to My Inbox",
       "GO_TO_CONVERSATION_DASHBOARD": "Ugrás a beszélgetések kezdőoldalára",
       "GO_TO_CONTACTS_DASHBOARD": "Ugrás a kapcsolatok kezdőoldalára",
+      "GO_TO_CAPTAIN": "Go to Captain",
+      "GO_TO_CALLS_DASHBOARD": "Go to Calls Dashboard",
+      "GO_TO_CAMPAIGNS": "Go to Campaigns",
+      "GO_TO_HELP_CENTER": "Go to Help Center",
       "GO_TO_REPORTS_OVERVIEW": "Ugrás a jelentések áttekintésére",
       "GO_TO_CONVERSATION_REPORTS": "Ugrás a beszélgetések kezdőoldalára",
       "GO_TO_AGENT_REPORTS": "Ugrás ügynök jelentésére",
       "GO_TO_LABEL_REPORTS": "Ugrás címke jelentésére",
       "GO_TO_INBOX_REPORTS": "Ugrás beérkező levelek jelentésére",
       "GO_TO_TEAM_REPORTS": "Ugrás csapat jelentésére",
+      "GO_TO_CSAT_REPORTS": "Go to CSAT Reports",
+      "GO_TO_BOT_REPORTS": "Go to Bot Reports",
+      "GO_TO_SLA_REPORTS": "Go to SLA Reports",
       "GO_TO_SETTINGS_AGENTS": "Ugrás az ügynük beállításaira",
       "GO_TO_SETTINGS_TEAMS": "Csapat beállítások megnyitása",
       "GO_TO_SETTINGS_INBOXES": "Fiók beállítások megnyitása",
+      "GO_TO_SETTINGS_TEMPLATES": "Go to Templates",
       "GO_TO_SETTINGS_LABELS": "Cimke beállítások megnyitása",
+      "GO_TO_SETTINGS_CUSTOM_ATTRIBUTES": "Go to Custom Attributes",
+      "GO_TO_SETTINGS_AUTOMATION": "Go to Automation",
+      "GO_TO_SETTINGS_MACROS": "Go to Macros",
       "GO_TO_SETTINGS_CANNED_RESPONSES": "Sablonválasz beállítások megnyitása",
+      "GO_TO_SETTINGS_SLA": "Go to SLA Settings",
       "GO_TO_SETTINGS_APPLICATIONS": "Alkalmazás beállítások megnyitása",
+      "GO_TO_SETTINGS_DATA": "Go to Data",
+      "GO_TO_SETTINGS_AUDIT_LOGS": "Go to Audit Logs",
+      "GO_TO_SETTINGS_BILLING": "Go to Billing",
       "GO_TO_SETTINGS_ACCOUNT": "Fiók szintű beállítások megnyitása",
       "GO_TO_SETTINGS_PROFILE": "Profil beállítások megnyitása",
       "GO_TO_NOTIFICATIONS": "Értesítések megnyitása",

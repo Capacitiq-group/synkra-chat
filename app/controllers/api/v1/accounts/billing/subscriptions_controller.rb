@@ -95,8 +95,9 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
         # storage_used_mb is cached, up to ~24h stale - see
         # Billing::RecalculateStorageUsageJob.
         storage_used_mb: @subscription.storage_used_mb,
-        storage_mb_allowance: @subscription.plan_config[:storage_mb_allowance],
-        storage_overage_gb: @subscription.storage_overage_gb,
+        storage_mb_allowance: @subscription.effective_storage_mb_allowance,
+        purchased_extra_storage_gb: @subscription.purchased_extra_storage_gb,
+        storage_blocked: @subscription.storage_blocked?,
         # Temporary Chat-local tracking while Flow (and Automations)
         # is hidden - see synkra_plan.rb's header comment.
         ai_ops_used: @subscription.ai_ops_used,

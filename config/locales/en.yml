@@ -399,6 +399,9 @@ en:
   billing_mailer:
     usage_warning:
       subject: "You've used %{percent}% of your monthly message allowance"
+    storage_warning:
+      subject: "You've used %{percent}% of your storage allowance"
+      subject_blocked: "Storage full - uploads are paused until you buy more"
     payment_failed:
       subject: 'We could not process your payment'
     account_restricted:
@@ -468,6 +471,7 @@ en:
       reply_suggestion_failed: "Copilot couldn't generate a reply. Please try again."
     documents:
       limit_exceeded: 'Document limit exceeded'
+      storage_limit_exceeded: 'Your account has reached its storage allowance - buy extra storage or upgrade your plan to upload more'
       pdf_format_error: 'must be a PDF file'
       docx_format_error: 'must be a Word (.docx) file'
       pdf_size_error: 'must be less than 10MB'

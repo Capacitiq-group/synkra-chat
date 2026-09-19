@@ -1,0 +1,11 @@
+<tr>
+  <td>
+    <p>Hi,</p>
+    {% if blocked %}
+    <p>Your account has used <strong>100%</strong> of your storage allowance on your {{ plan_name }} plan. New file uploads (attachments and Knowledge Base documents) are paused until you buy extra storage or upgrade your plan.</p>
+    {% else %}
+    <p>Your account has used <strong>{{ threshold_percent }}%</strong> of your storage allowance on your {{ plan_name }} plan.</p>
+    {% endif %}
+    <p>You can review your usage, buy extra storage, or upgrade your plan any time from Settings → Billing.</p>
+  </td>
+</tr>

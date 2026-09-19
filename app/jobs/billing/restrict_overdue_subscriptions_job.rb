@@ -18,6 +18,7 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
   def perform
     restrict_overdue_subscriptions
     send_usage_warnings
+    send_storage_warnings
     rollover_free_tier_periods
   end
 
@@ -43,6 +44,23 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
       subscription.mark_warning_sent!(threshold)
     rescue StandardError => e
       Rails.logger.error "[SynkraBilling] Failed to send usage warning for subscription #{subscription.id}: #{e.message}"
+    end
+  end
+
+  # Separate sweep from send_usage_warnings above - storage doesn't
+  # reset each period, so this can't share that method's per-period
+  # logic, and needs its own column (last_storage_warning_threshold)
+  # so a business sitting at 95% storage for months isn't re-notified
+  # every single hourly run once already notified for that threshold.
+  def send_storage_warnings
+    SynkraSubscription.where(status: %w[active past_due]).find_each do |subscription|
+      threshold = subscription.next_unnotified_storage_threshold
+      next if threshold.nil?
+
+      Billing::NotificationMailer.storage_warning(subscription: subscription, threshold: threshold).deliver_later
+      subscription.mark_storage_warning_sent!(threshold)
+    rescue StandardError => e
+      Rails.logger.error "[SynkraBilling] Failed to send storage warning for subscription #{subscription.id}: #{e.message}"
     end
   end
 

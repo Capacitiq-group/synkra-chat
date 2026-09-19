@@ -705,7 +705,29 @@
     "SUCCESS": {
       "PLAN_SCHEDULED": "Your plan change has been scheduled for the end of the current period.",
       "CANCELLED": "Your subscription has been scheduled for cancellation.",
-      "RESUMED": "Your subscription has been resumed."
+      "RESUMED": "Your subscription has been resumed.",
+      "SEATS_PURCHASED": "Extra seats added - billing starts at your next renewal.",
+      "STORAGE_PURCHASED": "Extra storage added - billing starts at your next renewal."
+    },
+    "ADDONS": {
+      "BUY": "Buy",
+      "PURCHASE_FAILED": "Couldn't complete that purchase. Please try again.",
+      "SEATS": {
+        "TITLE": "Buy extra seats",
+        "DESCRIPTION": "R69 per seat, per month. Granted immediately, billed starting at your next renewal.",
+        "UNIT": "Number of extra seats"
+      },
+      "STORAGE": {
+        "TITLE": "Buy extra storage",
+        "DESCRIPTION": "R30 per GB, per month. Granted immediately, billed starting at your next renewal.",
+        "UNIT": "Number of extra GB",
+        "BLOCKED_BANNER": "You've reached your storage allowance - new uploads are paused until you buy extra storage or upgrade your plan."
+      },
+      "MESSAGES": {
+        "TITLE": "Buy a message pack",
+        "DESCRIPTION": "Never expires, only used once your plan's included messages run out.",
+        "UNIT": "messages"
+      }
     }
   },
   "AUTOMATIONS_SETTINGS": {

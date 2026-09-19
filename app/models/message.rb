@@ -20,10 +20,11 @@
 #  conversation_id           :integer          not null
 #  inbox_id                  :integer          not null
 #  sender_id                 :bigint
-#  source_id                 :string
+#  source_id                 :text
 #
 # Indexes
 #
+#  idx_messages_account_content_created                 (account_id,content_type,created_at)
 #  index_messages_on_account_created_type               (account_id,created_at,message_type)
 #  index_messages_on_account_id                         (account_id)
 #  index_messages_on_account_id_and_inbox_id            (account_id,inbox_id)
@@ -33,11 +34,13 @@
 #  index_messages_on_conversation_id                    (conversation_id)
 #  index_messages_on_created_at                         (created_at)
 #  index_messages_on_inbox_id                           (inbox_id)
-#  index_messages_on_sender_type_and_sender_id          (sender_type,sender_id)
+#  index_messages_on_sender_and_created                 (sender_type,sender_id,created_at)
 #  index_messages_on_source_id                          (source_id)
 #
 
 class Message < ApplicationRecord
+  searchkick callbacks: false if ChatwootApp.advanced_search_allowed?
+
   include MessageFilterHelpers
   include Liquidable
   NUMBER_OF_PERMITTED_ATTACHMENTS = 15
@@ -52,6 +55,7 @@ class Message < ApplicationRecord
           'category': { 'type': 'string' },
           'language': { 'type': 'string' },
           'namespace': { 'type': 'string' },
+          'content_mode': { 'type': 'string', 'enum': %w[raw_template rendered] },
           'processed_params': { 'type': 'object' }
         },
         'required': %w[name]
@@ -61,6 +65,11 @@ class Message < ApplicationRecord
 
   before_validation :ensure_content_type
   before_validation :prevent_message_flooding
+  # Synkra Chat billing: blocks a new outbound business message if the
+  # account's subscription is actually restricted (past_due alone does
+  # NOT block anything - that's the grace period). Inbound customer
+  # messages are never affected by this check at all.
+  before_validation :enforce_synkra_billing_restriction, on: :create
   before_save :ensure_processed_message_content
   before_save :ensure_in_reply_to
 
@@ -78,6 +87,8 @@ class Message < ApplicationRecord
 
   # when you have a temperory id in your frontend and want it echoed back via action cable
   attr_accessor :echo_id
+  # Transient flag used to skip waiting_since clearing for specific bot/system messages.
+  attr_accessor :preserve_waiting_since
 
   enum message_type: { incoming: 0, outgoing: 1, activity: 2, template: 3 }
   enum content_type: {
@@ -92,7 +103,8 @@ class Message < ApplicationRecord
     incoming_email: 8,
     input_csat: 9,
     integrations: 10,
-    sticker: 11
+    sticker: 11,
+    voice_call: 12
   }
   enum status: { sent: 0, delivered: 1, read: 2, failed: 3 }
   # [:submitted_email, :items, :submitted_values] : Used for bot message types
@@ -101,16 +113,18 @@ class Message < ApplicationRecord
   # [:deleted] : Used to denote whether the message was deleted by the agent
   # [:external_created_at] : Can specify if the message was created at a different timestamp externally
   # [:external_error : Can specify if the message creation failed due to an error at external API
+  # [:data] : Used for structured content types such as voice_call
   store :content_attributes, accessors: [:submitted_email, :items, :submitted_values, :email, :in_reply_to, :deleted,
                                          :external_created_at, :story_sender, :story_id, :external_error,
-                                         :translations, :in_reply_to_external_id, :is_unsupported], coder: JSON
+                                         :translations, :in_reply_to_external_id, :is_unsupported, :data], coder: JSON
 
   store :external_source_ids, accessors: [:slack], coder: JSON, prefix: :external_source_id
 
   scope :created_since, ->(datetime) { where('created_at > ?', datetime) }
   scope :chat, -> { where.not(message_type: :activity).where(private: false) }
-  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('id desc') }
+  scope :non_activity_messages, -> { where.not(message_type: :activity).reorder('created_at desc') }
   scope :today, -> { where("date_trunc('day', created_at) = ?", Date.current) }
+  scope :voice_calls, -> { where(content_type: :voice_call) }
 
   # TODO: Get rid of default scope
   # https://stackoverflow.com/a/1834250/939299
@@ -119,7 +133,7 @@ class Message < ApplicationRecord
 
   belongs_to :account
   belongs_to :inbox
-  belongs_to :conversation, touch: true
+  belongs_to :conversation
   belongs_to :sender, polymorphic: true, optional: true
 
   has_many :attachments, dependent: :destroy, autosave: true, before_add: :validate_attachments_limit
@@ -127,8 +141,14 @@ class Message < ApplicationRecord
   has_many :notifications, as: :primary_actor, dependent: :destroy_async
 
   after_create_commit :execute_after_create_commit_callbacks
+  # Synkra Chat billing: records usage for the ledger. Runs after the
+  # billing-restriction check above already would have blocked creation
+  # if it were going to - so this only ever fires for messages that
+  # were actually allowed through.
+  after_create_commit :record_synkra_usage_event
 
   after_update_commit :dispatch_update_event
+  after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
 
   def channel_token
     @token ||= inbox.channel.try(:page_access_token)
@@ -138,8 +158,8 @@ class Message < ApplicationRecord
     data = attributes.symbolize_keys.merge(
       created_at: created_at.to_i,
       message_type: message_type_before_type_cast,
-      conversation_id: conversation.display_id,
-      conversation: conversation_push_event_data
+      conversation_id: conversation&.display_id,
+      conversation: conversation.present? ? conversation_push_event_data : nil
     )
     data[:echo_id] = echo_id if echo_id.present?
     data[:attachments] = attachments.map(&:push_event_data) if attachments.present?
@@ -155,19 +175,17 @@ class Message < ApplicationRecord
     }
   end
 
-  # TODO: We will be removing this code after instagram_manage_insights is implemented
-  # Better logic is to listen to webhook and remove stories proactively rather than trying
-  # a fetch every time a message is returned
-  def validate_instagram_story
-    inbox.channel.fetch_instagram_story_link(self)
-    # we want to reload the message in case the story has expired and data got removed
-    reload
-  end
-
   def merge_sender_attributes(data)
     data[:sender] = sender.push_event_data if sender && !sender.is_a?(AgentBot)
     data[:sender] = sender.push_event_data(inbox) if sender.is_a?(AgentBot)
     data
+  end
+
+  def webhook_push_event_data
+    push_event_data.merge(
+      content: Messages::WebhookContentNormalizer.normalize(content),
+      processed_message_content: Messages::WebhookContentNormalizer.normalize(processed_message_content)
+    )
   end
 
   def webhook_data
@@ -176,7 +194,7 @@ class Message < ApplicationRecord
       additional_attributes: additional_attributes,
       content_attributes: content_attributes,
       content_type: content_type,
-      content: content,
+      content: webhook_content,
       conversation: conversation.webhook_data,
       created_at: created_at,
       id: id,
@@ -190,11 +208,14 @@ class Message < ApplicationRecord
     data
   end
 
-  def content
-    # move this to a presenter
-    return self[:content] if !input_csat? || inbox.web_widget?
+  # Method to get content with survey URL for outgoing channel delivery
+  def outgoing_content
+    MessageContentPresenter.new(self).outgoing_content
+  end
 
-    I18n.t('conversations.survey.response', link: "#{ENV.fetch('FRONTEND_URL', nil)}/survey/responses/#{conversation.uuid}")
+  # Raw content with survey URL (no markdown rendering) for webhook consumers
+  def webhook_content
+    MessageContentPresenter.new(self).webhook_content
   end
 
   def email_notifiable_message?
@@ -205,11 +226,17 @@ class Message < ApplicationRecord
     true
   end
 
+  def auto_reply_email?
+    return false unless incoming_email? || inbox.email?
+
+    content_attributes.dig(:email, :auto_reply) == true
+  end
+
   def valid_first_reply?
-    return false unless outgoing? && human_response? && !private?
+    return false unless human_response? && !private?
     return false if conversation.first_reply_created_at.present?
     return false if conversation.messages.outgoing
-                                .where.not(sender_type: 'AgentBot')
+                                .where.not(sender_type: ['AgentBot', 'Captain::Assistant'])
                                 .where.not(private: true)
                                 .where("(additional_attributes->'campaign_id') is null").count > 1
 
@@ -227,6 +254,46 @@ class Message < ApplicationRecord
     save!
   end
 
+  def send_update_event
+    Rails.configuration.dispatcher.dispatch(MESSAGE_UPDATED, Time.zone.now, message: self, performed_by: Current.executed_by,
+                                                                            previous_changes: previous_changes)
+  end
+
+  def should_index?
+    return false unless ChatwootApp.advanced_search_allowed?
+    return false unless incoming? || outgoing?
+    # For Chatwoot Cloud:
+    #   - Enable indexing only if the account is paid.
+    #   - The `advanced_search_indexing` feature flag is used only in the cloud.
+    #
+    # For Self-hosted:
+    #   - Adding an extra feature flag here would cause confusion.
+    #   - If the user has configured Elasticsearch, enabling `advanced_search`
+    #     should automatically work without any additional flags.
+    return false if ChatwootApp.chatwoot_cloud? && !account.feature_enabled?('advanced_search_indexing')
+
+    true
+  end
+
+  def search_data
+    Messages::SearchDataPresenter.new(self).search_data
+  end
+
+  # Returns message content suitable for LLM consumption
+  # Falls back to audio transcription or attachment placeholder when content is nil
+  def content_for_llm
+    return content if content.present?
+
+    audio_transcription = attachments
+                          .where(file_type: :audio)
+                          .filter_map { |att| att.meta&.dig('transcribed_text') }
+                          .join(' ')
+                          .presence
+    return "[Voice Message] #{audio_transcription}" if audio_transcription.present?
+
+    '[Attachment]' if attachments.any?
+  end
+
   private
 
   def prevent_message_flooding
@@ -239,6 +306,84 @@ class Message < ApplicationRecord
       Rails.logger.error "Too many message: Account Id - #{account_id} : Conversation id - #{conversation_id}"
       errors.add(:base, 'Too many messages')
     end
+  end
+
+  def billable_outgoing_message?
+    outgoing? && !private?
+  end
+
+  def synkra_subscription_for_billing
+    # Fail open rather than closed: a missing subscription record
+    # (e.g. an account that predates this feature, before a migration
+    # backfill runs) should never lock a business out of its own
+    # conversations. find_or_create_by only ever creates a fresh
+    # Free/active record here, never a restricted one.
+    account.synkra_subscription || account.reload.synkra_subscription ||
+      SynkraSubscription.find_or_create_by!(account: account) do |sub|
+        sub.plan = 'free'
+        sub.status = 'active'
+        sub.current_period_start = Time.current
+        sub.current_period_end = 1.month.from_now
+      end
+  rescue StandardError => e
+    Rails.logger.error "[SynkraBilling] Could not resolve subscription for account #{account_id}: #{e.message}"
+    nil
+  end
+
+  def enforce_synkra_billing_restriction
+    return unless billable_outgoing_message?
+
+    subscription = synkra_subscription_for_billing
+    return if subscription.nil? # fail open, see above
+
+    if subscription.outbound_blocked?
+      errors.add(:base, 'This account is restricted - outbound messages are paused until billing is resolved')
+    elsif subscription.allowance_exhausted?
+      # Deliberately distinct from outbound_blocked? above: this is a
+      # volume cap, not a payment failure, so subscription.status
+      # never changes here - the account is still fully paid up and
+      # active, it's just used its plan's message allowance AND any
+      # purchased add-on credit (see
+      # SynkraSubscription#allowance_exhausted?) for this period.
+      # Inbound messages and internal notes are still completely
+      # unaffected either way (billable_outgoing_message? already
+      # excludes them) - staff can see everything coming in, they just
+      # have to reply outside the platform (email, etc.) until the
+      # period rolls over, they upgrade, or they buy an add-on pack.
+      errors.add(:base, "This account has used its #{subscription.plan_config[:name]} plan's message allowance for this period - upgrade your plan, buy a message add-on pack, or wait for it to renew to keep replying through the platform")
+    end
+  end
+
+  def record_synkra_usage_event
+    return unless billable_outgoing_message?
+
+    SynkraUsageEvent.record!(
+      account: account,
+      resource_type: 'business_initiated_message',
+      source: 'agent_reply',
+      reference: self
+    )
+
+    # Only draws from the purchased add-on balance once the plan's own
+    # period allowance is used up - see
+    # SynkraSubscription#consume_purchased_message_credit_if_over_plan_allowance!.
+    # A billing-infra hiccup here must never affect the message that
+    # was already sent, same fail-open reasoning as the rescue below.
+    synkra_subscription_for_billing&.consume_purchased_message_credit_if_over_plan_allowance!
+
+    # Temporary Chat-local email tracking (15 Sep 2026, confirmed by
+    # Refilwe: "one email is 1 sent email"). A message sent through an
+    # Email-channel inbox IS an actual email - counts against both the
+    # message allowance (above, unconditionally) and the email
+    # allowance (here, additionally). Deliberately not the AI Agent's
+    # "Send email" action - that's a Flow-dependent CustomTool preset,
+    # hidden (see aiAgent/Index.vue) since Flow isn't reachable.
+    if conversation.inbox.channel_type == 'Channel::Email'
+      SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'agent_reply', reference: self)
+    end
+  rescue StandardError => e
+    # Usage metering must never take down message sending - log and move on.
+    Rails.logger.error "[SynkraBilling] Failed to record usage event for message #{id}: #{e.message}"
   end
 
   def ensure_processed_message_content
@@ -268,7 +413,7 @@ class Message < ApplicationRecord
   def execute_after_create_commit_callbacks
     # rails issue with order of active record callbacks being executed https://github.com/rails/rails/issues/20911
     reopen_conversation
-    notify_via_mail
+    mark_pending_conversation_as_open_for_human_response
     set_conversation_activity
     dispatch_create_events
     send_reply
@@ -281,12 +426,25 @@ class Message < ApplicationRecord
   end
 
   def update_waiting_since
-    if human_response? && !private && conversation.waiting_since.present?
+    clear_waiting_since_on_outgoing_response if conversation.waiting_since.present? && !private
+    set_waiting_since_on_incoming_message
+  end
+
+  def clear_waiting_since_on_outgoing_response
+    if human_response?
       Rails.configuration.dispatcher.dispatch(
         REPLY_CREATED, Time.zone.now, waiting_since: conversation.waiting_since, message: self
       )
       conversation.update(waiting_since: nil)
+      return
     end
+
+    # Bot responses also clear waiting_since (simpler than checking on next customer message)
+    conversation.update(waiting_since: nil) if bot_response? && !preserve_waiting_since
+  end
+
+  def set_waiting_since_on_incoming_message
+    # Set waiting_since when customer sends a message (if currently blank)
     conversation.update(waiting_since: created_at) if incoming? && conversation.waiting_since.blank?
   end
 
@@ -294,10 +452,16 @@ class Message < ApplicationRecord
     # if the sender is not a user, it's not a human response
     # if automation rule id is present, it's not a human response
     # if campaign id is present, it's not a human response
+    # external echo messages are responses sent from the native app (WhatsApp Business, Instagram)
     outgoing? &&
       content_attributes['automation_rule_id'].blank? &&
       additional_attributes['campaign_id'].blank? &&
-      sender.is_a?(User)
+      (sender.is_a?(User) || content_attributes['external_echo'].present?)
+  end
+
+  def bot_response?
+    # Check if this is a response from AgentBot or Captain::Assistant
+    outgoing? && sender_type.in?(['AgentBot', 'Captain::Assistant'])
   end
 
   def dispatch_create_events
@@ -316,8 +480,7 @@ class Message < ApplicationRecord
     # we want to skip the update event if the message is not updated
     return if previous_changes.blank?
 
-    Rails.configuration.dispatcher.dispatch(MESSAGE_UPDATED, Time.zone.now, message: self, performed_by: Current.executed_by,
-                                                                            previous_changes: previous_changes)
+    send_update_event
   end
 
   def send_reply
@@ -333,6 +496,18 @@ class Message < ApplicationRecord
     conversation.open! if conversation.snoozed?
 
     reopen_resolved_conversation if conversation.resolved?
+  end
+
+  def mark_pending_conversation_as_open_for_human_response
+    return unless captain_pending_conversation?
+    return unless human_response?
+    return if private?
+
+    conversation.open!
+  end
+
+  def captain_pending_conversation?
+    false
   end
 
   def reopen_resolved_conversation
@@ -355,57 +530,22 @@ class Message < ApplicationRecord
     ::MessageTemplates::HookExecutionService.new(message: self).perform
   end
 
-  def email_notifiable_webwidget?
-    inbox.web_widget? && inbox.channel.continuity_via_email
-  end
-
-  def email_notifiable_api_channel?
-    inbox.api? && inbox.account.feature_enabled?('email_continuity_on_api_channel')
-  end
-
-  def email_notifiable_channel?
-    email_notifiable_webwidget? || %w[Email].include?(inbox.inbox_type) || email_notifiable_api_channel?
-  end
-
-  def can_notify_via_mail?
-    return unless email_notifiable_message?
-    return unless email_notifiable_channel?
-    return if conversation.contact.email.blank?
-
-    true
-  end
-
-  def notify_via_mail
-    return unless can_notify_via_mail?
-
-    trigger_notify_via_mail
-  end
-
-  def trigger_notify_via_mail
-    return EmailReplyWorker.perform_in(1.second, id) if inbox.inbox_type == 'Email'
-
-    # will set a redis key for the conversation so that we don't need to send email for every new message
-    # last few messages coupled together is sent every 2 minutes rather than one email for each message
-    # if redis key exists there is an unprocessed job that will take care of delivering the email
-    return if Redis::Alfred.get(conversation_mail_key).present?
-
-    Redis::Alfred.setex(conversation_mail_key, id)
-    ConversationReplyEmailWorker.perform_in(2.minutes, conversation.id, id)
-  end
-
-  def conversation_mail_key
-    format(::Redis::Alfred::CONVERSATION_MAILER_KEY, conversation_id: conversation.id)
-  end
-
   def validate_attachments_limit(_attachment)
     errors.add(:attachments, message: 'exceeded maximum allowed') if attachments.size >= NUMBER_OF_PERMITTED_ATTACHMENTS
   end
 
   def set_conversation_activity
     # rubocop:disable Rails/SkipsModelValidations
-    conversation.update_columns(last_activity_at: created_at)
+    conversation.update_columns(last_activity_at: created_at, updated_at: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
+  end
+
+  def reindex_for_search
+    return unless respond_to?(:reindex)
+
+    reindex(mode: :async)
   end
 end
 
 Message.prepend_mod_with('Message')
+Message.include_mod_with('Concerns::Message')

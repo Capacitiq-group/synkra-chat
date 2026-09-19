@@ -1,5 +1,5 @@
 <script setup>
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { useStoreGetters } from 'dashboard/composables/store';
 import { computed } from 'vue';
 
@@ -11,6 +11,10 @@ const props = defineProps({
   medium: {
     type: String,
     default: '',
+  },
+  voiceEnabled: {
+    type: Boolean,
+    default: false,
   },
 });
 const getters = useStoreGetters();
@@ -28,6 +32,8 @@ const i18nMap = {
   'Channel::Telegram': 'TELEGRAM',
   'Channel::Line': 'LINE',
   'Channel::Api': 'API',
+  'Channel::Instagram': 'INSTAGRAM',
+  'Channel::Tiktok': 'TIKTOK',
 };
 
 const twilioChannelName = () => {
@@ -42,6 +48,9 @@ const readableChannelName = computed(() => {
     return globalConfig.value.apiChannelName || t('INBOX_MGMT.CHANNELS.API');
   }
   if (props.channelType === 'Channel::TwilioSms') {
+    if (props.voiceEnabled) {
+      return t('INBOX_MGMT.CHANNELS.VOICE');
+    }
     return twilioChannelName();
   }
   return t(`INBOX_MGMT.CHANNELS.${i18nMap[props.channelType]}`);

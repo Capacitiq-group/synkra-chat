@@ -3,9 +3,9 @@ import { ref, computed } from 'vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength } from '@vuelidate/validators';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
-import WootSubmitButton from 'dashboard/components/buttons/FormSubmitButton.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 import Auth from '../../../../api/auth';
 import wootConstants from 'dashboard/constants/globals';
 
@@ -27,6 +27,10 @@ const props = defineProps({
     default: '',
   },
   availability: {
+    type: String,
+    default: '',
+  },
+  provider: {
     type: String,
     default: '',
   },
@@ -97,14 +101,20 @@ const selectedRole = computed(() =>
   )
 );
 
+const statusList = computed(() => {
+  return [
+    t('PROFILE_SETTINGS.FORM.AVAILABILITY.STATUS.ONLINE'),
+    t('PROFILE_SETTINGS.FORM.AVAILABILITY.STATUS.BUSY'),
+    t('PROFILE_SETTINGS.FORM.AVAILABILITY.STATUS.OFFLINE'),
+  ];
+});
+
 const availabilityStatuses = computed(() =>
-  t('PROFILE_SETTINGS.FORM.AVAILABILITY.STATUSES_LIST').map(
-    (statusLabel, index) => ({
-      label: statusLabel,
-      value: AVAILABILITY_STATUS_KEYS[index],
-      disabled: props.availability === AVAILABILITY_STATUS_KEYS[index],
-    })
-  )
+  statusList.value.map((statusLabel, index) => ({
+    label: statusLabel,
+    value: AVAILABILITY_STATUS_KEYS[index],
+    disabled: props.availability === AVAILABILITY_STATUS_KEYS[index],
+  }))
 );
 
 const editAgent = async () => {
@@ -151,7 +161,7 @@ const resetPassword = async () => {
         <label :class="{ error: v$.agentName.$error }">
           {{ $t('AGENT_MGMT.EDIT.FORM.NAME.LABEL') }}
           <input
-            v-model.trim="agentName"
+            v-model="agentName"
             type="text"
             :placeholder="$t('AGENT_MGMT.EDIT.FORM.NAME.PLACEHOLDER')"
             @input="v$.agentName.$touch"
@@ -194,25 +204,32 @@ const resetPassword = async () => {
         </label>
       </div>
 
-      <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
-        <div class="w-[50%]">
-          <WootSubmitButton
-            :disabled="v$.$invalid || uiFlags.isUpdating"
-            :button-text="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
-            :loading="uiFlags.isUpdating"
-          />
-          <button class="button clear" @click.prevent="emit('close')">
-            {{ $t('AGENT_MGMT.EDIT.CANCEL_BUTTON_TEXT') }}
-          </button>
-        </div>
-        <div class="w-[50%] text-right">
-          <woot-button
-            icon="lock-closed"
-            variant="clear"
+      <div class="flex flex-row justify-start w-full gap-2 px-0 py-2">
+        <div class="w-[50%] ltr:text-left rtl:text-right">
+          <Button
+            v-if="provider !== 'saml'"
+            ghost
+            type="button"
+            icon="i-lucide-lock-keyhole"
+            class="!px-2"
+            :label="$t('AGENT_MGMT.EDIT.PASSWORD_RESET.ADMIN_RESET_BUTTON')"
             @click.prevent="resetPassword"
-          >
-            {{ $t('AGENT_MGMT.EDIT.PASSWORD_RESET.ADMIN_RESET_BUTTON') }}
-          </woot-button>
+          />
+        </div>
+        <div class="w-[50%] flex justify-end items-center gap-2">
+          <Button
+            faded
+            slate
+            type="reset"
+            :label="$t('AGENT_MGMT.EDIT.CANCEL_BUTTON_TEXT')"
+            @click.prevent="emit('close')"
+          />
+          <Button
+            type="submit"
+            :label="$t('AGENT_MGMT.EDIT.FORM.SUBMIT')"
+            :disabled="v$.$invalid || uiFlags.isUpdating"
+            :is-loading="uiFlags.isUpdating"
+          />
         </div>
       </div>
     </form>

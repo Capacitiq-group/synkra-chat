@@ -1,9 +1,9 @@
 <script setup>
 import { ref } from 'vue';
-import InboxReconnectionRequired from '../../components/InboxReconnectionRequired';
+import InboxReconnectionRequired from '../../components/InboxReconnectionRequired.vue';
 import microsoftClient from 'dashboard/api/channel/microsoftClient';
 
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 
 const props = defineProps({
@@ -37,8 +37,5 @@ async function requestAuthorization() {
 </script>
 
 <template>
-  <InboxReconnectionRequired
-    class="mx-8 mt-5"
-    @reauthorize="requestAuthorization"
-  />
+  <InboxReconnectionRequired class="mx-6" @reauthorize="requestAuthorization" />
 </template>

@@ -31,6 +31,42 @@ class ReportsAPI extends ApiClient {
     });
   }
 
+  getDrilldown({
+    metric,
+    bucketTimestamp,
+    from,
+    to,
+    type = 'account',
+    id,
+    groupBy,
+    businessHours,
+    page,
+    perPage,
+    signal,
+  }) {
+    const requestConfig = {
+      params: {
+        metric,
+        bucket_timestamp: bucketTimestamp,
+        since: from,
+        until: to,
+        type,
+        id,
+        group_by: groupBy,
+        business_hours: businessHours,
+        timezone_offset: getTimeOffset(),
+        page,
+        per_page: perPage,
+      },
+    };
+
+    if (signal) {
+      requestConfig.signal = signal;
+    }
+
+    return axios.get(`${this.url}/drilldown`, requestConfig);
+  }
+
   // eslint-disable-next-line default-param-last
   getSummary(since, until, type = 'account', id, groupBy, businessHours) {
     return axios.get(`${this.url}/summary`, {
@@ -61,9 +97,15 @@ class ReportsAPI extends ApiClient {
     });
   }
 
-  getConversationTrafficCSV() {
+  getConversationsSummaryReports({ from: since, to: until, businessHours }) {
+    return axios.get(`${this.url}/conversations_summary`, {
+      params: { since, until, business_hours: businessHours },
+    });
+  }
+
+  getConversationTrafficCSV({ daysBefore = 6 } = {}) {
     return axios.get(`${this.url}/conversation_traffic`, {
-      params: { timezone_offset: getTimeOffset() },
+      params: { timezone_offset: getTimeOffset(), days_before: daysBefore },
     });
   }
 

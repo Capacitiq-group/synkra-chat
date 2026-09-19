@@ -12,6 +12,13 @@ const articleList = [
     title: 'Documents are required to complete KYC',
   },
 ];
+
+const camelCasedArticle = {
+  id: 1,
+  categoryId: 1,
+  title: 'Documents are required to complete KYC',
+};
+
 const commit = vi.fn();
 const dispatch = vi.fn();
 global.axios = axios;
@@ -41,14 +48,14 @@ describe('#actions', () => {
           [
             {
               id: 1,
-              category_id: 1,
+              categoryId: 1,
               title: 'Documents are required to complete KYC',
             },
           ],
         ],
         [
           types.default.SET_ARTICLES_META,
-          { current_page: '1', articles_count: 5 },
+          { currentPage: '1', articlesCount: 5 },
         ],
         [types.default.ADD_MANY_ARTICLES_ID, [1]],
         [types.default.SET_UI_FLAG, { isFetching: false }],
@@ -71,11 +78,11 @@ describe('#actions', () => {
 
   describe('#create', () => {
     it('sends correct actions if API is success', async () => {
-      axios.post.mockResolvedValue({ data: { payload: articleList[0] } });
-      await actions.create({ commit, dispatch }, articleList[0]);
+      axios.post.mockResolvedValue({ data: { payload: camelCasedArticle } });
+      await actions.create({ commit, dispatch }, camelCasedArticle);
       expect(commit.mock.calls).toEqual([
         [types.default.SET_UI_FLAG, { isCreating: true }],
-        [types.default.ADD_ARTICLE, articleList[0]],
+        [types.default.ADD_ARTICLE, camelCasedArticle],
         [types.default.ADD_ARTICLE_ID, 1],
         [types.default.ADD_ARTICLE_FLAG, 1],
         [types.default.SET_UI_FLAG, { isCreating: false }],
@@ -96,7 +103,7 @@ describe('#actions', () => {
 
   describe('#update', () => {
     it('sends correct actions if API is success', async () => {
-      axios.patch.mockResolvedValue({ data: { payload: articleList[0] } });
+      axios.patch.mockResolvedValue({ data: { payload: camelCasedArticle } });
       await actions.update(
         { commit },
         {
@@ -110,7 +117,7 @@ describe('#actions', () => {
           types.default.UPDATE_ARTICLE_FLAG,
           { uiFlags: { isUpdating: true }, articleId: 1 },
         ],
-        [types.default.UPDATE_ARTICLE, articleList[0]],
+        [types.default.UPDATE_ARTICLE, camelCasedArticle],
         [
           types.default.UPDATE_ARTICLE_FLAG,
           { uiFlags: { isUpdating: false }, articleId: 1 },
@@ -138,6 +145,137 @@ describe('#actions', () => {
         [
           types.default.UPDATE_ARTICLE_FLAG,
           { uiFlags: { isUpdating: false }, articleId: 1 },
+        ],
+      ]);
+    });
+  });
+
+  describe('#publishDraft', () => {
+    const state = {
+      articles: {
+        byId: {
+          1: {
+            id: 1,
+            draftTitle: 'Draft title',
+            draftContent: 'Draft content',
+          },
+        },
+      },
+    };
+
+    it('dispatches update promoting the edited fields and clearing the draft', async () => {
+      await actions.publishDraft(
+        { dispatch, state },
+        { portalSlug: 'room-rental', articleId: 1 }
+      );
+      expect(dispatch).toHaveBeenCalledWith('update', {
+        portalSlug: 'room-rental',
+        articleId: 1,
+        status: undefined,
+        draft_title: null,
+        draft_content: null,
+        title: 'Draft title',
+        content: 'Draft content',
+      });
+    });
+
+    it('only sends the fields that were actually edited', async () => {
+      const partialState = {
+        articles: { byId: { 1: { id: 1, draftContent: 'Only content' } } },
+      };
+      await actions.publishDraft(
+        { dispatch, state: partialState },
+        { portalSlug: 'room-rental', articleId: 1 }
+      );
+      expect(dispatch).toHaveBeenCalledWith('update', {
+        portalSlug: 'room-rental',
+        articleId: 1,
+        status: undefined,
+        draft_title: null,
+        draft_content: null,
+        content: 'Only content',
+      });
+    });
+
+    it('forwards a status to change it in the same update', async () => {
+      await actions.publishDraft(
+        { dispatch, state },
+        { portalSlug: 'room-rental', articleId: 1, status: 'archived' }
+      );
+      expect(dispatch).toHaveBeenCalledWith(
+        'update',
+        expect.objectContaining({
+          status: 'archived',
+          title: 'Draft title',
+          content: 'Draft content',
+          draft_title: null,
+          draft_content: null,
+        })
+      );
+    });
+  });
+
+  describe('#discardDraft', () => {
+    it('dispatches update clearing the draft columns', async () => {
+      await actions.discardDraft(
+        { dispatch },
+        { portalSlug: 'room-rental', articleId: 1 }
+      );
+      expect(dispatch).toHaveBeenCalledWith('update', {
+        portalSlug: 'room-rental',
+        articleId: 1,
+        status: undefined,
+        draft_title: null,
+        draft_content: null,
+      });
+    });
+
+    it('forwards a status to change it in the same update', async () => {
+      await actions.discardDraft(
+        { dispatch },
+        { portalSlug: 'room-rental', articleId: 1, status: 'draft' }
+      );
+      expect(dispatch).toHaveBeenCalledWith('update', {
+        portalSlug: 'room-rental',
+        articleId: 1,
+        status: 'draft',
+        draft_title: null,
+        draft_content: null,
+      });
+    });
+  });
+
+  describe('#updateArticleMeta', () => {
+    it('sends correct actions if API is success', async () => {
+      axios.get.mockResolvedValue({
+        data: {
+          payload: articleList,
+          meta: {
+            all_articles_count: 56,
+            archived_articles_count: 7,
+            articles_count: 56,
+            current_page: '1', // This is not needed, it cause pagination issues.
+            draft_articles_count: 24,
+            mine_articles_count: 44,
+            published_count: 25,
+          },
+        },
+      });
+      await actions.updateArticleMeta(
+        { commit },
+        { pageNumber: 1, portalSlug: 'test', locale: 'en' }
+      );
+      expect(commit.mock.calls).toEqual([
+        [
+          types.default.SET_ARTICLES_META,
+          {
+            allArticlesCount: 56,
+            archivedArticlesCount: 7,
+            articlesCount: 56,
+            draftArticlesCount: 24,
+            mineArticlesCount: 44,
+            publishedCount: 25,
+          },
         ],
       ]);
     });
@@ -234,6 +372,84 @@ describe('#actions', () => {
       await expect(
         actions.uploadExternalImage({}, { url: mockUrl })
       ).rejects.toThrow('Upload failed');
+    });
+  });
+
+  describe('#reorder', () => {
+    const state = {
+      articles: {
+        byId: {
+          1: { id: 1, title: 'Article 1', position: 10 },
+          2: { id: 2, title: 'Article 2', position: 20 },
+          3: { id: 3, title: 'Article 3', position: 30 },
+        },
+      },
+    };
+
+    it('commits SET_ARTICLE_POSITIONS and calls API when reorder is successful', async () => {
+      axios.post.mockResolvedValue({ data: {} });
+      const reorderedGroup = { 1: 1, 2: 2, 3: 3 };
+
+      await actions.reorder(
+        { commit, state },
+        {
+          portalSlug: 'test-portal',
+          categorySlug: 'test-category',
+          reorderedGroup,
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_ARTICLE_POSITIONS,
+        reorderedGroup
+      );
+      expect(axios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/portals/test-portal/articles/reorder'),
+        { positions_hash: reorderedGroup, category_slug: 'test-category' }
+      );
+    });
+
+    it('adopts the backend re-spaced positions when the response returns them', async () => {
+      const serverPositions = { 1: 10, 2: 30, 3: 20 };
+      axios.post.mockResolvedValue({ data: { positions: serverPositions } });
+
+      await actions.reorder(
+        { commit, state },
+        {
+          portalSlug: 'test-portal',
+          categorySlug: 'test-category',
+          reorderedGroup: { 3: 25 },
+        }
+      );
+
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_ARTICLE_POSITIONS,
+        serverPositions
+      );
+    });
+
+    it('rolls back positions and throws when API call fails', async () => {
+      axios.post.mockRejectedValue({ message: 'Network error' });
+      const reorderedGroup = { 1: 1, 2: 2 };
+
+      await expect(
+        actions.reorder(
+          { commit, state },
+          {
+            portalSlug: 'test-portal',
+            reorderedGroup,
+          }
+        )
+      ).rejects.toEqual({ message: 'Network error' });
+
+      expect(commit).toHaveBeenCalledWith(
+        types.default.SET_ARTICLE_POSITIONS,
+        reorderedGroup
+      );
+      expect(commit).toHaveBeenCalledWith(types.default.SET_ARTICLE_POSITIONS, {
+        1: 10,
+        2: 20,
+      });
     });
   });
 });

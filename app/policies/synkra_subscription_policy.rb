@@ -22,4 +22,13 @@ class SynkraSubscriptionPolicy < ApplicationPolicy
   def resume?
     @account_user.administrator?
   end
+
+  # Covers ExtraStorageController#create and ExtraSeatsController#create
+  # (both authorize against this SynkraSubscription policy under the
+  # 'create' action name) - missing this caused 'not authorized' errors
+  # when purchasing extra storage/seats, since Pundit denies by default
+  # when no matching *_? method is defined.
+  def create?
+    @account_user.administrator?
+  end
 end

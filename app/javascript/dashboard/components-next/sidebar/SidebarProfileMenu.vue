@@ -92,7 +92,7 @@ const menuItems = computed(() => {
       showOnCustomBrandedInstance: true,
       label: t('SIDEBAR_ITEMS.DOCS'),
       icon: 'i-lucide-book',
-      link: 'https://www.docs.synkra.co.za/chat',
+      link: 'https://docs.synkra.co.za/chat/overview/introduction/',
       nativeLink: true,
       target: '_blank',
     },

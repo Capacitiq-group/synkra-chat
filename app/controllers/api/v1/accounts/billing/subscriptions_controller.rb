@@ -23,7 +23,11 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
       return
     end
 
-    plan_config = SynkraPlan.find(plan)
+    # Verified students / community organisations pay their programme's
+    # price. If that programme's Paystack plan isn't configured we stop
+    # rather than silently charging the full public price.
+    programme = SynkraProgrammeVerification.best_active_programme(Current.account.id)
+    plan_config = SynkraPlan.for_programme(plan, programme)
     if plan_config[:paystack_plan_code].blank?
       render json: { error: 'This plan is not yet available for checkout' }, status: :unprocessable_entity
       return
@@ -34,7 +38,7 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
       amount_zar: plan_config[:price_zar],
       plan_code: plan_config[:paystack_plan_code],
       callback_url: params[:callback_url].presence || "#{root_url}app/accounts/#{Current.account.id}/settings/billing",
-      metadata: { synkra_account_id: Current.account.id, plan: plan }
+      metadata: { synkra_account_id: Current.account.id, plan: plan, pricing_programme: programme }
     )
 
     if result.success?
@@ -77,7 +81,8 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
     {
       plan: @subscription.plan,
       plan_name: @subscription.plan_config[:name],
-      price_zar: @subscription.plan_config[:price_zar],
+      price_zar: @subscription.priced_plan_config[:price_zar],
+      pricing_programme: @subscription.pricing_programme,
       status: @subscription.status,
       billing_cycle: @subscription.billing_cycle,
       current_period_start: @subscription.current_period_start,

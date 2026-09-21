@@ -1,13 +1,23 @@
-# Synkra discount programmes: verification records. Only the Student
-# programme's email route exists so far; Community Access and the
-# document route reuse this table (programme / verification_method).
+# Synkra discount programmes: verification records for the Student
+# programme (email code route or document route) and the Community
+# Access programme (application + manual review). One row per attempt.
 #
 # Student eligibility lasts until the end of the calendar year it was
-# verified in (South African time) and must be re-verified every year.
-# No active verification = no student billing.
+# verified in (South African time); Community Access lasts 12 months
+# from approval. Both must be re-verified. No active verification =
+# no programme billing.
 class SynkraProgrammeVerification < ApplicationRecord
-  PROGRAMMES = %w[student].freeze
-  STATUSES = %w[pending verified expired superseded].freeze
+  PROGRAMMES = %w[student community].freeze
+  # pending = email code sent, not yet entered; review = submitted and
+  # waiting for a human; needs_info = reviewer asked for more evidence.
+  STATUSES = %w[pending review needs_info rejected verified expired superseded].freeze
+  METHODS = %w[email document application].freeze
+  # Statuses that mean "an attempt is in flight" for an account/programme.
+  OPEN_STATUSES = %w[pending review needs_info].freeze
+
+  DOCUMENT_CONTENT_TYPES = %w[application/pdf image/jpeg image/png image/webp].freeze
+  DOCUMENT_MAX_SIZE = 10.megabytes
+  DOCUMENT_MAX_COUNT = 10
 
   # Offered as a dropdown in the UI - never free text - so the mailbox
   # domain always ends in one of these.
@@ -28,9 +38,13 @@ class SynkraProgrammeVerification < ApplicationRecord
 
   belongs_to :account
   belongs_to :user
+  # Student documents / Community evidence. Kept for the audit trail.
+  has_many_attached :documents
 
   validates :programme, inclusion: { in: PROGRAMMES }
   validates :status, inclusion: { in: STATUSES }
+  validates :verification_method, inclusion: { in: METHODS }
+  validate :documents_are_acceptable
 
   scope :for_programme, ->(programme) { where(programme: programme) }
 
@@ -47,6 +61,20 @@ class SynkraProgrammeVerification < ApplicationRecord
       .where(account_id: account_id, status: 'pending')
       .order(created_at: :desc)
       .first
+  end
+
+  # The most recent attempt that is waiting on a person (either side).
+  def self.open_review_for(account_id, programme)
+    for_programme(programme)
+      .where(account_id: account_id, status: %w[review needs_info])
+      .order(created_at: :desc)
+      .first
+  end
+
+  # The programme an account is currently entitled to be billed under.
+  # Community Access (60%) beats Student (35%) if both are active.
+  def self.best_active_programme(account_id)
+    %w[community student].find { |programme| active_verification_for(account_id, programme).present? }
   end
 
   # Returns [email, nil] or [nil, error_code].
@@ -107,17 +135,61 @@ class SynkraProgrammeVerification < ApplicationRecord
     transaction do
       # Stale verified rows for this mailbox (expired by date but not yet
       # swept) would otherwise trip the unique index.
-      self.class.where(institution_email: institution_email, status: 'verified')
-          .where('expires_at <= ?', now).update_all(status: 'expired', updated_at: now)
-      self.class.where(account_id: account_id, programme: programme, status: %w[verified pending])
+      if institution_email.present?
+        self.class.where(institution_email: institution_email, status: 'verified')
+            .where('expires_at <= ?', now).update_all(status: 'expired', updated_at: now)
+      end
+      self.class.where(account_id: account_id, programme: programme, status: %w[verified] + OPEN_STATUSES)
           .where.not(id: id).update_all(status: 'superseded', updated_at: now)
       update!(
         status: 'verified',
         verified_at: now,
-        expires_at: now.in_time_zone(ELIGIBILITY_TIME_ZONE).end_of_year,
+        expires_at: eligibility_end(now),
         otp_digest: nil,
         otp_expires_at: nil
       )
+    end
+  end
+
+  # Reviewer outcomes (super admin) and automatic document approval.
+  def approve!(reviewer:, note: nil)
+    mark_verified!
+    update!(reviewed_at: Time.current, reviewed_by: reviewer, review_note: note)
+  end
+
+  def reject!(reviewer:, note:)
+    update!(status: 'rejected', reviewed_at: Time.current, reviewed_by: reviewer, review_note: note)
+  end
+
+  def request_info!(reviewer:, note:)
+    update!(status: 'needs_info', reviewed_at: Time.current, reviewed_by: reviewer, review_note: note)
+  end
+
+  def student?
+    programme == 'student'
+  end
+
+  def community?
+    programme == 'community'
+  end
+
+  private
+
+  def eligibility_end(from)
+    return from.in_time_zone(ELIGIBILITY_TIME_ZONE).end_of_year if student?
+
+    from + 1.year
+  end
+
+  def documents_are_acceptable
+    return unless documents.attached?
+
+    errors.add(:documents, 'too many files') if documents.count > DOCUMENT_MAX_COUNT
+    documents.each do |document|
+      unless DOCUMENT_CONTENT_TYPES.include?(document.content_type)
+        errors.add(:documents, 'must be a PDF, JPG, PNG or WebP file')
+      end
+      errors.add(:documents, 'must be 10 MB or smaller') if document.byte_size > DOCUMENT_MAX_SIZE
     end
   end
 end

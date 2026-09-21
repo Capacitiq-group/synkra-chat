@@ -399,6 +399,16 @@ en:
   billing_mailer:
     student_code:
       subject: "Your Synkra student verification code"
+    programme_expiry_warning:
+      subject: "Your Synkra %{programme} verification expires in %{days} days"
+    programme_expired:
+      subject: "Your Synkra %{programme} verification has expired"
+    programme_review_outcome:
+      subject_approved: "Your Synkra %{programme} application was approved"
+      subject_needs_info: "More information needed for your Synkra %{programme} application"
+      subject_rejected: "Your Synkra %{programme} application"
+    programme_review_requested:
+      subject: "New %{programme} application: %{account}"
     usage_warning:
       subject: "You've used %{percent}% of your monthly message allowance"
     storage_warning:

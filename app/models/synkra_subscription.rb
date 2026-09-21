@@ -27,6 +27,12 @@ class SynkraSubscription < ApplicationRecord
     SynkraPlan.find(plan)
   end
 
+  # Plan config with the programme discount this subscription is
+  # actually being charged under (pricing_programme) applied.
+  def priced_plan_config
+    SynkraPlan.for_programme(plan, pricing_programme)
+  end
+
   # The plan's own staff_limit plus any purchased extra seats
   # (SynkraPlan::EXTRA_SEAT_PRICE_ZAR/seat/month) - see
   # AccountUser#ensure_within_synkra_seat_limit, which is the actual

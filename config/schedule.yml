@@ -75,6 +75,15 @@ remove_orphan_conversations_job:
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
 
+# executed daily
+# Synkra discount programmes: warns before Student / Community Access
+# verifications expire and moves lapsed accounts to the Free tier. See
+# Billing::ExpireProgrammesJob.
+synkra_expire_programmes_job:
+  cron: '15 2 * * *'
+  class: 'Billing::ExpireProgrammesJob'
+  queue: scheduled_jobs
+
 # executed hourly
 # Synkra Chat billing: moves past_due subscriptions to restricted once
 # their grace period has elapsed, and sends usage-threshold warnings.

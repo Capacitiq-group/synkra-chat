@@ -7,6 +7,11 @@ defineProps({
   planKey: { type: String, required: true },
   name: { type: String, required: true },
   priceZar: { type: Number, required: true },
+  // Set when the account is verified for a discount programme:
+  // discountedPriceZar is what this plan costs them, programme is
+  // 'student' | 'community' (decides the label).
+  discountedPriceZar: { type: Number, default: null },
+  programme: { type: String, default: null },
   messageAllowance: { type: Number, required: true },
   staffLimit: { type: Number, required: true },
   isCurrent: { type: Boolean, default: false },
@@ -32,17 +37,29 @@ const { t } = useI18n();
   <div
     class="rounded-xl border p-6 flex flex-col gap-5 min-h-[15rem]"
     :class="
-      isCurrent
-        ? 'border-n-brand bg-n-brand/5'
-        : 'border-n-weak bg-n-solid-2'
+      isCurrent ? 'border-n-brand bg-n-brand/5' : 'border-n-weak bg-n-solid-2'
     "
   >
     <div class="flex items-start justify-between gap-2">
       <div>
         <h3 class="text-lg font-medium text-n-slate-12">{{ name }}</h3>
         <p class="text-base text-n-slate-11 mt-1.5">
+          <span v-if="discountedPriceZar" class="line-through mr-1.5">
+            {{ t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', { price: priceZar }) }}
+          </span>
+          <span :class="{ 'text-n-slate-12 font-medium': discountedPriceZar }">
+            {{
+              t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', {
+                price: discountedPriceZar || priceZar,
+              })
+            }}
+          </span>
+        </p>
+        <p v-if="discountedPriceZar" class="text-xs text-n-teal-11 mt-1">
           {{
-            t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', { price: priceZar })
+            programme === 'community'
+              ? t('SYNKRA_BILLING_SETTINGS.PLANS.COMMUNITY_PRICE')
+              : t('SYNKRA_BILLING_SETTINGS.PLANS.STUDENT_PRICE')
           }}
         </p>
       </div>

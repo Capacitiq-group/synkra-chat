@@ -46,6 +46,7 @@ class Billing::StudentVerificationService
     case verification.check_otp(supplied)
     when :ok
       verification.mark_verified!
+      Billing::ProgrammePricingService.new(@account).apply!
       Result.new(success?: true, data: { verification: verification })
     when :invalid then failure(:invalid_code, attempts_left: verification.attempts_left)
     when :expired then failure(:code_expired)
@@ -54,6 +55,41 @@ class Billing::StudentVerificationService
     end
   rescue ActiveRecord::RecordNotUnique
     failure(:email_in_use)
+  end
+
+  # Document route: the student uploads proof of current enrolment
+  # instead of using an institution email. Read automatically where
+  # possible (Billing::ProgrammeDocumentReviewJob); anything doubtful
+  # goes to manual review, so this only ever queues the submission.
+  MAX_DOCUMENT_SUBMISSIONS_PER_DAY = 5
+
+  def submit_document(files:)
+    files = Array(files).select { |file| file.respond_to?(:content_type) && file.respond_to?(:size) }
+    return failure(:no_files) if files.empty?
+    return failure(:too_many_files) if files.size > SynkraProgrammeVerification::DOCUMENT_MAX_COUNT
+    return failure(:invalid_file_type) unless files.all? { |f| SynkraProgrammeVerification::DOCUMENT_CONTENT_TYPES.include?(f.content_type) }
+    return failure(:file_too_large) if files.any? { |f| f.size > SynkraProgrammeVerification::DOCUMENT_MAX_SIZE }
+    return failure(:already_verified) if SynkraProgrammeVerification.active_verification_for(@account.id, PROGRAMME)
+
+    recent = SynkraProgrammeVerification.for_programme(PROGRAMME)
+                                        .where(account_id: @account.id, verification_method: 'document')
+                                        .where('created_at > ?', 24.hours.ago).count
+    return failure(:rate_limited) if recent >= MAX_DOCUMENT_SUBMISSIONS_PER_DAY
+
+    verification = SynkraProgrammeVerification.transaction do
+      SynkraProgrammeVerification.for_programme(PROGRAMME)
+                                 .where(account_id: @account.id, status: SynkraProgrammeVerification::OPEN_STATUSES)
+                                 .update_all(status: 'superseded', updated_at: Time.current)
+      record = SynkraProgrammeVerification.create!(
+        account_id: @account.id, user_id: @user.id, programme: PROGRAMME,
+        verification_method: 'document', status: 'review', submitted_at: Time.current
+      )
+      record.documents.attach(files)
+      record
+    end
+
+    Billing::ProgrammeDocumentReviewJob.perform_later(verification.id)
+    Result.new(success?: true, data: { verification: verification })
   end
 
   private

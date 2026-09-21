@@ -401,7 +401,9 @@ Rails.application.routes.draw do
             resources :extra_storage, only: [:create]
             resource :student_verification, only: %i[show create], controller: 'student_verifications' do
               post :confirm
+              post :document
             end
+            resource :community_application, only: %i[show create update], controller: 'community_applications'
           end
           namespace :automations do
             resource :credits, only: [:show], controller: 'credits'
@@ -767,6 +769,13 @@ Rails.application.routes.draw do
       end
       resources :platform_apps, only: [:index, :new, :create, :show, :edit, :update, :destroy]
       resources :platform_banners
+      resources :programme_reviews, only: %i[index show] do
+        member do
+          post :approve
+          post :reject
+          post :request_info
+        end
+      end
       resource :instance_status, only: [:show]
 
       resource :settings, only: [:show] do

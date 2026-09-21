@@ -94,6 +94,37 @@ class SynkraPlan
     }
   }.freeze
 
+  # Discount programmes (Student 35%, Community Access 60%). Same limits
+  # as the standard plan - only the price and Paystack plan differ. Paystack
+  # plans are fixed-amount, so each programme price is its own Paystack
+  # plan; price_zar here MUST match that plan's amount in Paystack.
+  # Whole-rand prices confirmed 21 Sep 2026 (Refilwe).
+  PROGRAMME_PLANS = {
+    'student' => {
+      'starter' => { price_zar: 195, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_STUDENT', nil) },
+      'business' => { price_zar: 389, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_STUDENT', nil) },
+      'pro' => { price_zar: 649, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_STUDENT', nil) }
+    },
+    'community' => {
+      'starter' => { price_zar: 119, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_COMMUNITY', nil) },
+      'business' => { price_zar: 239, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_COMMUNITY', nil) },
+      'pro' => { price_zar: 399, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_COMMUNITY', nil) }
+    }
+  }.freeze
+
+  # The plan's config with the programme's price/Paystack plan applied.
+  # Unknown programme, nil, or the Free plan -> the standard config.
+  def self.for_programme(plan_key, programme)
+    base = find(plan_key)
+    override = PROGRAMME_PLANS.dig(programme.to_s, plan_key.to_s)
+    override ? base.merge(override) : base
+  end
+
+  # { 'starter' => 195, ... } for showing programme prices in the UI.
+  def self.programme_prices(programme)
+    (PROGRAMME_PLANS[programme.to_s] || {}).transform_values { |config| config[:price_zar] }
+  end
+
   # Confirmed 13 Sep 2026 (Refilwe): R30/GB/month for storage beyond a
   # plan's storage_mb_allowance. Not yet wired to anything - see the
   # class comment above.

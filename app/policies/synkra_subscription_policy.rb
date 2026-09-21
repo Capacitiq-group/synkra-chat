@@ -37,4 +37,14 @@ class SynkraSubscriptionPolicy < ApplicationPolicy
   def confirm?
     @account_user.administrator?
   end
+
+  # StudentVerificationsController#document (document route). Community
+  # applications use show?/create?/update? (update? added here).
+  def document?
+    @account_user.administrator?
+  end
+
+  def update?
+    @account_user.administrator?
+  end
 end

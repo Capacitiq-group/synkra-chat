@@ -13,6 +13,8 @@ import DetailItem from '../billing/components/DetailItem.vue';
 import BillingMeter from '../billing/components/BillingMeter.vue';
 import PlanCard from './components/PlanCard.vue';
 import StudentVerificationCard from './components/StudentVerificationCard.vue';
+import CommunityAccessCard from './components/CommunityAccessCard.vue';
+import { useSynkraProgrammes } from 'dashboard/composables/useSynkraProgrammes';
 import CancelSubscriptionDialog from './components/CancelSubscriptionDialog.vue';
 import AddonPurchaseDialog from './components/AddonPurchaseDialog.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
@@ -46,6 +48,8 @@ const {
   buyExtraSeats,
   buyExtraStorage,
 } = useSynkraBilling();
+
+const { activeProgramme, activePrices } = useSynkraProgrammes();
 
 const cancelDialogRef = ref(null);
 const messageAddonDialogRef = ref(null);
@@ -301,6 +305,7 @@ onMounted(async () => {
         </BillingCard>
 
         <StudentVerificationCard />
+        <CommunityAccessCard />
 
         <BillingHeader
           class="px-1 mt-2"
@@ -314,6 +319,8 @@ onMounted(async () => {
             :plan-key="planOption.key"
             :name="planOption.name"
             :price-zar="planOption.priceZar"
+            :discounted-price-zar="activePrices?.[planOption.key] || null"
+            :programme="activeProgramme"
             :message-allowance="planOption.messageAllowance"
             :staff-limit="planOption.staffLimit"
             :is-current="planOption.key === plan"

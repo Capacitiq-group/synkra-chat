@@ -28,9 +28,19 @@ class Billing::PaystackWebhookHandler
 
   def find_subscription
     account_id = @data.dig('metadata', 'synkra_account_id') || @data.dig('metadata', 'account_id')
-    return nil if account_id.blank?
+    return find_subscription_by_customer if account_id.blank?
 
     SynkraSubscription.find_by(account_id: account_id)
+  end
+
+  # Paystack's own recurring charges (renewals) don't carry the
+  # metadata we attach at checkout, so fall back to the Paystack
+  # customer we stored from the first payment.
+  def find_subscription_by_customer
+    customer_code = @data.dig('customer', 'customer_code')
+    return nil if customer_code.blank?
+
+    SynkraSubscription.find_by(paystack_customer_code: customer_code)
   end
 
   def handle_charge_success
@@ -54,10 +64,13 @@ class Billing::PaystackWebhookHandler
     return if subscription.nil?
 
     capture_authorization(subscription)
+    capture_customer(subscription)
 
     # A successful charge always clears any past-due/restricted state,
     # whether it was the very first payment or a recovery payment.
     subscription.mark_active!
+
+    activate_plan_from_checkout(subscription)
 
     if subscription.pending_plan.present?
       swap_paystack_plan_if_pending!(subscription)
@@ -110,6 +123,37 @@ class Billing::PaystackWebhookHandler
     end
   end
 
+  # First payment from checkout: the plan (and the discount programme it
+  # was priced under) travel in the transaction metadata we set in
+  # SubscriptionsController#checkout. Nothing else flips a Free account
+  # to the plan it just paid for. Renewals carry no such metadata and
+  # are a no-op here. Upgrades go through change_plan! so they take
+  # effect immediately and sync to Flow like any other upgrade.
+  def activate_plan_from_checkout(subscription)
+    plan = @data.dig('metadata', 'plan').to_s
+    return if plan.blank? || plan == 'free' || !SynkraPlan.valid?(plan)
+
+    # Only ever moves UP. Same plan = a redelivered webhook (or a
+    # renewal that happens to carry metadata); lower = not a checkout
+    # path. Both must not touch anything - change_plan! with an equal
+    # plan would schedule a pointless Paystack plan swap.
+    order = SynkraPlan::PLANS.keys
+    return unless order.index(plan) > order.index(subscription.plan)
+
+    programme = @data.dig('metadata', 'pricing_programme').to_s
+    programme = nil unless SynkraPlan::PROGRAMME_PLANS.key?(programme)
+
+    subscription.change_plan!(plan)
+    subscription.update!(pricing_programme: programme)
+  end
+
+  def capture_customer(subscription)
+    customer_code = @data.dig('customer', 'customer_code')
+    return if customer_code.blank? || subscription.paystack_customer_code == customer_code
+
+    subscription.update!(paystack_customer_code: customer_code)
+  end
+
   # Stores the card/direct-debit authorization from this charge so a
   # future plan downgrade can create a replacement Paystack
   # subscription without sending the customer through checkout again.
@@ -132,7 +176,10 @@ class Billing::PaystackWebhookHandler
   def swap_paystack_plan_if_pending!(subscription)
     service = Billing::PaystackService.new
     new_plan_key = subscription.pending_plan
-    new_plan_code = SynkraPlan.find(new_plan_key)[:paystack_plan_code]
+    # Keep the discount only while it's still valid: an expired
+    # programme never carries over onto the new plan.
+    programme = SynkraProgrammeVerification.best_active_programme(subscription.account_id)
+    new_plan_code = SynkraPlan.for_programme(new_plan_key, programme)[:paystack_plan_code]
 
     if subscription.paystack_subscription_code.present?
       service.cancel_subscription(
@@ -145,7 +192,7 @@ class Billing::PaystackWebhookHandler
       # Downgrading to Free: cancelling the old Paystack subscription
       # above is the whole job - there's nothing to create, and the
       # customer is never charged again until they choose a paid plan.
-      subscription.update!(paystack_subscription_code: nil, paystack_email_token: nil)
+      subscription.update!(paystack_subscription_code: nil, paystack_email_token: nil, pricing_programme: nil)
       return
     end
 
@@ -168,7 +215,8 @@ class Billing::PaystackWebhookHandler
     if result.success?
       subscription.update!(
         paystack_subscription_code: result.data['subscription_code'],
-        paystack_email_token: result.data['email_token']
+        paystack_email_token: result.data['email_token'],
+        pricing_programme: programme
       )
     else
       Rails.logger.error "[SynkraBilling] Failed to create replacement Paystack subscription for downgrade (subscription #{subscription.id}): #{result.error}"

@@ -18,7 +18,11 @@ class Api::V1::Accounts::Billing::StudentVerificationsController < Api::V1::Acco
     invalid_code: 'That code is not correct.',
     code_expired: 'That code has expired. Request a new one.',
     too_many_attempts: 'Too many incorrect attempts. Request a new code.',
-    no_pending: 'Request a code first.'
+    no_pending: 'Request a code first.',
+    no_files: 'Choose a document to upload.',
+    too_many_files: 'Please upload no more than 10 files.',
+    invalid_file_type: 'Documents must be PDF, JPG, PNG or WebP files.',
+    file_too_large: 'Each file must be 10 MB or smaller.'
   }.freeze
 
   RATE_LIMIT_CODES = %i[cooldown rate_limited].freeze
@@ -33,6 +37,13 @@ class Api::V1::Accounts::Billing::StudentVerificationsController < Api::V1::Acco
       institution: params[:institution],
       extension: params[:extension]
     )
+    return render_failure(result) unless result.success?
+
+    render json: status_payload
+  end
+
+  def document
+    result = service.submit_document(files: Array(params[:documents]))
     return render_failure(result) unless result.success?
 
     render json: status_payload
@@ -62,8 +73,15 @@ class Api::V1::Accounts::Billing::StudentVerificationsController < Api::V1::Acco
     pending = SynkraProgrammeVerification.pending_for(Current.account.id, 'student')
     pending = nil if pending&.otp_expires_at.present? && pending.otp_expires_at < Time.current
 
+    review = SynkraProgrammeVerification.open_review_for(Current.account.id, 'student')
+    latest = SynkraProgrammeVerification.for_programme('student').where(account_id: Current.account.id).order(created_at: :desc).first
+    rejection = latest if latest&.status == 'rejected'
+
     {
       programme: 'student',
+      discounted_prices: SynkraPlan.programme_prices('student'),
+      review: review && { status: review.status, submitted_at: review.submitted_at, note: review.status == 'needs_info' ? review.review_note : nil },
+      rejection: rejection && { note: rejection.review_note, reviewed_at: rejection.reviewed_at },
       extensions: SynkraProgrammeVerification::STUDENT_EMAIL_EXTENSIONS,
       otp_length: SynkraProgrammeVerification::OTP_LENGTH,
       verified: active.present?,

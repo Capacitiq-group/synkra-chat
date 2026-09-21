@@ -15,16 +15,6 @@
 class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
   queue_as :scheduled_jobs
 
-  # Accounts holding a paid plan for free, with no real Paystack
-  # subscription behind them (comped internally - never charged, so
-  # they'll never receive the charge.success webhook that normally
-  # triggers a paid plan's period rollover/usage reset). Included in
-  # rollover_free_tier_periods below so their usage still resets
-  # monthly like a Free-tier account's does, while keeping their
-  # actual plan's (higher) limits. Account 3 = Synkra Technologies
-  # (hello@synkra.co.za), comped to Pro, 21 Sep 2026.
-  COMPED_ACCOUNT_IDS = [3].freeze
-
   def perform
     restrict_overdue_subscriptions
     send_usage_warnings
@@ -74,9 +64,27 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
     end
   end
 
+  # Accounts holding a paid plan for free, with no real Paystack
+  # subscription behind them (comped internally - never charged, so
+  # they'll never receive the charge.success webhook that normally
+  # triggers a paid plan's period rollover/usage reset). Included in
+  # rollover_free_tier_periods below so their usage still resets
+  # monthly like a Free-tier account's does, while keeping their
+  # actual plan's (higher) limits.
+  #
+  # IDs are read from the database (InstallationConfig
+  # 'COMPED_ACCOUNT_IDS', comma-separated, e.g. "3"), not hardcoded,
+  # because account IDs differ between staging and production - a
+  # hardcoded ID would silently match an unrelated paying customer on
+  # another environment. Unset = no comped accounts.
+  def comped_account_ids
+    InstallationConfig.find_by(name: 'COMPED_ACCOUNT_IDS')&.value.to_s
+                      .split(',').map(&:strip).reject(&:blank?).map(&:to_i)
+  end
+
   def rollover_free_tier_periods
     SynkraSubscription.where(status: 'active')
-                       .where('plan = ? OR account_id IN (?)', 'free', COMPED_ACCOUNT_IDS)
+                       .where('plan = ? OR account_id IN (?)', 'free', comped_account_ids)
                        .where('current_period_end IS NULL OR current_period_end <= ?', Time.current)
                        .find_each do |subscription|
       subscription.start_new_period!

@@ -15,6 +15,16 @@
 class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
   queue_as :scheduled_jobs
 
+  # Accounts holding a paid plan for free, with no real Paystack
+  # subscription behind them (comped internally - never charged, so
+  # they'll never receive the charge.success webhook that normally
+  # triggers a paid plan's period rollover/usage reset). Included in
+  # rollover_free_tier_periods below so their usage still resets
+  # monthly like a Free-tier account's does, while keeping their
+  # actual plan's (higher) limits. Account 3 = Synkra Technologies
+  # (hello@synkra.co.za), comped to Pro, 21 Sep 2026.
+  COMPED_ACCOUNT_IDS = [3].freeze
+
   def perform
     restrict_overdue_subscriptions
     send_usage_warnings
@@ -65,7 +75,8 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
   end
 
   def rollover_free_tier_periods
-    SynkraSubscription.where(plan: 'free', status: 'active')
+    SynkraSubscription.where(status: 'active')
+                       .where('plan = ? OR account_id IN (?)', 'free', COMPED_ACCOUNT_IDS)
                        .where('current_period_end IS NULL OR current_period_end <= ?', Time.current)
                        .find_each do |subscription|
       subscription.start_new_period!

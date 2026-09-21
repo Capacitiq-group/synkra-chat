@@ -399,6 +399,9 @@ Rails.application.routes.draw do
             resources :message_addons, only: %i[index create]
             resources :extra_seats, only: [:create]
             resources :extra_storage, only: [:create]
+            resource :student_verification, only: %i[show create], controller: 'student_verifications' do
+              post :confirm
+            end
           end
           namespace :automations do
             resource :credits, only: [:show], controller: 'credits'

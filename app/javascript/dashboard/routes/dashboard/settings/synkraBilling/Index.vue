@@ -12,6 +12,7 @@ import BillingHeader from '../billing/components/BillingHeader.vue';
 import DetailItem from '../billing/components/DetailItem.vue';
 import BillingMeter from '../billing/components/BillingMeter.vue';
 import PlanCard from './components/PlanCard.vue';
+import StudentVerificationCard from './components/StudentVerificationCard.vue';
 import CancelSubscriptionDialog from './components/CancelSubscriptionDialog.vue';
 import AddonPurchaseDialog from './components/AddonPurchaseDialog.vue';
 import Banner from 'dashboard/components-next/banner/Banner.vue';
@@ -298,6 +299,8 @@ onMounted(async () => {
             />
           </div>
         </BillingCard>
+
+        <StudentVerificationCard />
 
         <BillingHeader
           class="px-1 mt-2"

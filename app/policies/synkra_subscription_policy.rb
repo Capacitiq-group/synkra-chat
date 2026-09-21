@@ -31,4 +31,10 @@ class SynkraSubscriptionPolicy < ApplicationPolicy
   def create?
     @account_user.administrator?
   end
+
+  # StudentVerificationsController#confirm (show?/create? above cover
+  # its other two actions).
+  def confirm?
+    @account_user.administrator?
+  end
 end

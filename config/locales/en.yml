@@ -397,6 +397,8 @@ en:
     new_login_notification:
       subject: 'New sign-in to your account'
   billing_mailer:
+    student_code:
+      subject: "Your Synkra student verification code"
     usage_warning:
       subject: "You've used %{percent}% of your monthly message allowance"
     storage_warning:

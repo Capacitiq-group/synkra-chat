@@ -31,6 +31,6 @@ class ContactIdentityMailer < ApplicationMailer
   private
 
   def liquid_locals
-    super.merge({ contact: @contact })
+    super.merge({ contact: @contact, verification_url: @verification_url, continuation_url: @continuation_url })
   end
 end

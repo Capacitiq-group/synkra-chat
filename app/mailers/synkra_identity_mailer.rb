@@ -18,6 +18,6 @@ class SynkraIdentityMailer < ApplicationMailer
   private
 
   def liquid_locals
-    super.merge({ global_user: @global_user })
+    super.merge({ global_user: @global_user, code: @code })
   end
 end

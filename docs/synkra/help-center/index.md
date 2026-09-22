@@ -26,6 +26,7 @@ as questions and answers so you can jump straight to what you need.
 ## Billing
 - [Plans and pricing](./billing-and-plans.md)
 - [Credits and add-ons](./credits-and-addons.md) — what happens when you run out
+- [Student and Community Access pricing](./student-and-community-access.md) — 35% and 60% discounts, how to qualify
 
 ## Settings and administration
 - [Security and audit logs](./security-and-audit-logs.md)

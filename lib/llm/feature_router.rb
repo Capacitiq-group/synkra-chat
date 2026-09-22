@@ -24,10 +24,24 @@ module Llm::FeatureRouter
       account_model = account_model_override(account, feature_key)
       return [account_model, :account_override] if account_model.present?
 
+      # Synkra: a single installation-wide model (typically a self-hosted
+      # Ollama model via CAPTAIN_OPEN_AI_ENDPOINT) that overrides every
+      # Captain feature - editor (the reply-box sparkle icon), label
+      # suggestion, FAQ generation, and so on - not just conversation_completion.
+      # Mirrors what Llm::BaseAiService#setup_model already does directly for
+      # its own feature family; this brings Captain::BaseTaskService's
+      # features (which route only through here) in line with it.
+      synkra_model = synkra_installation_model
+      return [synkra_model, :installation_override] if synkra_model.present?
+
       installation_model = installation_model_override(feature_key)
       return [installation_model, :installation_override] if installation_model.present?
 
       [captain_v2_assistant_model(account, feature_key) || Llm::Models.default_model_for(feature_key), :default]
+    end
+
+    def synkra_installation_model
+      InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence
     end
 
     def account_model_override(account, feature_key)

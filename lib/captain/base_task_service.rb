@@ -82,8 +82,20 @@ class Captain::BaseTaskService
     { error: e.message, request_messages: messages }
   end
 
+  # RubyLLM validates `model` against its own bundled model registry before
+  # making any request. That's fine for real OpenAI/Anthropic models, but a
+  # self-hosted model name (e.g. an Ollama tag like
+  # "qwen2.5:7b-instruct-q4_K_M", reached via our own CAPTAIN_OPEN_AI_ENDPOINT
+  # override) will never be in that registry. Mirrors
+  # Llm::BaseAiService#resolve_ruby_llm_chat - only falls back to
+  # assume_model_exists when the normal lookup genuinely fails, so every
+  # already-working model path is unaffected.
   def build_chat(context, model:, messages:, schema: nil, tools: [])
-    chat = context.chat(model: model)
+    chat = begin
+      context.chat(model: model)
+    rescue RubyLLM::ModelNotFoundError
+      context.chat(model: model, provider: :openai, assume_model_exists: true)
+    end
     system_msg = messages.find { |m| m[:role] == 'system' }
     chat.with_instructions(system_msg[:content]) if system_msg
     chat.with_schema(schema) if schema

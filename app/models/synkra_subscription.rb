@@ -33,6 +33,16 @@ class SynkraSubscription < ApplicationRecord
     SynkraPlan.for_programme(plan, pricing_programme)
   end
 
+  # Which discount programme (if any) currently applies to this
+  # account's billing - 'student', 'community', or nil for standard
+  # pricing. No active verification in synkra_programme_verifications
+  # = no programme billing, per that model's own file comment.
+  def pricing_programme
+    SynkraProgrammeVerification::PROGRAMMES.find do |programme|
+      SynkraProgrammeVerification.active_verification_for(account_id, programme).present?
+    end
+  end
+
   # The plan's own staff_limit plus any purchased extra seats
   # (SynkraPlan::EXTRA_SEAT_PRICE_ZAR/seat/month) - see
   # AccountUser#ensure_within_synkra_seat_limit, which is the actual

@@ -57,6 +57,11 @@ class Billing::CommunityApplicationService
   def self.claim(access_token:, account:, user:)
     verification = SynkraProgrammeVerification.claimable(access_token.to_s.strip.upcase)
     return Result.new(success?: false, code: :invalid_code) if verification.nil?
+    # Ties the code to whoever actually applied - otherwise anyone who
+    # gets hold of a valid, still-unclaimed code (forwarded, guessed,
+    # intercepted) could claim someone else's approved discount onto
+    # their own account, first-come-first-served.
+    return Result.new(success?: false, code: :email_mismatch) unless verification.contact_email.to_s.strip.casecmp?(user.email.to_s.strip)
     return Result.new(success?: false, code: :already_has_programme) if SynkraProgrammeVerification.active_verification_for(account.id, PROGRAMME)
 
     verification.claim!(account: account, user: user)

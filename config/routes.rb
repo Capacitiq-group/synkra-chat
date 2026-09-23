@@ -42,6 +42,9 @@ Rails.application.routes.draw do
     post '/community-access', to: 'community_access#create'
     get '/community-access/status/:token', to: 'community_access#status', as: :status_community_access
     post '/community-access/status/:token', to: 'community_access#add_information', as: :add_information_community_access
+    # The approval email's claim link - same page as status, which
+    # already shows the reference code and instructions.
+    get '/community-access/claim/:token', to: redirect('/community-access/status/%{token}')
     get '/widget/continue_conversation', to: 'contact_continuations#show'
     post '/webhooks/paystack', to: 'billing/paystack_webhooks#create'
     namespace :survey do

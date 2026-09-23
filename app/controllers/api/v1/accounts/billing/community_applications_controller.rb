@@ -17,7 +17,8 @@ class Api::V1::Accounts::Billing::CommunityApplicationsController < Api::V1::Acc
     file_too_large: 'Each file must be 10 MB or smaller.',
     nothing_to_update: 'There is no application waiting for more information.',
     invalid_code: 'That reference code is not valid or has expired.',
-    already_has_programme: 'Your account already has a discount programme active.'
+    already_has_programme: 'Your account already has a discount programme active.',
+    email_mismatch: "This code belongs to a different email address than your Synkra account's. Log in with the account whose email matches the application, or contact us at hello@synkra.co.za."
   }.freeze
 
   def show

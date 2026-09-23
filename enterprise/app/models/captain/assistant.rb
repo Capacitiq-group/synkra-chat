@@ -73,6 +73,8 @@ class Captain::Assistant < ApplicationRecord
 
   scope :for_account, ->(account_id) { where(account_id: account_id) }
 
+  after_commit :sync_to_all_inboxes, on: %i[create update]
+
   def available_name
     name
   end
@@ -180,6 +182,26 @@ class Captain::Assistant < ApplicationRecord
   end
 
   private
+
+  # Synkra's simplified "AI Agent" settings page (Settings > AI Agent >
+  # Business Brain) creates one assistant per account with no inbox
+  # picker - stock Captain's own inbox-connection UI is hidden in this
+  # fork (Sidebar.vue: isCaptainVisibleInV1 = false), so without this
+  # there was no way to actually connect an assistant to any inbox and
+  # the "AI Agent" would never respond to a real conversation. Keeps
+  # every one of the account's inboxes pointed at this assistant,
+  # re-run on every save so a newly added inbox gets picked up too. A
+  # captain_inboxes row can only point at one assistant (inbox_id is
+  # unique), which is fine here: Synkra's UI only ever creates one
+  # assistant per account, so nothing else could already hold it - the
+  # rescue is defensive, not an expected path.
+  def sync_to_all_inboxes
+    account.inboxes.find_each do |inbox|
+      captain_inboxes.find_or_create_by!(inbox: inbox)
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "[SynkraAiAgent] Couldn't connect assistant #{id} to inbox #{inbox.id}: #{e.message}"
+    end
+  end
 
   def normalize_auto_resolve_after
     threshold = Integer(auto_resolve_after.to_s, exception: false)

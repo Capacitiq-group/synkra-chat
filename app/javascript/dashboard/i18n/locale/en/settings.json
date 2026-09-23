@@ -879,7 +879,7 @@
   },
   "AI_AGENT_SETTINGS": {
     "TITLE": "AI Agent",
-    "DESCRIPTION": "Give your AI agent real actions it can take - triggered through Synkra Flow.",
+    "DESCRIPTION": "Your AI agent answers customers using what you teach it below.",
     "LOADING": "Loading your AI agent's actions...",
     "ACTIONS": {
       "TITLE": "Actions",

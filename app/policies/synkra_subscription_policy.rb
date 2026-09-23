@@ -47,4 +47,10 @@ class SynkraSubscriptionPolicy < ApplicationPolicy
   def update?
     @account_user.administrator?
   end
+
+  # CommunityApplicationsController#claim - attaching an approved public
+  # application (/community-access) to this now-existing account.
+  def claim?
+    @account_user.administrator?
+  end
 end

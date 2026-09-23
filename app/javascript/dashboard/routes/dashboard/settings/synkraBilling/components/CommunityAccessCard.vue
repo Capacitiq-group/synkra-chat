@@ -17,6 +17,8 @@ const isWorking = ref(false);
 const showForm = ref(false);
 const files = ref([]);
 const reply = ref('');
+const claimCode = ref('');
+const isClaiming = ref(false);
 
 const form = reactive({
   organisation_name: '',
@@ -138,6 +140,23 @@ const sendReply = async () => {
   }
 };
 
+const claim = async () => {
+  if (!claimCode.value.trim()) return;
+  isClaiming.value = true;
+  try {
+    const response = await SynkraCommunityApplicationAPI.claim(
+      claimCode.value.trim()
+    );
+    status.value = response.data;
+    claimCode.value = '';
+    useAlert(t('SYNKRA_BILLING_SETTINGS.COMMUNITY.CLAIMED'));
+  } catch (error) {
+    useAlert(errorMessage(error));
+  } finally {
+    isClaiming.value = false;
+  }
+};
+
 onMounted(async () => {
   try {
     await fetchProgrammes();
@@ -214,6 +233,29 @@ onMounted(async () => {
         <ButtonV4 sm @click="showForm = true">
           {{ t('SYNKRA_BILLING_SETTINGS.COMMUNITY.APPLY') }}
         </ButtonV4>
+      </div>
+      <div class="pt-2 border-t border-n-weak grid gap-2 max-w-sm">
+        <p class="text-xs text-n-slate-11">
+          {{ t('SYNKRA_BILLING_SETTINGS.COMMUNITY.CLAIM_HELP') }}
+        </p>
+        <div class="flex items-center gap-2">
+          <Input
+            v-model="claimCode"
+            :placeholder="
+              t('SYNKRA_BILLING_SETTINGS.COMMUNITY.CLAIM_PLACEHOLDER')
+            "
+          />
+          <ButtonV4
+            sm
+            faded
+            slate
+            :is-loading="isClaiming"
+            :disabled="!claimCode.trim()"
+            @click="claim"
+          >
+            {{ t('SYNKRA_BILLING_SETTINGS.COMMUNITY.CLAIM_SUBMIT') }}
+          </ButtonV4>
+        </div>
       </div>
     </div>
 

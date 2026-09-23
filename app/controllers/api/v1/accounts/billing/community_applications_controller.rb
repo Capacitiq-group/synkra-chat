@@ -15,7 +15,9 @@ class Api::V1::Accounts::Billing::CommunityApplicationsController < Api::V1::Acc
     too_many_files: 'Please upload no more than 10 files.',
     invalid_file_type: 'Evidence must be PDF, JPG, PNG or WebP files.',
     file_too_large: 'Each file must be 10 MB or smaller.',
-    nothing_to_update: 'There is no application waiting for more information.'
+    nothing_to_update: 'There is no application waiting for more information.',
+    invalid_code: 'That reference code is not valid or has expired.',
+    already_has_programme: 'Your account already has a discount programme active.'
   }.freeze
 
   def show
@@ -32,6 +34,15 @@ class Api::V1::Accounts::Billing::CommunityApplicationsController < Api::V1::Acc
   # Answering a reviewer's request for more information.
   def update
     result = service.add_information(message: params[:message], files: Array(params[:documents]))
+    return render_failure(result) unless result.success?
+
+    render json: status_payload
+  end
+
+  # Attaches an approved public application (from /community-access,
+  # no login required to apply) to this now-existing account.
+  def claim
+    result = ::Billing::CommunityApplicationService.claim(access_token: params[:access_token], account: Current.account, user: Current.user)
     return render_failure(result) unless result.success?
 
     render json: status_payload

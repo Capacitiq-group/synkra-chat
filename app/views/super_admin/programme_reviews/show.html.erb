@@ -2,7 +2,7 @@
 
 <header class="main-content__header" role="banner">
   <h1 class="main-content__page-title" id="page-title">
-    <%= @verification.programme.titleize %> - <%= @verification.account.name %> (ID <%= @verification.account_id %>)
+    <%= @verification.programme.titleize %> - <%= @verification.account ? "#{@verification.account.name} (ID #{@verification.account_id})" : "#{@verification.contact_email} (no account yet)" %>
   </h1>
   <div><%= link_to 'Back to queue', super_admin_programme_reviews_path %></div>
 </header>
@@ -12,7 +12,7 @@
     Status: <strong><%= @verification.status.humanize %></strong>
     &middot; Route: <%= @verification.verification_method %>
     &middot; Submitted: <%= @verification.submitted_at&.strftime('%-d %b %Y %H:%M') %>
-    &middot; Applicant: <%= @verification.user.name %> (<%= @verification.user.email %>)
+    &middot; Applicant: <%= @verification.user ? "#{@verification.user.name} (#{@verification.user.email})" : @verification.contact_email %>
   </p>
 
   <% if @verification.ocr_result.present? %>

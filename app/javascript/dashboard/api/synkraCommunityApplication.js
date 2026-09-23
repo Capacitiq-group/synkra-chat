@@ -34,6 +34,12 @@ class SynkraCommunityApplicationAPI extends ApiClient {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   }
+
+  // Attaches an approved public application (submitted at
+  // /community-access with no login) to this now-existing account.
+  claim(accessToken) {
+    return axios.post(`${this.url}/claim`, { access_token: accessToken });
+  }
 }
 
 export default new SynkraCommunityApplicationAPI();

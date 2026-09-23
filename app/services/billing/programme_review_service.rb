@@ -11,7 +11,9 @@ class Billing::ProgrammeReviewService
     return false unless reviewable?
 
     @verification.approve!(reviewer: @reviewer, note: note)
-    Billing::ProgrammePricingService.new(@verification.account).apply!
+    # A public application (no Synkra account yet) has nothing to price
+    # until it's claimed - see SynkraProgrammeVerification#claim!.
+    Billing::ProgrammePricingService.new(@verification.account).apply! if @verification.account
     notify('approved')
   end
 

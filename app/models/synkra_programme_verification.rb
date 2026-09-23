@@ -36,8 +36,8 @@ class SynkraProgrammeVerification < ApplicationRecord
   LOCAL_PART_FORMAT = /\A[a-z0-9]([a-z0-9._-]{0,62}[a-z0-9])?\z/
   INSTITUTION_FORMAT = /\A[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\z/
 
-  belongs_to :account
-  belongs_to :user
+  belongs_to :account, optional: true
+  belongs_to :user, optional: true
   # Student documents / Community evidence. Kept for the audit trail.
   has_many_attached :documents
 
@@ -68,6 +68,21 @@ class SynkraProgrammeVerification < ApplicationRecord
     for_programme(programme)
       .where(account_id: account_id, status: %w[review needs_info])
       .order(created_at: :desc)
+      .first
+  end
+
+  def self.generate_access_token
+    loop do
+      token = SecureRandom.alphanumeric(10).upcase
+      break token unless where(access_token: token).exists?
+    end
+  end
+
+  # A public application (no Synkra account yet - see /community-access)
+  # ready to be attached to one: approved, unclaimed, not expired.
+  def self.claimable(access_token)
+    where(access_token: access_token, account_id: nil, status: 'verified')
+      .where('expires_at > ?', Time.current)
       .first
   end
 
@@ -139,8 +154,14 @@ class SynkraProgrammeVerification < ApplicationRecord
         self.class.where(institution_email: institution_email, status: 'verified')
             .where('expires_at <= ?', now).update_all(status: 'expired', updated_at: now)
       end
-      self.class.where(account_id: account_id, programme: programme, status: %w[verified] + OPEN_STATUSES)
-          .where.not(id: id).update_all(status: 'superseded', updated_at: now)
+      # Public applications (account_id nil) are tracked individually by
+      # access_token, not "one open attempt per account" - account_id is
+      # NULL for every one of them, so a blanket account_id match here
+      # would supersede unrelated applicants' rows too.
+      unless account_id.nil?
+        self.class.where(account_id: account_id, programme: programme, status: %w[verified] + OPEN_STATUSES)
+            .where.not(id: id).update_all(status: 'superseded', updated_at: now)
+      end
       update!(
         status: 'verified',
         verified_at: now,
@@ -149,6 +170,14 @@ class SynkraProgrammeVerification < ApplicationRecord
         otp_expires_at: nil
       )
     end
+  end
+
+  # Attaches a claimable public application to a real account (once the
+  # organisation has created one), then prices it same as an in-app
+  # approval would. One-time: clears access_token so it can't be reused.
+  def claim!(account:, user:)
+    update!(account_id: account.id, user_id: user.id, access_token: nil)
+    Billing::ProgrammePricingService.new(account).apply!
   end
 
   # Reviewer outcomes (super admin) and automatic document approval.
@@ -171,6 +200,10 @@ class SynkraProgrammeVerification < ApplicationRecord
 
   def community?
     programme == 'community'
+  end
+
+  def public_application?
+    account_id.nil?
   end
 
   private

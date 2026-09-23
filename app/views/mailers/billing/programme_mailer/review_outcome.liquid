@@ -2,7 +2,13 @@
   <td>
     <p>Hi,</p>
     {% if outcome == 'approved' %}
-    <p>Good news - your Synkra {{ programme_name }} application has been approved. {{ programme_name }} pricing is now available from Settings → Billing.</p>
+    <p>Good news - your Synkra {{ programme_name }} application has been approved.</p>
+    {% if claim_url %}
+    <p>You don't have a Synkra account yet, so create one (or log into an existing one) and enter this reference code under Settings → Billing → Community Access to activate your pricing: <strong>{{ access_token }}</strong></p>
+    <p>Or follow this link once you're logged in: <a href="{{ claim_url }}">{{ claim_url }}</a></p>
+    {% else %}
+    <p>{{ programme_name }} pricing is now available from Settings → Billing.</p>
+    {% endif %}
     {% elsif outcome == 'needs_info' %}
     <p>We need a little more information to finish reviewing your Synkra {{ programme_name }} application.</p>
     <p><strong>{{ note }}</strong></p>
@@ -10,7 +16,7 @@
     {% else %}
     <p>Thanks for applying for Synkra {{ programme_name }} pricing. We weren't able to approve this application.</p>
     <p><strong>{{ note }}</strong></p>
-    <p>You're welcome to apply again with updated evidence. You can keep using your current plan in the meantime.</p>
+    <p>You're welcome to apply again with updated evidence.</p>
     {% endif %}
   </td>
 </tr>

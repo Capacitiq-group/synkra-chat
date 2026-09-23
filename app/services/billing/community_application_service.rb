@@ -5,6 +5,12 @@
 # with tangible non-religious community benefit. Answers are stored on
 # SynkraProgrammeVerification#application_data; evidence files on
 # #documents.
+#
+# Two entry points: an existing account applying from inside the app
+# (account/user present), and the public form at /community-access with
+# no login (account/user nil, contact_email required instead) - see
+# submit_public. Both funnel through the same validation and review
+# queue so nothing diverges between them.
 class Billing::CommunityApplicationService
   PROGRAMME = 'community'.freeze
   MAX_APPLICATIONS_PER_DAY = 3
@@ -26,12 +32,38 @@ class Billing::CommunityApplicationService
     organisation_description initiative_description initiative_serves initiative_location initiative_frequency
   ].freeze
 
-  def initialize(account:, user:)
+  def initialize(account: nil, user: nil)
     @account = account
     @user = user
   end
 
-  def submit(fields:, files:)
+  # Public form, no Synkra account yet. contact_email is where the
+  # confirmation, status link and eventual decision go - it isn't
+  # validated as a Synkra login, just an inbox someone reads.
+  def submit_public(fields:, files:, contact_email:)
+    contact_email = contact_email.to_s.strip
+    return failure(:invalid_email) unless contact_email.match?(URI::MailTo::EMAIL_REGEXP)
+
+    result = submit(fields: fields, files: files, contact_email: contact_email)
+    return result unless result.success?
+
+    Billing::ProgrammeMailer.application_received(verification: result.data[:verification]).deliver_later
+    result
+  end
+
+  # Attaches an approved public application to a real account - the
+  # applicant enters their reference code (SynkraProgrammeVerification#
+  # access_token) once they've created or logged into a Synkra account.
+  def self.claim(access_token:, account:, user:)
+    verification = SynkraProgrammeVerification.claimable(access_token.to_s.strip.upcase)
+    return Result.new(success?: false, code: :invalid_code) if verification.nil?
+    return Result.new(success?: false, code: :already_has_programme) if SynkraProgrammeVerification.active_verification_for(account.id, PROGRAMME)
+
+    verification.claim!(account: account, user: user)
+    Result.new(success?: true, data: { verification: verification })
+  end
+
+  def submit(fields:, files:, contact_email: nil)
     data = clean(fields)
     files = usable_files(files)
 
@@ -43,20 +75,27 @@ class Billing::CommunityApplicationService
 
     file_error = file_failure(files)
     return file_error if file_error
-    return failure(:already_verified) if SynkraProgrammeVerification.active_verification_for(@account.id, PROGRAMME)
-    return failure(:already_submitted) if SynkraProgrammeVerification.for_programme(PROGRAMME).where(account_id: @account.id, status: 'review').exists?
-    return failure(:rate_limited) if recent_applications >= MAX_APPLICATIONS_PER_DAY
 
-    verification = create_application(data, files)
+    duplicate_error = duplicate_or_rate_limit_failure(contact_email)
+    return duplicate_error if duplicate_error
+
+    verification = create_application(data, files, contact_email)
     Billing::ProgrammeMailer.review_requested(verification: verification).deliver_later
     Result.new(success?: true, data: { verification: verification })
   end
 
   # The reviewer asked for more information: attach the extra
   # evidence/answer and put the application back in the review queue.
-  def add_information(message:, files:)
-    verification = SynkraProgrammeVerification.for_programme(PROGRAMME)
-                                              .where(account_id: @account.id, status: 'needs_info').order(created_at: :desc).first
+  # Either pass access_token (public applicant) or leave it nil to use
+  # the initializer's account (in-app applicant).
+  def add_information(message:, files:, access_token: nil)
+    verification = if access_token.present?
+                     SynkraProgrammeVerification.for_programme(PROGRAMME)
+                                                .where(access_token: access_token.to_s.strip.upcase, status: 'needs_info').first
+                   else
+                     SynkraProgrammeVerification.for_programme(PROGRAMME)
+                                                .where(account_id: @account.id, status: 'needs_info').order(created_at: :desc).first
+                   end
     return failure(:nothing_to_update) if verification.nil?
 
     files = usable_files(files)
@@ -75,6 +114,17 @@ class Billing::CommunityApplicationService
   end
 
   private
+
+  def duplicate_or_rate_limit_failure(contact_email)
+    if @account
+      return failure(:already_verified) if SynkraProgrammeVerification.active_verification_for(@account.id, PROGRAMME)
+      return failure(:already_submitted) if SynkraProgrammeVerification.for_programme(PROGRAMME).where(account_id: @account.id, status: 'review').exists?
+    elsif SynkraProgrammeVerification.for_programme(PROGRAMME).where(contact_email: contact_email, status: %w[review needs_info verified]).exists?
+      return failure(:already_submitted)
+    end
+
+    failure(:rate_limited) if recent_applications(contact_email) >= MAX_APPLICATIONS_PER_DAY
+  end
 
   def failure(code, data = {})
     Result.new(success?: false, code: code, data: data)
@@ -108,18 +158,23 @@ class Billing::CommunityApplicationService
     nil
   end
 
-  def recent_applications
-    SynkraProgrammeVerification.for_programme(PROGRAMME).where(account_id: @account.id).where('created_at > ?', 24.hours.ago).count
+  def recent_applications(contact_email)
+    scope = SynkraProgrammeVerification.for_programme(PROGRAMME).where('created_at > ?', 24.hours.ago)
+    scope = @account ? scope.where(account_id: @account.id) : scope.where(contact_email: contact_email)
+    scope.count
   end
 
-  def create_application(data, files)
+  def create_application(data, files, contact_email)
     SynkraProgrammeVerification.transaction do
-      SynkraProgrammeVerification.for_programme(PROGRAMME)
-                                 .where(account_id: @account.id, status: %w[needs_info pending])
-                                 .update_all(status: 'superseded', updated_at: Time.current)
+      if @account
+        SynkraProgrammeVerification.for_programme(PROGRAMME)
+                                   .where(account_id: @account.id, status: %w[needs_info pending])
+                                   .update_all(status: 'superseded', updated_at: Time.current)
+      end
       record = SynkraProgrammeVerification.create!(
-        account_id: @account.id, user_id: @user.id, programme: PROGRAMME, verification_method: 'application',
-        status: 'review', application_data: data, submitted_at: Time.current
+        account_id: @account&.id, user_id: @user&.id, programme: PROGRAMME, verification_method: 'application',
+        status: 'review', application_data: data, submitted_at: Time.current,
+        contact_email: contact_email, access_token: (SynkraProgrammeVerification.generate_access_token unless @account)
       )
       record.documents.attach(files) if files.any?
       record

@@ -17,7 +17,7 @@
         <% @waiting.each do |v| %>
           <tr>
             <td><%= v.programme.titleize %></td>
-            <td><%= v.account.name %> (ID <%= v.account_id %>)</td>
+            <td><%= v.account ? "#{v.account.name} (ID #{v.account_id})" : "#{v.contact_email} (no account yet)" %></td>
             <td><%= v.verification_method %></td>
             <td><%= v.status.humanize %></td>
             <td><%= v.submitted_at&.strftime('%-d %b %Y %H:%M') %></td>
@@ -37,7 +37,7 @@
       <% @recent.each do |v| %>
         <tr>
           <td><%= v.programme.titleize %></td>
-          <td><%= v.account.name %> (ID <%= v.account_id %>)</td>
+          <td><%= v.account ? "#{v.account.name} (ID #{v.account_id})" : "#{v.contact_email} (no account yet)" %></td>
           <td><%= v.status.humanize %></td>
           <td><%= v.reviewed_at&.strftime('%-d %b %Y %H:%M') %></td>
           <td><%= v.reviewed_by %></td>

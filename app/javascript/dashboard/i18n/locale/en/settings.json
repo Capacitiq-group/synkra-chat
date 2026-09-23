@@ -659,6 +659,10 @@
       "ADD_INFO_LABEL": "Your reply",
       "ADD_INFO_SUBMIT": "Send to reviewer",
       "SUBMITTED": "Application submitted. We'll email you the outcome.",
+      "CLAIMED": "Community Access activated.",
+      "CLAIM_HELP": "Already applied on our website before creating an account? Enter your reference code from that application's confirmation email.",
+      "CLAIM_PLACEHOLDER": "Reference code",
+      "CLAIM_SUBMIT": "Activate",
       "UPDATED": "Thanks - your reply has been sent for review.",
       "SECTION_ORG": "Your organisation",
       "SECTION_CONTACT": "Contacts",
@@ -721,7 +725,9 @@
         "TOO_MANY_FILES": "Please upload no more than 10 files.",
         "INVALID_FILE_TYPE": "Evidence must be PDF, JPG, PNG or WebP files.",
         "FILE_TOO_LARGE": "Each file must be 10 MB or smaller.",
-        "NOTHING_TO_UPDATE": "There is no application waiting for more information."
+        "NOTHING_TO_UPDATE": "There is no application waiting for more information.",
+        "INVALID_CODE": "That reference code is not valid or has expired.",
+        "ALREADY_HAS_PROGRAMME": "Your account already has a discount programme active."
       }
     },
     "STUDENT": {

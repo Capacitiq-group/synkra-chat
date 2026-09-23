@@ -35,6 +35,13 @@ Rails.application.routes.draw do
     get '/widget/verify_email', to: 'contact_email_verifications#show'
     get '/unsubscribe/marketing', to: 'marketing_unsubscriptions#show'
     get '/unsubscribe/business_marketing', to: 'contact_marketing_unsubscriptions#show'
+
+    # Public Community Access application - no login required. Website
+    # links point at /community-access.
+    get '/community-access', to: 'community_access#new'
+    post '/community-access', to: 'community_access#create'
+    get '/community-access/status/:token', to: 'community_access#status', as: :status_community_access
+    post '/community-access/status/:token', to: 'community_access#add_information', as: :add_information_community_access
     get '/widget/continue_conversation', to: 'contact_continuations#show'
     post '/webhooks/paystack', to: 'billing/paystack_webhooks#create'
     namespace :survey do
@@ -403,7 +410,9 @@ Rails.application.routes.draw do
               post :confirm
               post :document
             end
-            resource :community_application, only: %i[show create update], controller: 'community_applications'
+            resource :community_application, only: %i[show create update], controller: 'community_applications' do
+              post :claim
+            end
           end
           namespace :automations do
             resource :credits, only: [:show], controller: 'credits'

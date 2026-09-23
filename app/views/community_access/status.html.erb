@@ -111,6 +111,7 @@
           <% end %>
 
           <form action="<%= add_information_community_access_path(@verification.access_token) %>" method="post" enctype="multipart/form-data" style="text-align:left; margin-top: 16px;">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
             <label style="font-size:13px; color:#C8C8C8;">Your reply</label>
             <textarea name="message"></textarea>
             <label style="font-size:13px; color:#C8C8C8;">Additional files (optional)</label>

@@ -1,5 +1,6 @@
 class Api::V1::Accounts::Captain::TasksController < Api::V1::Accounts::BaseController
   before_action :check_authorization
+  before_action :extend_request_timeout_for_llm
 
   def rewrite
     result = Captain::RewriteService.new(
@@ -67,6 +68,18 @@ class Api::V1::Accounts::Captain::TasksController < Api::V1::Accounts::BaseContr
 
   def check_authorization
     authorize(:'captain/tasks')
+  end
+
+  # All 5 actions above call an LLM inline and wait for the result -
+  # Rack::Timeout's default 15s service_timeout is far too tight for
+  # CPU-based local inference (confirmed 24 Sep 2026: a real,
+  # in-progress "summarize" call was killed by this default before
+  # Ollama finished generating - not a bad/failed response, a request
+  # that was still legitimately working). Copilot's equivalent actions
+  # aren't affected by this at all since they run via perform_later
+  # (Sidekiq), outside the Rack request cycle entirely.
+  def extend_request_timeout_for_llm
+    request.env['rack-timeout.info']&.service_timeout = 60
   end
 end
 

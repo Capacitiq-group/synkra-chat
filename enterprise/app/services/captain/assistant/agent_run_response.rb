@@ -4,15 +4,27 @@ module Captain::Assistant::AgentRunResponse
   def process_agent_result(run_result)
     Rails.logger.info "[Captain V2] Agent result: #{run_result.inspect}"
     model_output = run_result.output
+
     structured_response = if model_output.is_a?(Hash)
                             model_output.with_indifferent_access
                           else
                             { 'response' => model_output.to_s, 'reasoning' => 'Processed by agent' }
                           end
+
     response_parts = Captain::Assistant::ResponseParts.from_response(structured_response)
     response_parts = response_parts.without_citations unless @assistant.citations_enabled?
+    plain_text = response_parts.plain_text
+
+    # A nil/empty agent output used to be coerced to "" by .to_s, then
+    # persisted and broadcast as a valid-looking assistant message with
+    # empty content. Copilot's UI waits for non-empty content that never
+    # arrives, so the loading state never clears. Surface empty output as
+    # an explicit error instead, so callers take their existing failure
+    # path (GenerationError -> retry -> persist_failure_response).
+    return empty_output_response if plain_text.blank?
+
     structured_response['response_parts'] = response_parts.to_a
-    structured_response['response'] = response_parts.plain_text
+    structured_response['response'] = plain_text
     structured_response['agent_name'] = run_result.context&.dig(:current_agent)
     structured_response['handoff_tool_called'] = run_result.context&.dig(:captain_v2_handoff_tool_called) || false
     structured_response
@@ -62,6 +74,20 @@ module Captain::Assistant::AgentRunResponse
       'error' => true,
       'error_reason' => error.class.name.underscore.tr('/', '_'),
       'handoff_tool_called' => @handoff_tool_called
+    }
+  end
+
+  # Same shape as #error_response so callers that already branch on
+  # response['error'] (see Captain::Copilot::ReplySuggestionService)
+  # take their failure path.
+  def empty_output_response
+    {
+      'response' => '',
+      'response_parts' => [],
+      'reasoning' => 'Agent produced no output',
+      'error' => true,
+      'error_reason' => 'empty_agent_output',
+      'handoff_tool_called' => false
     }
   end
 end

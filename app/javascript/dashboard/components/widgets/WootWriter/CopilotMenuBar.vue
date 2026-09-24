@@ -136,11 +136,9 @@ const generalMenuItems = computed(() => {
     });
   }
 
-  items.push({
-    label: t('INTEGRATION_SETTINGS.OPEN_AI.REPLY_OPTIONS.ASK_COPILOT'),
-    key: 'ask_copilot',
-    icon: 'i-fluent-circle-sparkle-24-regular',
-  });
+  // Synkra Chat V1: "Ask Copilot" is disabled. Only Suggest Reply and
+  // Summarize are supported. See CopilotLauncher.vue for the same
+  // reasoning on the sidebar entry point.
 
   return items;
 });

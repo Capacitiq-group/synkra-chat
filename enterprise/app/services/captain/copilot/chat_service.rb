@@ -32,6 +32,17 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     )
     @account.increment_response_usage
 
+    # Same metering Captain's own auto-reply path uses (see
+    # Captain::Conversation::ResponseBuilderJob). Fire-and-forget -
+    # metering must never affect whether the response itself is
+    # returned to the agent.
+    Automations::UsageTracker.track_ai_op!(@account)
+    begin
+      SynkraUsageEvent.record!(account: @account, resource_type: 'ai_request', source: 'copilot_chat')
+    rescue StandardError => e
+      Rails.logger.error("[SynkraBilling] Failed to record ai_request usage event for account #{@account.id}: #{e.message}")
+    end
+
     response
   end
 

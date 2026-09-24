@@ -76,6 +76,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
 
     ConversationReplyMailer.with(account: @conversation.account).conversation_transcript(@conversation, params[:email])&.deliver_later
     @conversation.account.increment_email_sent_count
+    record_transcript_email_usage(@conversation.account)
     head :ok
   end
 
@@ -137,6 +138,17 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  # A transcript send is a real outgoing email regardless of the
+  # conversation's own channel (widget, WhatsApp, etc.) - counts
+  # against the email allowance the same as any email-channel message
+  # (see Message#record_synkra_usage_event). Fire-and-forget: metering
+  # must never affect whether the transcript itself is sent.
+  def record_transcript_email_usage(account)
+    SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'conversation_transcript')
+  rescue StandardError => e
+    Rails.logger.error("[SynkraBilling] Failed to record email usage event for account #{account.id}: #{e.message}")
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute

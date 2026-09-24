@@ -101,6 +101,19 @@ class Captain::Copilot::ReplySuggestionService
     @account.increment_response_usage
     @credit_used = true
 
+    # Same metering Captain's own auto-reply path uses (see
+    # Captain::Conversation::ResponseBuilderJob) - gated on @credit_used
+    # so a cache-hit/discarded/failure return above never double-charges
+    # or charges for nothing generated. Fire-and-forget: metering must
+    # never affect whether the suggestion itself is returned to the
+    # agent.
+    Automations::UsageTracker.track_ai_op!(@account)
+    begin
+      SynkraUsageEvent.record!(account: @account, resource_type: 'ai_request', source: 'copilot_reply_suggestion')
+    rescue StandardError => e
+      Rails.logger.error("[SynkraBilling] Failed to record ai_request usage event for account #{@account.id}: #{e.message}")
+    end
+
     response
   end
 

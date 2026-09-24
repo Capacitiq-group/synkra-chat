@@ -84,6 +84,18 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
       conversation.contact.email
     )&.deliver_later
     conversation.account.increment_email_sent_count
+    record_transcript_email_usage(conversation.account)
+  end
+
+  # A transcript send is a real outgoing email regardless of the
+  # conversation's own channel (widget, WhatsApp, etc.) - counts
+  # against the email allowance the same as any email-channel message
+  # (see Message#record_synkra_usage_event). Fire-and-forget: metering
+  # must never affect whether the transcript itself is sent.
+  def record_transcript_email_usage(account)
+    SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'conversation_transcript')
+  rescue StandardError => e
+    Rails.logger.error("[SynkraBilling] Failed to record email usage event for account #{account.id}: #{e.message}")
   end
 
   def trigger_typing_event(event)

@@ -15,7 +15,7 @@ module Captain::Assistant::AgentRunResponse
     response_parts = response_parts.without_citations unless @assistant.citations_enabled?
     plain_text = response_parts.plain_text
 
-    # A nil/empty agent output used to be coerced to "" by .to_s, then
+    # A nil/empty agent output used to be coerced to "" via .to_s, then
     # persisted and broadcast as a valid-looking assistant message with
     # empty content. Copilot's UI waits for non-empty content that never
     # arrives, so the loading state never clears. Surface empty output as
@@ -78,8 +78,8 @@ module Captain::Assistant::AgentRunResponse
   end
 
   # Same shape as #error_response so callers that already branch on
-  # response['error'] (see Captain::Copilot::ReplySuggestionService)
-  # take their failure path.
+  # response['error'] (see Captain::Copilot::ReplySuggestionService) take
+  # their failure path.
   def empty_output_response
     {
       'response' => '',

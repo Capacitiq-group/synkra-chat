@@ -41,7 +41,7 @@ module Llm::FeatureRouter
     end
 
     def synkra_installation_model
-      InstallationConfig.find_by(name: 'CAPTAIN_OPEN_AI_MODEL')&.value.presence
+      Captain::Llm::ProviderResolver.resolve[:model].presence
     end
 
     def account_model_override(account, feature_key)

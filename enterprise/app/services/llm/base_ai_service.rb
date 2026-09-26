@@ -4,7 +4,10 @@
 # New features should inherit from this class.
 class Llm::BaseAiService
   DEFAULT_MODEL = Llm::Config::DEFAULT_MODEL
-  DEFAULT_TEMPERATURE = 1.0
+  # Grounded support features (FAQ generation, translation, article
+  # generation, etc.) should stay deterministic, not creative - a high
+  # default temperature is a real hallucination source on its own.
+  DEFAULT_TEMPERATURE = 0.0
 
   attr_reader :model, :temperature
 

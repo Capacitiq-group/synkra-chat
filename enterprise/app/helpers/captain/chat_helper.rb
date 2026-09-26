@@ -95,8 +95,13 @@ module Captain::ChatHelper
     @messages.reject { |m| m[:role] == 'system' || m[:role] == :system }
   end
 
+  # Synkra's Business Brain UI doesn't expose a temperature control, so
+  # this fallback IS the value every assistant actually runs at in
+  # practice. A grounded support agent should be deterministic, not
+  # creative - high temperature is a hallucination source independent of
+  # how good its retrieved context is.
   def temperature
-    @assistant&.config&.[]('temperature').presence&.to_f || 0.5
+    @assistant&.config&.[]('temperature').presence&.to_f || 0.0
   end
 
   def resolved_account_id

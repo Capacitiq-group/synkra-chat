@@ -127,6 +127,12 @@ class Captain::BaseTaskService
     rescue RubyLLM::ModelNotFoundError
       context.chat(model: model, provider: :openai, assume_model_exists: true)
     end
+    # Grounded support tasks (rewrite/summarize/reply-suggestion/label
+    # suggestion) should be as deterministic as the model allows - not
+    # creative. A high default temperature (RubyLLM/most providers default
+    # to ~1.0) is a real hallucination source on its own, independent of
+    # what context the model was given.
+    chat = chat.with_temperature(0.0)
     system_msg = messages.find { |m| m[:role] == 'system' }
     chat.with_instructions(system_msg[:content]) if system_msg
     chat.with_schema(schema) if schema

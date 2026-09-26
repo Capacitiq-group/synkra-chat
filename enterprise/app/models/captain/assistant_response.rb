@@ -26,6 +26,15 @@
 class Captain::AssistantResponse < ApplicationRecord
   self.table_name = 'captain_assistant_responses'
 
+  # Cosine distance beyond which a "nearest neighbour" is too weak to be
+  # a real match - matches the threshold Captain::Llm::ConversationFaqService
+  # already uses for the same embedding space, so retrieval and dedup agree
+  # on what counts as "actually related". Below this, nearest_neighbors
+  # would always return its `limit` rows regardless of how irrelevant they
+  # are, handing the model context that looks authoritative but isn't -
+  # a direct hallucination vector for reply/summarize/the AI Agent.
+  RELEVANCE_DISTANCE_THRESHOLD = 0.3
+
   belongs_to :assistant, class_name: 'Captain::Assistant'
   belongs_to :account
   belongs_to :documentable, polymorphic: true, optional: true
@@ -49,7 +58,11 @@ class Captain::AssistantResponse < ApplicationRecord
 
   def self.search(query, account_id: nil)
     embedding = Captain::Llm::EmbeddingService.new(account_id: account_id).get_embedding(query)
-    nearest_neighbors(:embedding, embedding, distance: 'cosine').limit(5)
+    return [] if embedding.blank?
+
+    nearest_neighbors(:embedding, embedding, distance: 'cosine')
+      .limit(5)
+      .select { |record| record.neighbor_distance < RELEVANCE_DISTANCE_THRESHOLD }
   end
 
   def customer_visible_source_url

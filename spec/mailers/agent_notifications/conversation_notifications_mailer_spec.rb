@@ -18,11 +18,16 @@ RSpec.describe AgentNotifications::ConversationNotificationsMailer do
 
     it 'renders the subject' do
       expect(mail.subject).to eq("#{agent.available_name}, A new conversation [ID - #{conversation
-        .display_id}] has been created in #{conversation.inbox&.name}.")
+        .display_id}] has been created in #{conversation.inbox&.sanitized_name}.")
     end
 
     it 'renders the receiver email' do
       expect(mail.to).to eq([agent.email])
+    end
+
+    it 'renders the manage notification preferences footer link' do
+      expect(mail.body.encoded).to match('Manage notification preferences')
+      expect(mail.body.encoded).to include("/app/accounts/#{account.id}/profile/settings")
     end
   end
 

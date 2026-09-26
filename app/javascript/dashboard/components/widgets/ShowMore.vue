@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   text: {
@@ -37,8 +37,8 @@ const toggleShowMore = () => {
     {{ textToBeDisplayed }}
     <button
       v-if="text.length > limit"
-      class="text-woot-500 !p-0 !border-0 align-top"
-      @click="toggleShowMore"
+      class="text-n-brand !p-0 !border-0 align-top"
+      @click.stop="toggleShowMore"
     >
       {{ buttonLabel }}
     </button>

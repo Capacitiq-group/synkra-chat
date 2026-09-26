@@ -2,16 +2,22 @@
 # use https://crontab.guru/ to validate
 # validations for this file exist in /spec/configs/schedule_spec.rb
 
-# executed At 12:00 on every day-of-month.
+# executed daily at 0000 UTC
+# schedules daily deferred jobs at stable times for each installation
 internal_check_new_versions_job:
-  cron: '0 12 */1 * *'
-  class: 'Internal::CheckNewVersionsJob'
+  cron: '0 0 * * *'
+  class: 'Internal::TriggerDailyScheduledItemsJob'
   queue: scheduled_jobs
-
-# executed At every 5th minute..
+# # executed At every 5th minute..
 trigger_scheduled_items_job:
   cron: '*/5 * * * *'
   class: 'TriggerScheduledItemsJob'
+  queue: scheduled_jobs
+
+# executed hourly for scheduled jobs that do not need minute-level cadence
+trigger_hourly_scheduled_items_job:
+  cron: '0 * * * *'
+  class: 'Internal::TriggerHourlyScheduledItemsJob'
   queue: scheduled_jobs
 
 # executed At every minute..
@@ -25,4 +31,90 @@ trigger_imap_email_inboxes_job:
 remove_stale_contact_inboxes_job.rb:
   cron: '30 22 * * *'
   class: 'Internal::RemoveStaleContactInboxesJob'
+  queue: scheduled_jobs
+
+# executed daily at 2230 UTC
+# which is our lowest traffic time
+remove_stale_redis_keys_job.rb:
+  cron: '30 22 * * *'
+  class: 'Internal::RemoveStaleRedisKeysJob'
+  queue: scheduled_jobs
+
+# DISABLED: investigating if this job is the source of orphan conversations
+# #executed daily at 0430 UTC
+# # which will be IST 10:00 AM
+# process_stale_contacts_job:
+#   cron: '30 04 * * *'
+#   class: 'Internal::ProcessStaleContactsJob'
+#   queue: housekeeping
+
+# executed daily at 0100 UTC
+# to delete accounts marked for deletion
+delete_accounts_job:
+  cron: '0 1 * * *'
+  class: 'Internal::DeleteAccountsJob'
+  queue: scheduled_jobs
+
+# executed every 30 minutes for assignment_v2
+periodic_assignment_job:
+  cron: '*/30 * * * *'
+  class: 'AutoAssignment::PeriodicAssignmentJob'
+  queue: scheduled_jobs
+
+# executed daily at 2230 UTC
+# removes old notifications (>1 month) and trims to 300 per user
+remove_old_notification_job:
+  cron: '30 22 * * *'
+  class: 'Notification::RemoveOldNotificationJob'
+  queue: purgable
+
+# executed every 12 hours
+# to remove orphan conversations without contact
+remove_orphan_conversations_job:
+  cron: '0 */12 * * *'
+  class: 'Internal::RemoveOrphanConversationsJob'
+  queue: housekeeping
+
+# executed daily
+# Synkra discount programmes: warns before Student / Community Access
+# verifications expire and moves lapsed accounts to the Free tier. See
+# Billing::ExpireProgrammesJob.
+synkra_expire_programmes_job:
+  cron: '15 2 * * *'
+  class: 'Billing::ExpireProgrammesJob'
+  queue: scheduled_jobs
+
+# executed hourly
+# Synkra Chat billing: moves past_due subscriptions to restricted once
+# their grace period has elapsed, and sends usage-threshold warnings.
+# Never runs more than hourly - a failed payment should never be
+# punished faster than the grace period it was promised.
+synkra_billing_grace_period_job:
+  cron: '0 * * * *'
+  class: 'Billing::RestrictOverdueSubscriptionsJob'
+  queue: scheduled_jobs
+
+# executed hourly
+# Automations (Chat<->Flow bridge): self-heals a plan sync that never
+# landed on Flow - see Automations::ReconcileFlowPlanJob and
+# SynkraSubscription#plan_sync_stale?.
+automations_reconcile_flow_plan_job:
+  cron: '15 * * * *'
+  class: 'Automations::ReconcileFlowPlanJob'
+  queue: scheduled_jobs
+
+# executed hourly
+# Automations (Chat<->Flow bridge): self-heals shadow-client provisioning
+# that never landed on Flow - see Automations::RetryStuckProvisioningJob.
+automations_retry_stuck_provisioning_job:
+  cron: '45 * * * *'
+  class: 'Automations::RetryStuckProvisioningJob'
+  queue: scheduled_jobs
+
+# executed daily at 03:00 UTC - off-peak, and storage usage moves slowly
+# enough that once a day is plenty (see the job's own comment for why
+# this isn't computed live).
+billing_recalculate_storage_usage_job:
+  cron: '0 3 * * *'
+  class: 'Billing::RecalculateStorageUsageJob'
   queue: scheduled_jobs

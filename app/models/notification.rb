@@ -19,6 +19,7 @@
 #
 # Indexes
 #
+#  idx_notifications_performance                   (user_id,account_id,snoozed_until,read_at)
 #  index_notifications_on_account_id               (account_id)
 #  index_notifications_on_last_activity_at         (last_activity_at)
 #  index_notifications_on_user_id                  (user_id)
@@ -69,13 +70,8 @@ class Notification < ApplicationRecord
       snoozed_until: snoozed_until,
       meta: meta,
       account_id: account_id
-
     }
-    if primary_actor.present?
-      payload[:primary_actor] = primary_actor&.push_event_data
-      # TODO: Rename push_message_title to push_message_body
-      payload[:push_message_title] = push_message_body
-    end
+    payload.merge!(primary_actor_data) if primary_actor.present?
     payload
   end
 
@@ -85,7 +81,8 @@ class Notification < ApplicationRecord
       notification_type: notification_type,
       primary_actor_id: primary_actor_id,
       primary_actor_type: primary_actor_type,
-      primary_actor: primary_actor.push_event_data.with_indifferent_access.slice('conversation_id', 'id')
+      primary_actor: primary_actor.push_event_data.with_indifferent_access.slice('conversation_id', 'id'),
+      account_id: account_id
     }
   end
 
@@ -123,7 +120,7 @@ class Notification < ApplicationRecord
     when 'assigned_conversation_new_message', 'participating_conversation_new_message', 'conversation_mention'
       message_body(secondary_actor)
     when 'conversation_assignment', 'sla_missed_next_response', 'sla_missed_resolution'
-      message_body(conversation.messages.incoming.last)
+      message_body((conversation.messages.incoming.last || conversation.messages.outgoing.last))
     else
       ''
     end
@@ -184,10 +181,29 @@ class Notification < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(NOTIFICATION_DELETED, Time.zone.now, notification: self)
+    # Pass serialized data instead of ActiveRecord object to avoid DeserializationError
+    # when the async EventDispatcherJob runs after the notification has been deleted
+    Rails.configuration.dispatcher.dispatch(
+      NOTIFICATION_DELETED,
+      Time.zone.now,
+      notification_data: {
+        id: id,
+        user_id: user_id,
+        account_id: account_id
+      }
+    )
   end
 
   def set_last_activity_at
     self.last_activity_at = created_at
+  end
+
+  def primary_actor_data
+    {
+      primary_actor: primary_actor&.push_event_data,
+      # TODO: Rename push_message_title to push_message_body
+      push_message_title: push_message_body,
+      push_message_body: push_message_body
+    }
   end
 end

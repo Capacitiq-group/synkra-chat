@@ -1,17 +1,33 @@
 <script>
+import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
+import { useWhatsappEmbeddedSignup } from 'dashboard/composables/useWhatsappEmbeddedSignup';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
+import whatsappChannel from 'dashboard/api/channel/whatsappChannel';
 import inboxMixin from 'shared/mixins/inboxMixin';
-import SettingsSection from '../../../../../components/SettingsSection.vue';
+import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
+import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsToggleSection.vue';
+import SettingsAccordion from 'dashboard/components-next/Settings/SettingsAccordion.vue';
 import ImapSettings from '../ImapSettings.vue';
 import SmtpSettings from '../SmtpSettings.vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
+import NextButton from 'dashboard/components-next/button/Button.vue';
+import TextArea from 'next/textarea/TextArea.vue';
+import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
+import QRCode from 'qrcode';
+import WhatsappBusinessManagementToken from './WhatsappBusinessManagementToken.vue';
 
 export default {
   components: {
-    SettingsSection,
+    SettingsFieldSection,
+    SettingsToggleSection,
+    SettingsAccordion,
     ImapSettings,
     SmtpSettings,
+    NextButton,
+    TextArea,
+    WhatsappBusinessManagementToken,
   },
   mixins: [inboxMixin],
   props: {
@@ -21,28 +37,97 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate() };
+    const { runEmbeddedSignup } = useWhatsappEmbeddedSignup();
+    return { v$: useVuelidate(), runEmbeddedSignup };
   },
   data() {
     return {
       hmacMandatory: false,
+      allowMobileWebview: false,
       whatsAppInboxAPIKey: '',
+      isSyncingTemplates: false,
+      allowedDomains: '',
+      isUpdatingAllowedDomains: false,
+      isSettingDefaults: false,
+      isReconfiguring: false,
+      websiteQrCode: '',
     };
   },
   validations: {
     whatsAppInboxAPIKey: { required },
   },
+  computed: {
+    ...mapGetters({
+      accountId: 'getCurrentAccountId',
+      isFeatureEnabledonAccount: 'accounts/isFeatureEnabledonAccount',
+      isOnChatwootCloud: 'globalConfig/isOnChatwootCloud',
+    }),
+    isEmbeddedSignupWhatsApp() {
+      return this.inbox.provider_config?.source === 'embedded_signup';
+    },
+    showWhatsAppReconfigure() {
+      return (
+        this.isEmbeddedSignupWhatsApp &&
+        this.isFeatureEnabledonAccount(
+          this.accountId,
+          this.isOnChatwootCloud
+            ? FEATURE_FLAGS.WHATSAPP_EMBEDDED_SIGNUP_FLOW
+            : FEATURE_FLAGS.WHATSAPP_RECONFIGURE
+        )
+      );
+    },
+    isForwardingEnabled() {
+      return !!this.inbox.forwarding_enabled;
+    },
+    // A standalone, direct-link version of this widget a business can
+    // share (QR code, printed material, etc.) so a customer can start
+    // chatting without visiting the business's own website at all.
+    websiteShareUrl() {
+      if (!this.inbox.website_token) return '';
+      return `${window.location.origin}/widget?website_token=${this.inbox.website_token}`;
+    },
+  },
   watch: {
     inbox() {
       this.setDefaults();
+      this.generateWebsiteQrCode();
+    },
+    allowMobileWebview() {
+      if (!this.isSettingDefaults) this.handleMobileWebviewFlag();
+    },
+    hmacMandatory() {
+      if (!this.isSettingDefaults && this.isAWebWidgetInbox)
+        this.handleHmacFlag();
     },
   },
   mounted() {
     this.setDefaults();
+    this.generateWebsiteQrCode();
   },
   methods: {
+    async generateWebsiteQrCode() {
+      if (!this.websiteShareUrl) {
+        this.websiteQrCode = '';
+        return;
+      }
+      try {
+        this.websiteQrCode = await QRCode.toDataURL(this.websiteShareUrl);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error generating website widget QR code:', error);
+        this.websiteQrCode = '';
+      }
+    },
     setDefaults() {
+      this.isSettingDefaults = true;
       this.hmacMandatory = this.inbox.hmac_mandatory || false;
+      this.allowMobileWebview = (
+        this.inbox.selected_feature_flags || []
+      ).includes('allow_mobile_webview');
+      this.allowedDomains = this.inbox.allowed_domains || '';
+      this.$nextTick(() => {
+        this.isSettingDefaults = false;
+      });
     },
     handleHmacFlag() {
       this.updateInbox();
@@ -60,6 +145,48 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
       } catch (error) {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      }
+    },
+    async handleMobileWebviewFlag() {
+      try {
+        const currentFlags = this.inbox.selected_feature_flags || [];
+        const selectedFlags = this.allowMobileWebview
+          ? [...currentFlags, 'allow_mobile_webview']
+          : currentFlags.filter(f => f !== 'allow_mobile_webview');
+
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: {
+            selected_feature_flags: selectedFlags,
+          },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      }
+    },
+    async updateAllowedDomains() {
+      this.isUpdatingAllowedDomains = true;
+      const sanitizedAllowedDomains = sanitizeAllowedDomains(
+        this.allowedDomains
+      );
+      try {
+        const payload = {
+          id: this.inbox.id,
+          formData: false,
+          channel: {
+            allowed_domains: sanitizedAllowedDomains,
+          },
+        };
+        await this.$store.dispatch('inboxes/updateInbox', payload);
+        this.allowedDomains = sanitizedAllowedDomains;
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingAllowedDomains = false;
       }
     },
     async updateWhatsAppInboxAPIKey() {
@@ -81,165 +208,331 @@ export default {
         useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
       }
     },
+    async reconfigureWhatsApp() {
+      this.isReconfiguring = true;
+      try {
+        const credentials = await this.runEmbeddedSignup();
+        // User dismissed the Meta popup without completing signup.
+        if (!credentials) return;
+
+        await whatsappChannel.reauthorizeWhatsApp({
+          inboxId: this.inbox.id,
+          ...credentials,
+        });
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_RECONFIGURE_SUCCESS')
+        );
+      } catch (error) {
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_RECONFIGURE_ERROR')
+        );
+      } finally {
+        this.isReconfiguring = false;
+      }
+    },
+    async syncTemplates() {
+      this.isSyncingTemplates = true;
+      try {
+        await this.$store.dispatch('inboxes/syncTemplates', this.inbox.id);
+        useAlert(
+          this.$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_SUCCESS')
+        );
+      } catch (error) {
+        useAlert(this.$t('INBOX_MGMT.EDIT.API.ERROR_MESSAGE'));
+      } finally {
+        this.isSyncingTemplates = false;
+      }
+    },
   },
 };
 </script>
 
 <template>
-  <div v-if="isATwilioChannel" class="mx-8">
-    <SettingsSection
-      :title="$t('INBOX_MGMT.ADD.TWILIO.API_CALLBACK.TITLE')"
-      :sub-title="$t('INBOX_MGMT.ADD.TWILIO.API_CALLBACK.SUBTITLE')"
+  <div v-if="isATwilioChannel">
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.ADD.TWILIO.API_CALLBACK.TITLE')"
+      :help-text="$t('INBOX_MGMT.ADD.TWILIO.API_CALLBACK.SUBTITLE')"
     >
       <woot-code :script="inbox.callback_webhook_url" lang="html" />
-    </SettingsSection>
+    </SettingsFieldSection>
+    <SettingsFieldSection
+      v-if="isATwilioWhatsAppChannel"
+      :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_TITLE')"
+      :help-text="
+        $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_SUBHEADER')
+      "
+    >
+      <NextButton :disabled="isSyncingTemplates" @click="syncTemplates">
+        {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_BUTTON') }}
+      </NextButton>
+    </SettingsFieldSection>
   </div>
-  <div v-else-if="isALineChannel" class="mx-8">
-    <SettingsSection
-      :title="$t('INBOX_MGMT.ADD.LINE_CHANNEL.API_CALLBACK.TITLE')"
-      :sub-title="$t('INBOX_MGMT.ADD.LINE_CHANNEL.API_CALLBACK.SUBTITLE')"
+
+  <div v-else-if="isALineChannel">
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.ADD.LINE_CHANNEL.API_CALLBACK.TITLE')"
+      :help-text="$t('INBOX_MGMT.ADD.LINE_CHANNEL.API_CALLBACK.SUBTITLE')"
     >
       <woot-code :script="inbox.callback_webhook_url" lang="html" />
-    </SettingsSection>
+    </SettingsFieldSection>
   </div>
   <div v-else-if="isAWebWidgetInbox">
-    <div class="mx-8">
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.MESSENGER_HEADING')"
-        :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.MESSENGER_SUB_HEAD')"
+    <div class="space-y-4">
+      <SettingsToggleSection
+        :header="$t('INBOX_MGMT.SETTINGS_POPUP.ALLOWED_DOMAINS.TITLE')"
+        :description="
+          $t('INBOX_MGMT.SETTINGS_POPUP.ALLOWED_DOMAINS.DESCRIPTION')
+        "
+        hide-toggle
       >
-        <woot-code
-          :script="inbox.web_widget_script"
-          lang="html"
-          :codepen-title="`${inbox.name} - Chatwoot Widget Test`"
-          enable-code-pen
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_VERIFICATION')"
-      >
-        <woot-code :script="inbox.hmac_token" />
-        <template #subTitle>
-          {{ $t('INBOX_MGMT.SETTINGS_POPUP.HMAC_DESCRIPTION') }}
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://www.chatwoot.com/docs/product/channels/live-chat/sdk/identity-validation/"
-          >
-            {{ $t('INBOX_MGMT.SETTINGS_POPUP.HMAC_LINK_TO_DOCS') }}
-          </a>
-        </template>
-      </SettingsSection>
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_VERIFICATION')"
-        :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_DESCRIPTION')"
-      >
-        <div class="flex items-center gap-2">
-          <input
-            id="hmacMandatory"
-            v-model="hmacMandatory"
-            type="checkbox"
-            @change="handleHmacFlag"
+        <template #editor>
+          <TextArea
+            v-model="allowedDomains"
+            :placeholder="
+              $t('INBOX_MGMT.SETTINGS_POPUP.ALLOWED_DOMAINS.PLACEHOLDER')
+            "
+            auto-height
+            resize
+            class="w-full [&>div]:!bg-transparent [&>div]:!border-none [&>div]:!border-0 [&>div]:px-0 [&>div]:pb-0 [&>div]:pt-0"
           />
-          <label for="hmacMandatory">
-            {{ $t('INBOX_MGMT.EDIT.ENABLE_HMAC.LABEL') }}
-          </label>
-        </div>
-      </SettingsSection>
+          <div class="mt-3 flex justify-end">
+            <NextButton
+              :label="$t('INBOX_MGMT.SETTINGS_POPUP.UPDATE')"
+              :is-loading="isUpdatingAllowedDomains"
+              @click="updateAllowedDomains"
+            />
+          </div>
+        </template>
+      </SettingsToggleSection>
+      <SettingsToggleSection
+        v-model="allowMobileWebview"
+        :header="$t('INBOX_MGMT.SETTINGS_POPUP.ALLOW_MOBILE_WEBVIEW.LABEL')"
+        :description="
+          $t('INBOX_MGMT.SETTINGS_POPUP.ALLOW_MOBILE_WEBVIEW.SUBTITLE')
+        "
+      />
+      <SettingsToggleSection
+        :header="$t('INBOX_MGMT.SETTINGS_POPUP.WIDGET_SHARE.TITLE')"
+        :description="$t('INBOX_MGMT.SETTINGS_POPUP.WIDGET_SHARE.DESCRIPTION')"
+        hide-toggle
+      >
+        <template #editor>
+          <div v-if="websiteQrCode" class="flex flex-col gap-3 items-start">
+            <div class="rounded-lg shadow outline-1 outline-n-strong outline">
+              <img
+                :src="websiteQrCode"
+                alt="Website widget QR Code"
+                class="rounded-lg size-40 dark:invert"
+              />
+            </div>
+            <div class="w-full">
+              <woot-code lang="html" :script="websiteShareUrl" />
+            </div>
+          </div>
+        </template>
+      </SettingsToggleSection>
     </div>
+
+    <SettingsAccordion
+      :title="$t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.TITLE')"
+      class="mt-6"
+    >
+      <SettingsToggleSection
+        :header="$t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.TITLE')"
+        :description="
+          $t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.DESCRIPTION')
+        "
+        hide-toggle
+      >
+        <template #editor>
+          <p class="mb-1 text-sm font-medium text-n-slate-12">
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.SECRET_KEY') }}
+          </p>
+          <woot-code :script="inbox.hmac_token" />
+          <p class="mt-1.5 text-label-small text-n-slate-11">
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.HMAC_DESCRIPTION') }}
+            <!-- Hidden 15 Sep 2026 (Refilwe) - was linking out to
+                 chatwoot.com's own docs, not Synkra's. Deliberately
+                 disabled, not removed. -->
+          </p>
+        </template>
+      </SettingsToggleSection>
+
+      <SettingsToggleSection
+        v-model="hmacMandatory"
+        :header="
+          $t('INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.REQUIRE_LABEL')
+        "
+        :description="
+          $t(
+            'INBOX_MGMT.SETTINGS_POPUP.IDENTITY_VALIDATION.REQUIRE_DESCRIPTION'
+          )
+        "
+      />
+    </SettingsAccordion>
   </div>
-  <div v-else-if="isAPIInbox" class="mx-8">
-    <SettingsSection
-      :title="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_IDENTIFIER')"
-      :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_IDENTIFIER_SUB_TEXT')"
+  <div v-else-if="isAPIInbox">
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_IDENTIFIER')"
+      :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.INBOX_IDENTIFIER_SUB_TEXT')"
     >
       <woot-code :script="inbox.inbox_identifier" />
-    </SettingsSection>
+    </SettingsFieldSection>
 
-    <SettingsSection
-      :title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_VERIFICATION')"
-      :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_DESCRIPTION')"
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_VERIFICATION')"
+      :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_DESCRIPTION')"
     >
       <woot-code :script="inbox.hmac_token" />
-    </SettingsSection>
-    <SettingsSection
-      :title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_VERIFICATION')"
-      :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_DESCRIPTION')"
+    </SettingsFieldSection>
+    <SettingsFieldSection
+      :label="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_VERIFICATION')"
+      :help-text="$t('INBOX_MGMT.SETTINGS_POPUP.HMAC_MANDATORY_DESCRIPTION')"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex gap-2 items-center">
         <input
           id="hmacMandatory"
           v-model="hmacMandatory"
           type="checkbox"
           @change="handleHmacFlag"
         />
-        <label for="hmacMandatory">
+        <label for="hmacMandatory" class="text-body-main text-n-slate-12">
           {{ $t('INBOX_MGMT.EDIT.ENABLE_HMAC.LABEL') }}
         </label>
       </div>
-    </SettingsSection>
+    </SettingsFieldSection>
   </div>
   <div v-else-if="isAnEmailChannel">
-    <div class="mx-8">
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_TITLE')"
-        :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_SUB_TEXT')"
+    <div>
+      <SettingsFieldSection
+        :label="$t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_TITLE')"
+        :help-text="
+          isForwardingEnabled
+            ? $t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_SUB_TEXT')
+            : ''
+        "
       >
-        <woot-code :script="inbox.forward_to_email" />
-      </SettingsSection>
+        <woot-code
+          v-if="isForwardingEnabled"
+          :script="inbox.forward_to_email"
+        />
+        <div
+          v-else
+          class="py-2 px-3 bg-n-amber-3 outline-n-amber-4 text-n-amber-11 outline outline-1 -outline-offset-1 rounded-xl"
+        >
+          <p class="text-body-para mb-0">
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_NOT_CONFIGURED') }}
+          </p>
+        </div>
+      </SettingsFieldSection>
     </div>
     <ImapSettings :inbox="inbox" />
     <SmtpSettings v-if="inbox.imap_enabled" :inbox="inbox" />
   </div>
   <div v-else-if="isAWhatsAppChannel && !isATwilioChannel">
-    <div v-if="inbox.provider_config" class="mx-8">
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_TITLE')"
-        :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_SUBHEADER')"
-      >
-        <woot-code :script="inbox.provider_config.webhook_verify_token" />
-      </SettingsSection>
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_TITLE')"
-        :sub-title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_SUBHEADER')"
-      >
-        <woot-code :script="inbox.provider_config.api_key" />
-      </SettingsSection>
-      <SettingsSection
-        :title="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_TITLE')"
-        :sub-title="
-          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_SUBHEADER')
+    <div v-if="inbox.provider_config">
+      <!-- Embedded Signup Section -->
+      <template v-if="isEmbeddedSignupWhatsApp">
+        <SettingsFieldSection
+          :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_TITLE')"
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_SUBHEADER')
+          "
+        >
+          <woot-code :script="inbox.provider_config.webhook_verify_token" />
+        </SettingsFieldSection>
+        <SettingsFieldSection
+          v-if="showWhatsAppReconfigure"
+          :label="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_EMBEDDED_SIGNUP_TITLE')
+          "
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_EMBEDDED_SIGNUP_DESCRIPTION')
+          "
+        >
+          <NextButton
+            :is-loading="isReconfiguring"
+            :disabled="isReconfiguring"
+            @click="reconfigureWhatsApp"
+          >
+            {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_RECONFIGURE_BUTTON') }}
+          </NextButton>
+        </SettingsFieldSection>
+      </template>
+
+      <!-- Manual Setup Section -->
+      <template v-else-if="!isEmbeddedSignupWhatsApp">
+        <SettingsFieldSection
+          :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_TITLE')"
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_WEBHOOK_SUBHEADER')
+          "
+        >
+          <woot-code :script="inbox.provider_config.webhook_verify_token" />
+        </SettingsFieldSection>
+        <SettingsFieldSection
+          :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_TITLE')"
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_SUBHEADER')
+          "
+        >
+          <woot-code :script="inbox.provider_config.api_key" />
+        </SettingsFieldSection>
+        <SettingsFieldSection
+          :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_TITLE')"
+          :help-text="
+            $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_SUBHEADER')
+          "
+        >
+          <div
+            class="flex flex-1 justify-between items-center whatsapp-settings--content"
+          >
+            <woot-input
+              v-model="whatsAppInboxAPIKey"
+              type="text"
+              class="flex-1 mr-2 [&>input]:!mb-0"
+              :placeholder="
+                $t(
+                  'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_PLACEHOLDER'
+                )
+              "
+            />
+            <NextButton
+              :disabled="v$.whatsAppInboxAPIKey.$invalid"
+              @click="updateWhatsAppInboxAPIKey"
+            >
+              {{
+                $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_BUTTON')
+              }}
+            </NextButton>
+          </div>
+        </SettingsFieldSection>
+      </template>
+      <WhatsappBusinessManagementToken
+        v-if="
+          isOnChatwootCloud &&
+          inbox.provider === 'whatsapp_cloud' &&
+          isEmbeddedSignupWhatsApp
+        "
+        :inbox="inbox"
+      />
+      <SettingsFieldSection
+        :label="$t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_TITLE')"
+        :help-text="
+          $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_SUBHEADER')
         "
       >
-        <div
-          class="flex items-center justify-between flex-1 mt-2 whatsapp-settings--content"
-        >
-          <woot-input
-            v-model.trim="whatsAppInboxAPIKey"
-            type="text"
-            class="flex-1 mr-2"
-            :placeholder="
-              $t(
-                'INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_PLACEHOLDER'
-              )
-            "
-          />
-          <woot-button
-            :disabled="v$.whatsAppInboxAPIKey.$invalid"
-            @click="updateWhatsAppInboxAPIKey"
-          >
-            {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_SECTION_UPDATE_BUTTON') }}
-          </woot-button>
-        </div>
-      </SettingsSection>
+        <NextButton :disabled="isSyncingTemplates" @click="syncTemplates">
+          {{ $t('INBOX_MGMT.SETTINGS_POPUP.WHATSAPP_TEMPLATES_SYNC_BUTTON') }}
+        </NextButton>
+      </SettingsFieldSection>
     </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
 .whatsapp-settings--content {
-  ::v-deep input {
+  :deep(input) {
     margin-bottom: 0;
   }
 }

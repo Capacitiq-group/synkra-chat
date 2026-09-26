@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Community Access - Synkra Chat</title>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png">
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: #0F0F0F;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #F8F8F8;
+        padding: 40px 16px 80px;
+      }
+      .wrap { max-width: 640px; margin: 0 auto; }
+      .logo { height: 28px; margin-bottom: 32px; }
+      h1 { font-size: 24px; margin: 0 0 8px; }
+      .lede { color: #B0B0B0; line-height: 1.5; margin: 0 0 28px; }
+      .prices { display: flex; gap: 12px; margin-bottom: 32px; flex-wrap: wrap; }
+      .price-card { background: #1A1A1A; border: 1px solid #2A2A2A; border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 130px; }
+      .price-card .plan { font-size: 12px; color: #909090; text-transform: uppercase; letter-spacing: 0.04em; }
+      .price-card .amount { font-size: 20px; font-weight: 600; color: #5DD62C; margin-top: 2px; }
+      fieldset { border: 1px solid #2A2A2A; border-radius: 12px; padding: 20px; margin: 0 0 20px; }
+      legend { padding: 0 8px; font-weight: 600; font-size: 15px; }
+      label { display: block; font-size: 13px; color: #C8C8C8; margin: 14px 0 5px; }
+      label:first-child { margin-top: 0; }
+      input[type="text"], input[type="email"], input[type="tel"], input[type="url"], select, textarea {
+        width: 100%;
+        background: #1A1A1A;
+        border: 1px solid #2E2E2E;
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #F8F8F8;
+        font-size: 14px;
+        font-family: inherit;
+      }
+      textarea { resize: vertical; min-height: 70px; }
+      .help { font-size: 12px; color: #909090; margin-top: 4px; line-height: 1.4; }
+      .checkbox-row { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0; }
+      .checkbox-row input { margin-top: 3px; }
+      .checkbox-row label { margin: 0; font-size: 14px; color: #F8F8F8; }
+      .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+      @media (max-width: 520px) { .two-col { grid-template-columns: 1fr; } }
+      .submit-btn {
+        width: 100%;
+        background: #5DD62C;
+        color: #0F0F0F;
+        border: none;
+        border-radius: 8px;
+        padding: 13px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .submit-btn:hover { opacity: 0.92; }
+      .error-banner {
+        background: #2A1414;
+        border: 1px solid #5A2323;
+        color: #FF9B9B;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+      .faith-block { display: none; }
+      .faith-block.visible { display: block; }
+      .file-note { font-size: 12px; color: #909090; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <img class="logo" src="/brand-assets/logo_dark.png" alt="Synkra">
+      <h1>Apply for Community Access</h1>
+      <p class="lede">
+        For non-profits, NGOs and community organisations running a genuine community
+        initiative. Approved organisations get 60% off - you pay 40% of the standard price.
+        Applications are reviewed by our team, usually within 48 hours. No Synkra account
+        needed to apply.
+      </p>
+
+      <div class="prices">
+        <div class="price-card"><div class="plan">Starter</div><div class="amount">R<%= @programme_prices['starter'] %>/mo</div></div>
+        <div class="price-card"><div class="plan">Business</div><div class="amount">R<%= @programme_prices['business'] %>/mo</div></div>
+        <div class="price-card"><div class="plan">Pro</div><div class="amount">R<%= @programme_prices['pro'] %>/mo</div></div>
+      </div>
+
+      <% if @error %>
+        <div class="error-banner">
+          <% if @error == :missing_fields %>
+            Please fill in all required fields and try again.
+          <% elsif @error == :invalid_email %>
+            Please enter a valid contact email address.
+          <% elsif @error == :declaration_required %>
+            Please confirm the evidence declaration at the bottom of the form.
+          <% elsif @error == :evidence_required %>
+            Please attach at least one piece of evidence, or a link to it.
+          <% elsif @error == :faith_photo_required %>
+            Faith-based organisations must include at least one photo of the community initiative.
+          <% elsif @error == :already_submitted %>
+            An application with this email is already being reviewed.
+          <% elsif @error == :rate_limited %>
+            Too many applications submitted today from this email. Please try again tomorrow.
+          <% elsif @error == :too_many_files %>
+            Please attach no more than 10 files.
+          <% elsif @error == :invalid_file_type %>
+            Evidence must be PDF, JPG, PNG or WebP files.
+          <% elsif @error == :file_too_large %>
+            Each file must be 10&nbsp;MB or smaller.
+          <% else %>
+            Something went wrong. Please check the form and try again.
+          <% end %>
+        </div>
+      <% end %>
+
+      <form action="/community-access" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <fieldset>
+          <legend>Your contact email</legend>
+          <label for="applicant_email">Where should we send updates on this application?</label>
+          <input type="email" id="applicant_email" name="applicant_email" required value="<%= @submitted_fields&.dig(:applicant_email) %>">
+        </fieldset>
+
+        <fieldset>
+          <legend>Your organisation</legend>
+          <label>Organisation's legal or operating name</label>
+          <input type="text" name="organisation_name" required>
+
+          <div class="two-col">
+            <div>
+              <label>Organisation type</label>
+              <select name="organisation_type" required>
+                <option value="" disabled selected>Select</option>
+                <option value="NPO">Non-profit organisation (NPO)</option>
+                <option value="NGO">Non-governmental organisation (NGO)</option>
+                <option value="NPC">Non-profit company (NPC)</option>
+                <option value="CHARITY">Charity or trust</option>
+                <option value="CBO">Community-based organisation</option>
+                <option value="FAITH">Faith-based organisation</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label>Registration status</label>
+              <select name="registration_status" id="registration_status" required>
+                <option value="" disabled selected>Select</option>
+                <option value="registered">Formally registered</option>
+                <option value="in_progress">Registration in progress</option>
+                <option value="not_registered">Not registered</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="registration_number_field" style="display:none;">
+            <label>Registration number</label>
+            <input type="text" name="registration_number">
+          </div>
+
+          <label>Country</label>
+          <input type="text" name="country" required value="South Africa">
+          <label>Physical or operating address</label>
+          <input type="text" name="address" required>
+          <div class="two-col">
+            <div>
+              <label>Website (optional)</label>
+              <input type="url" name="website">
+            </div>
+            <div>
+              <label>Public social media page (optional)</label>
+              <input type="url" name="social_url">
+            </div>
+          </div>
+          <div class="two-col">
+            <div>
+              <label>General contact email (optional)</label>
+              <input type="email" name="general_email">
+            </div>
+            <div>
+              <label>General contact phone (optional)</label>
+              <input type="tel" name="general_phone">
+            </div>
+          </div>
+          <label>What does your organisation do?</label>
+          <textarea name="organisation_description" required></textarea>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contacts</legend>
+          <div class="two-col">
+            <div><label>Primary contact - full name</label><input type="text" name="contact_name" required></div>
+            <div><label>Role or position</label><input type="text" name="contact_role" required></div>
+          </div>
+          <div class="two-col">
+            <div><label>Email address</label><input type="email" name="contact_email" required></div>
+            <div><label>Phone number</label><input type="tel" name="contact_phone" required></div>
+          </div>
+          <div class="two-col">
+            <div><label>Person responsible for the Synkra account (if different)</label><input type="text" name="account_person"></div>
+            <div><label>Billing contact (if different)</label><input type="text" name="billing_contact"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Community initiative</legend>
+          <label>The specific community initiative you are applying under</label>
+          <textarea name="initiative_description" required></textarea>
+          <div class="two-col">
+            <div><label>Who does the initiative serve?</label><input type="text" name="initiative_serves" required></div>
+            <div><label>Where does it operate?</label><input type="text" name="initiative_location" required></div>
+          </div>
+          <label>How often does it operate?</label>
+          <input type="text" name="initiative_frequency" required>
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="faith_based" name="faith_based" value="true">
+            <label for="faith_based">This is a church, ministry or other faith-based organisation</label>
+          </div>
+          <div class="faith-block" id="faith_block">
+            <p class="help">
+              Being faith-based doesn't qualify an organisation on its own. Worship, prayer
+              meetings, Bible study and preaching by themselves aren't enough - we need to see
+              a genuine, ongoing initiative with tangible non-religious benefit to the
+              community, such as a soup kitchen, community garden, clothing drive, skills or
+              youth development, job support, a wellness programme, or a book club.
+            </p>
+            <label>What tangible non-religious benefit does the initiative provide?</label>
+            <textarea name="faith_initiative_benefit"></textarea>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Evidence</legend>
+          <p class="help">
+            Show that the initiative genuinely exists: photos of your activities, programme
+            materials, flyers or posters, reports, and registration documents where you have
+            them. AI-generated or fabricated images will lead to rejection. Faith-based
+            applications must include at least one photo.
+          </p>
+          <label>Evidence files</label>
+          <input type="file" name="documents[]" multiple accept=".pdf,image/jpeg,image/png,image/webp">
+          <p class="file-note">PDF, JPG, PNG or WebP, up to 10&nbsp;MB each, 10 files max.</p>
+          <label>Links to evidence (optional)</label>
+          <input type="text" name="evidence_links" placeholder="e.g. links to social posts, news coverage, your website">
+
+          <div class="checkbox-row">
+            <input type="checkbox" id="no_ai_images" name="no_ai_images" value="true" required>
+            <label for="no_ai_images">I confirm the evidence is genuine and none of the images are AI-generated.</label>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="submit-btn">Submit application</button>
+      </form>
+    </div>
+    <script>
+      document.getElementById('registration_status').addEventListener('change', function (e) {
+        document.getElementById('registration_number_field').style.display = e.target.value === 'registered' ? 'block' : 'none';
+      });
+      document.getElementById('faith_based').addEventListener('change', function (e) {
+        document.getElementById('faith_block').classList.toggle('visible', e.target.checked);
+      });
+    </script>
+  </body>
+</html>

@@ -19,7 +19,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   def process_update_contact
     @contact = ContactIdentifyAction.new(
       contact: @contact,
-      params: { email: contact_email, phone_number: contact_phone_number, name: contact_name },
+      params: { email: contact_email, phone_number: contact_phone_number, name: contact_name, custom_attributes: contact_custom_attributes },
       retain_original_contact_name: true,
       discard_invalid_attrs: true
     ).perform
@@ -35,12 +35,11 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def transcript
-    if conversation.present? && conversation.contact.present? && conversation.contact.email.present?
-      ConversationReplyMailer.with(account: conversation.account).conversation_transcript(
-        conversation,
-        conversation.contact.email
-      )&.deliver_later
-    end
+    return head :too_many_requests if conversation.blank?
+    return head :payment_required unless conversation.account.email_transcript_enabled?
+    return head :too_many_requests unless conversation.account.within_email_rate_limit?
+
+    send_transcript_email
     head :ok
   end
 
@@ -77,6 +76,28 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
 
   private
 
+  def send_transcript_email
+    return if conversation.contact&.email.blank?
+
+    ConversationReplyMailer.with(account: conversation.account).conversation_transcript(
+      conversation,
+      conversation.contact.email
+    )&.deliver_later
+    conversation.account.increment_email_sent_count
+    record_transcript_email_usage(conversation.account)
+  end
+
+  # A transcript send is a real outgoing email regardless of the
+  # conversation's own channel (widget, WhatsApp, etc.) - counts
+  # against the email allowance the same as any email-channel message
+  # (see Message#record_synkra_usage_event). Fire-and-forget: metering
+  # must never affect whether the transcript itself is sent.
+  def record_transcript_email_usage(account)
+    SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'conversation_transcript')
+  rescue StandardError => e
+    Rails.logger.error("[SynkraBilling] Failed to record email usage event for account #{account.id}: #{e.message}")
+  end
+
   def trigger_typing_event(event)
     Rails.configuration.dispatcher.dispatch(event, Time.zone.now, conversation: conversation, user: @contact)
   end
@@ -86,7 +107,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   end
 
   def permitted_params
-    params.permit(:id, :typing_status, :website_token, :email, contact: [:name, :email, :phone_number],
+    params.permit(:id, :typing_status, :website_token, :email, contact: [:name, :email, :phone_number, { custom_attributes: {} }],
                                                                message: [:content, :referer_url, :timestamp, :echo_id],
                                                                custom_attributes: {})
   end

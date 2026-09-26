@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Community Access status - Synkra Chat</title>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png">
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: #0F0F0F;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #F8F8F8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+      }
+      .card { max-width: 480px; width: 100%; text-align: center; }
+      .logo { height: 28px; margin-bottom: 28px; }
+      h1 { font-size: 20px; margin: 0 0 12px; }
+      p { color: #B0B0B0; line-height: 1.5; margin: 0 0 8px; }
+      .badge {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        border-radius: 999px;
+        padding: 5px 14px;
+        margin-bottom: 16px;
+      }
+      .badge.review { background: #2A2A14; color: #E0D060; }
+      .badge.needs_info { background: #2A2214; color: #E0A860; }
+      .badge.verified { background: #14281A; color: #5DD62C; }
+      .badge.rejected { background: #2A1414; color: #FF9B9B; }
+      .code {
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        background: #1A1A1A;
+        border: 1px solid #2E2E2E;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 20px 0;
+      }
+      textarea, input[type="text"] {
+        width: 100%;
+        background: #1A1A1A;
+        border: 1px solid #2E2E2E;
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #F8F8F8;
+        font-size: 14px;
+        font-family: inherit;
+        margin-top: 10px;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      .submit-btn {
+        width: 100%;
+        background: #5DD62C;
+        color: #0F0F0F;
+        border: none;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        margin-top: 14px;
+      }
+      .note { text-align: left; background: #1A1A1A; border-radius: 8px; padding: 14px; margin: 16px 0; font-size: 14px; color: #F8F8F8; }
+      .error-banner { background: #2A1414; border: 1px solid #5A2323; color: #FF9B9B; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-top: 14px; text-align: left; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="/brand-assets/logo_dark.png" alt="Synkra">
+
+      <% if @verification.nil? %>
+        <h1>We can't find that application</h1>
+        <p>Double-check the link from your email, or the reference code you were given.</p>
+      <% else %>
+        <span class="badge <%= @verification.status %>">
+          <%= @verification.status == 'needs_info' ? 'More info needed' : @verification.status.humanize %>
+        </span>
+
+        <% if @verification.status == 'review' %>
+          <h1>Under review</h1>
+          <p>Our team usually gets back to applications within about 48 hours. We'll email <%= @verification.contact_email %> as soon as there's a decision.</p>
+
+        <% elsif @verification.status == 'needs_info' %>
+          <h1>We need a little more from you</h1>
+          <p class="note"><%= @verification.review_note %></p>
+
+          <% if @error %>
+            <div class="error-banner">
+              <% if @error == :evidence_required %>
+                Please write a reply or attach a file.
+              <% elsif @error == :too_many_files %>
+                Please attach no more than 10 files.
+              <% elsif @error == :invalid_file_type %>
+                Files must be PDF, JPG, PNG or WebP.
+              <% elsif @error == :file_too_large %>
+                Each file must be 10&nbsp;MB or smaller.
+              <% else %>
+                Something went wrong. Please try again.
+              <% end %>
+            </div>
+          <% end %>
+
+          <form action="<%= add_information_community_access_path(@verification.access_token) %>" method="post" enctype="multipart/form-data" style="text-align:left; margin-top: 16px;">
+            <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+            <label style="font-size:13px; color:#C8C8C8;">Your reply</label>
+            <textarea name="message"></textarea>
+            <label style="font-size:13px; color:#C8C8C8;">Additional files (optional)</label>
+            <input type="file" name="documents[]" multiple accept=".pdf,image/jpeg,image/png,image/webp">
+            <button type="submit" class="submit-btn">Send to reviewer</button>
+          </form>
+
+        <% elsif @verification.status == 'verified' %>
+          <h1>Approved</h1>
+          <p>Community Access pricing is available. Create a Synkra account (or log into an existing one), then go to Settings &rarr; Billing &rarr; Community Access and enter this reference code:</p>
+          <div class="code"><%= @verification.access_token %></div>
+          <p>It's valid until <%= @verification.expires_at&.strftime('%-d %B %Y') %>.</p>
+
+        <% elsif @verification.status == 'rejected' %>
+          <h1>Not approved</h1>
+          <p class="note"><%= @verification.review_note %></p>
+          <p>You're welcome to apply again with updated evidence.</p>
+        <% end %>
+      <% end %>
+    </div>
+  </body>
+</html>

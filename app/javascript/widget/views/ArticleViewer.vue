@@ -6,17 +6,11 @@ export default {
   components: {
     IframeLoader,
   },
-  props: {
-    link: {
-      type: String,
-      default: '',
-    },
-  },
 };
 </script>
 
 <template>
-  <div class="bg-white h-full">
-    <IframeLoader :url="link" />
+  <div class="bg-n-solid-1 h-full">
+    <IframeLoader :url="$route.query.link" />
   </div>
 </template>

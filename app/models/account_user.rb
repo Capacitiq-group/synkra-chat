@@ -2,24 +2,26 @@
 #
 # Table name: account_users
 #
-#  id             :bigint           not null, primary key
-#  active_at      :datetime
-#  auto_offline   :boolean          default(TRUE), not null
-#  availability   :integer          default("online"), not null
-#  role           :integer          default("agent")
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
-#  account_id     :bigint
-#  custom_role_id :bigint
-#  inviter_id     :bigint
-#  user_id        :bigint
+#  id                       :bigint           not null, primary key
+#  active_at                :datetime
+#  auto_offline             :boolean          default(TRUE), not null
+#  availability             :integer          default("online"), not null
+#  role                     :integer          default("agent")
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  account_id               :bigint
+#  agent_capacity_policy_id :bigint
+#  custom_role_id           :bigint
+#  inviter_id               :bigint
+#  user_id                  :bigint
 #
 # Indexes
 #
-#  index_account_users_on_account_id      (account_id)
-#  index_account_users_on_custom_role_id  (custom_role_id)
-#  index_account_users_on_user_id         (user_id)
-#  uniq_user_id_per_account_id            (account_id,user_id) UNIQUE
+#  index_account_users_on_account_id                (account_id)
+#  index_account_users_on_agent_capacity_policy_id  (agent_capacity_policy_id)
+#  index_account_users_on_custom_role_id            (custom_role_id)
+#  index_account_users_on_user_id                   (user_id)
+#  uniq_user_id_per_account_id                      (account_id,user_id) UNIQUE
 #
 
 class AccountUser < ApplicationRecord
@@ -37,8 +39,11 @@ class AccountUser < ApplicationRecord
   after_create_commit :notify_creation, :create_notification_setting
   after_destroy :notify_deletion, :remove_user_from_account
   after_save :update_presence_in_redis, if: :saved_change_to_availability?
+  after_commit :invalidate_filtered_unread_count_visibility, on: [:create, :destroy]
+  after_update_commit :invalidate_filtered_unread_count_visibility_update, if: :filtered_unread_count_visibility_changed?
 
   validates :user_id, uniqueness: { scope: :account_id }
+  validate :ensure_within_synkra_seat_limit, on: :create
 
   def create_notification_setting
     setting = user.notification_settings.new(account_id: account.id)
@@ -66,6 +71,27 @@ class AccountUser < ApplicationRecord
 
   private
 
+  # Synkra Chat: per-plan seat limit. Only runs on create - changing
+  # an existing agent's role/availability/capacity policy should never
+  # get blocked by a seat count that was already fine when they were
+  # first added. Fails open (never blocks adding an agent) if the
+  # subscription can't be resolved for any reason - same philosophy as
+  # Message's billing enforcement: a billing-infrastructure hiccup
+  # should never lock a business out of its own team management.
+  def ensure_within_synkra_seat_limit
+    subscription = account.synkra_subscription
+    return if subscription.nil?
+
+    limit = subscription.effective_seat_limit
+    return if limit <= 0 # no limit configured - fail open, not closed
+
+    return if account.account_users.count < limit
+
+    errors.add(:base, "This account's #{subscription.plan_config[:name]} plan allows up to #{limit} seats - upgrade your plan or buy extra seats to add more")
+  rescue StandardError => e
+    Rails.logger.error "[SynkraBilling] Could not check seat limit for account #{account_id}: #{e.message}"
+  end
+
   def notify_creation
     Rails.configuration.dispatcher.dispatch(AGENT_ADDED, Time.zone.now, account: account)
   end
@@ -76,6 +102,22 @@ class AccountUser < ApplicationRecord
 
   def update_presence_in_redis
     OnlineStatusTracker.set_status(account.id, user.id, availability)
+  end
+
+  def filtered_unread_count_visibility_changed?
+    previous_changes.key?('role') || previous_changes.key?('custom_role_id')
+  end
+
+  def invalidate_filtered_unread_count_visibility
+    ::Conversations::UnreadCounts::FilteredCountInvalidator.new(account).user_visibility_changed!(user_id: user_id)
+  end
+
+  def invalidate_filtered_unread_count_visibility_update
+    dispatch_account_cache_invalidated if invalidate_filtered_unread_count_visibility
+  end
+
+  def dispatch_account_cache_invalidated
+    Rails.configuration.dispatcher.dispatch(ACCOUNT_CACHE_INVALIDATED, Time.zone.now, account: account, cache_keys: account.cache_keys)
   end
 end
 

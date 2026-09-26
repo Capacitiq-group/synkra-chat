@@ -11,6 +11,7 @@
 #  country_code          :string           default("")
 #  custom_attributes     :jsonb
 #  email                 :string
+#  email_verified_at     :datetime
 #  identifier            :string
 #  last_activity_at      :datetime
 #  last_name             :string           default("")
@@ -21,12 +22,16 @@
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
 #  account_id            :integer          not null
+#  company_id            :bigint
+#  synkra_global_user_id :bigint
 #
 # Indexes
 #
 #  index_contacts_on_account_id                          (account_id)
+#  index_contacts_on_account_id_and_contact_type         (account_id,contact_type)
 #  index_contacts_on_account_id_and_last_activity_at     (account_id,last_activity_at DESC NULLS LAST)
 #  index_contacts_on_blocked                             (blocked)
+#  index_contacts_on_company_id                          (company_id)
 #  index_contacts_on_lower_email_account_id              (lower((email)::text), account_id)
 #  index_contacts_on_name_email_phone_number_identifier  (name,email,phone_number,identifier) USING gin
 #  index_contacts_on_nonempty_fields                     (account_id,email,phone_number,identifier) WHERE (((email)::text <> ''::text) OR ((phone_number)::text <> ''::text) OR ((identifier)::text <> ''::text))
@@ -42,6 +47,7 @@ class Contact < ApplicationRecord
   include Avatarable
   include AvailabilityStatusable
   include Labelable
+  include LlmFormattable
 
   validates :account_id, presence: true
   validates :email, allow_blank: true, uniqueness: { scope: [:account_id], case_sensitive: false },
@@ -49,9 +55,14 @@ class Contact < ApplicationRecord
   validates :identifier, allow_blank: true, uniqueness: { scope: [:account_id] }
   validates :phone_number,
             allow_blank: true, uniqueness: { scope: [:account_id] },
-            format: { with: /\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
+            format: { with: /\A\+[1-9]\d{1,14}\z/, message: I18n.t('errors.contacts.phone_number.invalid') }
 
   belongs_to :account
+  # Synkra Chat global identity layer: links this business-scoped
+  # contact to the one global person it belongs to, if that link has
+  # been established (nil for contacts that haven't gone through the
+  # identity flow yet - this is additive, never required).
+  belongs_to :synkra_global_user, optional: true, inverse_of: :contacts
   has_many :conversations, dependent: :destroy_async
   has_many :contact_inboxes, dependent: :destroy_async
   has_many :csat_survey_responses, dependent: :destroy_async
@@ -127,12 +138,41 @@ class Contact < ApplicationRecord
     )
   }
 
+  # Find contacts that:
+  # 1. Have no identification (email, phone_number, and identifier are NULL or empty string)
+  # 2. Have no conversations
+  # 3. Are older than the specified time period
+  scope :stale_without_conversations, lambda { |time_period|
+    where('contacts.email IS NULL OR contacts.email = ?', '')
+      .where('contacts.phone_number IS NULL OR contacts.phone_number = ?', '')
+      .where('contacts.identifier IS NULL OR contacts.identifier = ?', '')
+      .where('contacts.created_at < ?', time_period)
+      .where.missing(:conversations)
+  }
+
   def get_source_id(inbox_id)
     contact_inboxes.find_by!(inbox_id: inbox_id).source_id
   end
 
+  # Synkra Chat identity layer: whether this contact's email has been
+  # confirmed as actually belonging to them (via the emailed verification
+  # link), as opposed to just being collected as a text field in the
+  # pre-chat form. A contact with no email is never "verified".
+  def email_verified?
+    email.present? && email_verified_at.present?
+  end
+
+  # Generates a short-lived, cryptographically signed token identifying
+  # this contact, for a single specific purpose. Uses Rails' built-in
+  # signed_id (backed by the app's secret_key_base) rather than a new
+  # database table - the token is self-contained and verifiable without
+  # a lookup, and expires on its own.
+  def generate_identity_token(purpose:, expires_in: 30.minutes)
+    signed_id(purpose: purpose, expires_in: expires_in)
+  end
+
   def push_event_data
-    {
+    data = {
       additional_attributes: additional_attributes,
       custom_attributes: custom_attributes,
       email: email,
@@ -141,8 +181,11 @@ class Contact < ApplicationRecord
       name: name,
       phone_number: phone_number,
       thumbnail: avatar_url,
+      blocked: blocked,
       type: 'contact'
     }
+    data[:company_id] = company_id if account.feature_enabled?('companies')
+    data
   end
 
   def webhook_data
@@ -156,11 +199,14 @@ class Contact < ApplicationRecord
       identifier: identifier,
       name: name,
       phone_number: phone_number,
-      thumbnail: avatar_url
+      thumbnail: avatar_url,
+      blocked: blocked
     }
   end
 
-  def self.resolved_contacts
+  def self.resolved_contacts(use_crm_v2: false)
+    return where(contact_type: 'lead') if use_crm_v2
+
     where("contacts.email <> '' OR contacts.phone_number <> '' OR contacts.identifier <> ''")
   end
 
@@ -184,7 +230,7 @@ class Contact < ApplicationRecord
   def phone_number_format
     return if phone_number.blank?
 
-    self.phone_number = phone_number_was unless phone_number.match?(/\+[1-9]\d{1,14}\z/)
+    self.phone_number = phone_number_was unless phone_number.match?(/\A\+[1-9]\d{1,14}\z/)
   end
 
   def email_format
@@ -221,6 +267,13 @@ class Contact < ApplicationRecord
   end
 
   def dispatch_destroy_event
-    Rails.configuration.dispatcher.dispatch(CONTACT_DELETED, Time.zone.now, contact: self)
+    # Pass serialized data instead of ActiveRecord object to avoid DeserializationError
+    # when the async EventDispatcherJob runs after the contact has been deleted
+    Rails.configuration.dispatcher.dispatch(
+      CONTACT_DELETED,
+      Time.zone.now,
+      contact_data: push_event_data.merge(account_id: account_id)
+    )
   end
 end
+Contact.include_mod_with('Concerns::Contact')

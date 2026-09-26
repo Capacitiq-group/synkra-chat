@@ -19,6 +19,7 @@ const qrCodes = reactive({
   whatsapp: '',
   messenger: '',
   telegram: '',
+  website: '',
 });
 
 const currentInbox = computed(() =>
@@ -36,6 +37,7 @@ const {
   isAFacebookInbox,
   isATelegramChannel,
   isATwilioWhatsAppChannel,
+  isAWebWidgetInbox,
 } = useInbox(route.params.inbox_id);
 
 const hasDuplicateInstagramInbox = computed(() => {
@@ -100,6 +102,11 @@ const message = computed(() => {
   return t('INBOX_MGMT.FINISH.MESSAGE');
 });
 
+const websiteShareUrl = computed(() => {
+  if (!currentInbox.value?.website_token) return '';
+  return `${window.location.origin}/widget?website_token=${currentInbox.value.website_token}`;
+});
+
 async function generateQRCode(platform, identifier) {
   if (!identifier || !identifier.trim()) {
     // eslint-disable-next-line no-console
@@ -112,6 +119,8 @@ async function generateQRCode(platform, identifier) {
       whatsapp: id => `https://wa.me/${id}`,
       messenger: id => `https://m.me/${id}`,
       telegram: id => `https://t.me/${id}`,
+      website: token =>
+        `${window.location.origin}/widget?website_token=${token}`,
     };
 
     const url = platformUrls[platform](identifier);
@@ -146,6 +155,14 @@ async function generateQRCodes() {
   // Telegram
   if (isATelegramChannel.value && currentInbox.value.bot_name) {
     await generateQRCode('telegram', currentInbox.value.bot_name);
+  }
+
+  // Website widget - a standalone, direct-link version of the widget
+  // a business can share (QR code, printed material, etc.) so a
+  // customer can start chatting without visiting the business's own
+  // website at all.
+  if (isAWebWidgetInbox.value && currentInbox.value.website_token) {
+    await generateQRCode('website', currentInbox.value.website_token);
   }
 }
 
@@ -273,6 +290,27 @@ onMounted(() => {
               alt="Telegram QR Code"
               class="rounded-lg size-48 dark:invert"
             />
+          </div>
+        </div>
+        <div
+          v-if="isAWebWidgetInbox && qrCodes.website"
+          class="flex flex-col gap-3 items-center mt-8"
+        >
+          <p class="mt-2 text-sm text-n-slate-9">
+            {{ $t('INBOX_MGMT.FINISH.WEBSITE_QR_INSTRUCTION') }}
+          </p>
+          <div class="rounded-lg shadow outline-1 outline-n-strong outline">
+            <img
+              :src="qrCodes.website"
+              alt="Website widget QR Code"
+              class="rounded-lg size-48 dark:invert"
+            />
+          </div>
+          <div class="w-full max-w-md">
+            <p class="mb-1 text-xs font-medium text-left text-n-slate-11">
+              {{ $t('INBOX_MGMT.FINISH.WEBSITE_SHARE_LINK') }}
+            </p>
+            <woot-code lang="html" :script="websiteShareUrl" />
           </div>
         </div>
         <div class="flex gap-2 justify-center mt-4">

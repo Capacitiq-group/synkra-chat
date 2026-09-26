@@ -579,7 +579,9 @@
       "WEBSITE_SUCCESS": "You have successfully finished creating a website channel. Copy the code shown below and paste it on your website. Next time a customer use the live chat, the conversation will automatically appear on your inbox.",
       "WHATSAPP_QR_INSTRUCTION": "Scan the QR code above to quickly test your WhatsApp inbox",
       "MESSENGER_QR_INSTRUCTION": "Scan the QR code above to quickly test your Facebook Messenger inbox",
-      "TELEGRAM_QR_INSTRUCTION": "Scan the QR code above to quickly test your Telegram inbox"
+      "TELEGRAM_QR_INSTRUCTION": "Scan the QR code above to quickly test your Telegram inbox",
+      "WEBSITE_QR_INSTRUCTION": "Share this QR code or link so customers can start a conversation directly, without needing to visit your website first",
+      "WEBSITE_SHARE_LINK": "Share link"
     },
     "REAUTH": "Reauthorize",
     "VIEW": "View",
@@ -852,6 +854,10 @@
         "TITLE": "Allowed Domains",
         "DESCRIPTION": "Restrict which websites can embed your chat widget. For security, only add domains you own and trust. Add one or more domains separated by commas. Leave blank to allow all domains (not recommended for production).",
         "PLACEHOLDER": "example.com, www.example.com, app.example.com"
+      },
+      "WIDGET_SHARE": {
+        "TITLE": "Share via QR code or link",
+        "DESCRIPTION": "Let customers start a conversation directly - no website visit needed. Print this QR code, or share the link, anywhere: a storefront, a receipt, a business card, social media."
       },
       "ALLOW_MOBILE_WEBVIEW": {
         "LABEL": "Enable widget in mobile apps",

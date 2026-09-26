@@ -15,6 +15,7 @@ import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import TextArea from 'next/textarea/TextArea.vue';
 import { sanitizeAllowedDomains } from 'dashboard/helper/URLHelper';
+import QRCode from 'qrcode';
 import WhatsappBusinessManagementToken from './WhatsappBusinessManagementToken.vue';
 
 export default {
@@ -49,6 +50,7 @@ export default {
       isUpdatingAllowedDomains: false,
       isSettingDefaults: false,
       isReconfiguring: false,
+      websiteQrCode: '',
     };
   },
   validations: {
@@ -77,10 +79,18 @@ export default {
     isForwardingEnabled() {
       return !!this.inbox.forwarding_enabled;
     },
+    // A standalone, direct-link version of this widget a business can
+    // share (QR code, printed material, etc.) so a customer can start
+    // chatting without visiting the business's own website at all.
+    websiteShareUrl() {
+      if (!this.inbox.website_token) return '';
+      return `${window.location.origin}/widget?website_token=${this.inbox.website_token}`;
+    },
   },
   watch: {
     inbox() {
       this.setDefaults();
+      this.generateWebsiteQrCode();
     },
     allowMobileWebview() {
       if (!this.isSettingDefaults) this.handleMobileWebviewFlag();
@@ -92,8 +102,22 @@ export default {
   },
   mounted() {
     this.setDefaults();
+    this.generateWebsiteQrCode();
   },
   methods: {
+    async generateWebsiteQrCode() {
+      if (!this.websiteShareUrl) {
+        this.websiteQrCode = '';
+        return;
+      }
+      try {
+        this.websiteQrCode = await QRCode.toDataURL(this.websiteShareUrl);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error generating website widget QR code:', error);
+        this.websiteQrCode = '';
+      }
+    },
     setDefaults() {
       this.isSettingDefaults = true;
       this.hmacMandatory = this.inbox.hmac_mandatory || false;
@@ -287,6 +311,26 @@ export default {
           $t('INBOX_MGMT.SETTINGS_POPUP.ALLOW_MOBILE_WEBVIEW.SUBTITLE')
         "
       />
+      <SettingsToggleSection
+        :header="$t('INBOX_MGMT.SETTINGS_POPUP.WIDGET_SHARE.TITLE')"
+        :description="$t('INBOX_MGMT.SETTINGS_POPUP.WIDGET_SHARE.DESCRIPTION')"
+        hide-toggle
+      >
+        <template #editor>
+          <div v-if="websiteQrCode" class="flex flex-col gap-3 items-start">
+            <div class="rounded-lg shadow outline-1 outline-n-strong outline">
+              <img
+                :src="websiteQrCode"
+                alt="Website widget QR Code"
+                class="rounded-lg size-40 dark:invert"
+              />
+            </div>
+            <div class="w-full">
+              <woot-code lang="html" :script="websiteShareUrl" />
+            </div>
+          </div>
+        </template>
+      </SettingsToggleSection>
     </div>
 
     <SettingsAccordion

@@ -35,6 +35,35 @@ module Captain::Llm::ProviderResolver
     end
   end
 
+  # Returns an ordered list of provider configs to try, primary first.
+  # BaseTaskService iterates this list, catching exceptions and moving
+  # to the next candidate. Used for resilience when the primary provider
+  # is unavailable (rate-limited, down, key revoked).
+  #
+  # Fallback is only added when primary is NOT ollama - ollama has no
+  # downstream fallback because it's the local last resort. Controlled
+  # by CAPTAIN_LLM_FALLBACK_PROVIDER (default 'ollama'). Set to empty
+  # string to disable fallback entirely.
+  def resolve_candidates
+    primary = resolve
+    fallback_provider = ENV.fetch('CAPTAIN_LLM_FALLBACK_PROVIDER', 'ollama').to_s.strip
+
+    return [primary] if fallback_provider.empty?
+    return [primary] if primary[:provider] == fallback_provider
+
+    fallback = config_for(fallback_provider)
+    return [primary] if fallback.nil? || fallback[:api_key].blank?
+
+    [primary, fallback]
+  end
+
+  def config_for(provider_name)
+    case provider_name
+    when 'ollama'       then ollama_config
+    when 'token_harbor' then token_harbor_config
+    end
+  end
+
   def active_provider
     value = ENV['CAPTAIN_LLM_PROVIDER'].presence ||
             InstallationConfig.find_by(name: 'CAPTAIN_LLM_PROVIDER')&.value.presence

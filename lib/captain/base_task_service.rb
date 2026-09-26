@@ -64,21 +64,53 @@ class Captain::BaseTaskService
     route[:model]
   end
 
+# ==== NEW METHODS REGION ====
   def execute_ruby_llm_request(model:, messages:, schema: nil, tools: [])
-    credential = llm_credential
+    candidates = Captain::Llm::ProviderResolver.resolve_candidates
+    multi = candidates.length > 1
+    last_error = nil
 
-    Llm::Config.with_api_key(credential[:api_key], api_base: api_base) do |context|
-      chat = build_chat(context, model: model, messages: messages, schema: schema, tools: tools)
+    candidates.each_with_index do |candidate, idx|
+      is_last = (idx == candidates.length - 1)
+      Rails.logger.info(
+        "[CAPTAIN][provider] trying #{candidate[:provider]} model=#{candidate[:model]}#{multi ? " (#{idx + 1}/#{candidates.length})" : ''}"
+      )
 
+      begin
+        return attempt_llm_call_for(candidate, model: model, messages: messages, schema: schema, tools: tools)
+      rescue StandardError => e
+        last_error = e
+        Rails.logger.warn(
+          "[CAPTAIN][provider-fallback] #{candidate[:provider]} failed: #{e.class}: #{e.message}" \
+          "#{is_last ? ' (no more fallbacks)' : '; trying next'}"
+        )
+      end
+    end
+
+    if last_error
+      capture_llm_exception(last_error, credential: { api_key: Captain::Llm::ProviderResolver.resolve[:api_key] })
+      { error: last_error.message, request_messages: messages }
+    else
+      { error: 'No LLM provider available', request_messages: messages }
+    end
+  end
+
+  def attempt_llm_call_for(candidate, model:, messages:, schema:, tools:)
+    effective_model = candidate[:model].presence || model
+    api_base_for_candidate = normalize_api_base(candidate[:endpoint])
+
+    Llm::Config.with_api_key(candidate[:api_key], api_base: api_base_for_candidate) do |context|
+      chat = build_chat(context, model: effective_model, messages: messages, schema: schema, tools: tools)
       conversation_messages = messages.reject { |m| m[:role] == 'system' }
-      return { error: 'No conversation messages provided', error_code: 400, request_messages: messages } if conversation_messages.empty?
-
+      raise ArgumentError, 'No conversation messages provided' if conversation_messages.empty?
       add_messages_if_needed(chat, conversation_messages)
       build_ruby_llm_response(chat.ask(conversation_messages.last[:content]), messages)
     end
-  rescue StandardError => e
-    capture_llm_exception(e, credential: credential)
-    { error: e.message, request_messages: messages }
+  end
+
+  def normalize_api_base(endpoint)
+    base = endpoint.to_s.chomp('/')
+    base.end_with?('/v1') ? base : "#{base}/v1"
   end
 
   # RubyLLM validates `model` against its own bundled model registry before

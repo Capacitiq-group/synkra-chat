@@ -39,12 +39,29 @@ const copy = computed(() => ({
     title: t('SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.TITLE'),
     description: t('SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.DESCRIPTION'),
   },
+  ai_ops: {
+    title: t('SYNKRA_BILLING_SETTINGS.ADDONS.AI_OPS.TITLE'),
+    description: t('SYNKRA_BILLING_SETTINGS.ADDONS.AI_OPS.DESCRIPTION'),
+  },
+  notification_emails: {
+    title: t('SYNKRA_BILLING_SETTINGS.ADDONS.NOTIFICATION_EMAILS.TITLE'),
+    description: t('SYNKRA_BILLING_SETTINGS.ADDONS.NOTIFICATION_EMAILS.DESCRIPTION'),
+  },
 }[props.type]));
+const PACK_BASED_TYPES = ['messages', 'ai_ops', 'notification_emails'];
+const packUnitLabel = computed(() => {
+  const map = {
+    messages: 'SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.UNIT',
+    ai_ops: 'SYNKRA_BILLING_SETTINGS.ADDONS.AI_OPS.UNIT',
+    notification_emails: 'SYNKRA_BILLING_SETTINGS.ADDONS.NOTIFICATION_EMAILS.UNIT',
+  };
+  return t(map[props.type] || 'SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.UNIT');
+});
 
 const handlePurchase = async () => {
   isPurchasing.value = true;
   try {
-    if (props.type === 'messages') {
+    if (PACK_BASED_TYPES.includes(props.type)) {
       await props.onPurchase({ packKey: selectedPackKey.value });
     } else {
       await props.onPurchase({ quantity: quantity.value });
@@ -72,7 +89,7 @@ defineExpose({ dialogRef });
     :is-loading="isPurchasing"
     @confirm="handlePurchase"
   >
-    <div v-if="type === 'messages'" class="grid gap-2 px-1">
+    <div v-if="PACK_BASED_TYPES.includes(type)" class="grid gap-2 px-1">
       <label
         v-for="pack in packs"
         :key="pack.key"
@@ -86,7 +103,7 @@ defineExpose({ dialogRef });
           name="message-pack"
         />
         <span class="text-sm">
-          {{ pack.units.toLocaleString() }} {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.UNIT') }}
+          {{ pack.units.toLocaleString() }} {{ packUnitLabel }}
           — R{{ pack.price_zar }}
         </span>
       </label>

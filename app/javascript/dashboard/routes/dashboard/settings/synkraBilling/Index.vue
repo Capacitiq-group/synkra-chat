@@ -47,6 +47,8 @@ const {
   buyMessageAddon,
   buyExtraSeats,
   buyExtraStorage,
+  buyAiOpsAddon,
+  buyNotificationEmailAddon,
 } = useSynkraBilling();
 
 const { activeProgramme, activePrices } = useSynkraProgrammes();
@@ -55,6 +57,8 @@ const cancelDialogRef = ref(null);
 const messageAddonDialogRef = ref(null);
 const extraSeatsDialogRef = ref(null);
 const extraStorageDialogRef = ref(null);
+const aiOpsAddonDialogRef = ref(null);
+const notificationEmailAddonDialogRef = ref(null);
 
 // Mirrors Billing::MessageAddonPack::PACKS (synkra_chat's own repo) -
 // same drift-risk caveat as PLAN_CATALOGUE below.
@@ -64,6 +68,23 @@ const MESSAGE_PACKS = [
   { key: 'pack_25k', price_zar: 250, units: 25_000 },
   { key: 'pack_50k', price_zar: 500, units: 50_000 },
   { key: 'pack_100k', price_zar: 1_000, units: 100_000 },
+];
+// Mirror Billing::AiOpsAddonPack::PACKS - same drift-risk caveat as
+// MESSAGE_PACKS.
+const AI_OPS_PACKS = [
+  { key: 'pack_1k', price_zar: 50, units: 1_000 },
+  { key: 'pack_2k', price_zar: 100, units: 2_000 },
+  { key: 'pack_5k', price_zar: 250, units: 5_000 },
+  { key: 'pack_10k', price_zar: 500, units: 10_000 },
+  { key: 'pack_20k', price_zar: 1_000, units: 20_000 },
+];
+// Mirror Billing::NotificationEmailAddonPack::PACKS.
+const NOTIFICATION_EMAIL_PACKS = [
+  { key: 'pack_1k', price_zar: 50, units: 1_000 },
+  { key: 'pack_2k', price_zar: 100, units: 2_000 },
+  { key: 'pack_5k', price_zar: 250, units: 5_000 },
+  { key: 'pack_10k', price_zar: 500, units: 10_000 },
+  { key: 'pack_20k', price_zar: 1_000, units: 20_000 },
 ];
 
 // Mirrors app/models/synkra_plan.rb - there's no API endpoint that
@@ -291,16 +312,38 @@ onMounted(async () => {
                 {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
               </ButtonV4>
             </div>
-            <BillingMeter
-              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.AI_OPS')"
-              :consumed="usage.ai_ops_used"
-              :total-count="usage.ai_ops_allowance"
-            />
-            <BillingMeter
-              :title="t('SYNKRA_BILLING_SETTINGS.USAGE.EMAILS')"
-              :consumed="usage.emails_used"
-              :total-count="usage.email_allowance"
-            />
+            <div class="flex items-end gap-2">
+              <BillingMeter
+                class="flex-1"
+                :title="t('SYNKRA_BILLING_SETTINGS.USAGE.AI_OPS')"
+                :consumed="usage.ai_ops_used"
+                :total-count="usage.ai_ops_allowance"
+              />
+              <ButtonV4
+                sm
+                faded
+                slate
+                @click="aiOpsAddonDialogRef?.dialogRef?.open()"
+              >
+                {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
+              </ButtonV4>
+            </div>
+            <div class="flex items-end gap-2">
+              <BillingMeter
+                class="flex-1"
+                :title="t('SYNKRA_BILLING_SETTINGS.USAGE.EMAILS')"
+                :consumed="usage.emails_used"
+                :total-count="usage.email_allowance"
+              />
+              <ButtonV4
+                sm
+                faded
+                slate
+                @click="notificationEmailAddonDialogRef?.dialogRef?.open()"
+              >
+                {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.BUY') }}
+              </ButtonV4>
+            </div>
           </div>
         </BillingCard>
 
@@ -351,6 +394,18 @@ onMounted(async () => {
         ref="extraStorageDialogRef"
         type="storage"
         :on-purchase="buyExtraStorage"
+      />
+      <AddonPurchaseDialog
+        ref="aiOpsAddonDialogRef"
+        type="ai_ops"
+        :packs="AI_OPS_PACKS"
+        :on-purchase="buyAiOpsAddon"
+      />
+      <AddonPurchaseDialog
+        ref="notificationEmailAddonDialogRef"
+        type="notification_emails"
+        :packs="NOTIFICATION_EMAIL_PACKS"
+        :on-purchase="buyNotificationEmailAddon"
       />
     </template>
   </SettingsLayout>

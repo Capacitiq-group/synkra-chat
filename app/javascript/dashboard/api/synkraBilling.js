@@ -52,6 +52,18 @@ class SynkraBillingAPI extends ApiClient {
       { gb }
     );
   }
+  buyAiOpsAddon(packKey) {
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/billing/ai_ops_addons`,
+      { pack_key: packKey }
+    );
+  }
+  buyNotificationEmailAddon(packKey) {
+    return axios.post(
+      `/api/v1/accounts/${this.accountIdFromRoute}/billing/notification_email_addons`,
+      { pack_key: packKey }
+    );
+  }
 }
 
 export default new SynkraBillingAPI();

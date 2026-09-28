@@ -59,6 +59,9 @@ class Billing::PaystackWebhookHandler
     elsif purchase_type == 'notification_email_addon'
       handle_notification_email_addon_purchase
       return
+    elsif purchase_type == 'ai_ops_addon'
+      handle_ai_ops_addon_purchase
+      return
     elsif %w[extra_seats extra_storage].include?(purchase_type)
       return
     end
@@ -112,6 +115,18 @@ class Billing::PaystackWebhookHandler
   # webhooks, and completed is a one-way state, so a duplicate
   # charge.success for the same reference is a no-op rather than
   # double-crediting.
+  def handle_ai_ops_addon_purchase
+    reference = @data['reference']
+    return if reference.blank?
+    purchase = AiOpsAddonPurchase.find_by(paystack_reference: reference)
+    return if purchase.nil? || purchase.status == 'completed'
+    ActiveRecord::Base.transaction do
+      purchase.update!(status: 'completed')
+      subscription = SynkraSubscription.find_by(account_id: purchase.account_id)
+      subscription&.increment!(:purchased_ai_ops_credits, purchase.units)
+    end
+  end
+
   def handle_notification_email_addon_purchase
     reference = @data['reference']
     return if reference.blank?

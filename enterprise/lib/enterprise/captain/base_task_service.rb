@@ -34,7 +34,7 @@ module Enterprise::Captain::BaseTaskService
   def synkra_ai_credits_available?
     subscription = account.synkra_subscription
     return true if subscription.blank?
-    subscription.ai_ops_used.to_i < subscription.ai_ops_allowance.to_i
+    !subscription.ai_ops_exhausted?
   end
   def synkra_ai_credits_exhausted_error
     Rails.logger.info(
@@ -65,6 +65,7 @@ module Enterprise::Captain::BaseTaskService
       resource_type: 'ai_request',
       source: event_name.to_s
     )
+    account.synkra_subscription&.consume_purchased_ai_ops_credit_if_over_plan_allowance!
     Automations::UsageTracker.track_ai_op!(account)
   rescue StandardError => e
     Rails.logger.error(

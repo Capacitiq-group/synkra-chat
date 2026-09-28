@@ -413,6 +413,10 @@ en:
       subject: "We've received your %{programme} application"
     usage_warning:
       subject: "You've used %{percent}% of your monthly message allowance"
+    ai_ops_warning:
+      subject: "You've used %{percent}% of your monthly AI operations allowance"
+    notification_email_warning:
+      subject: "You've used %{percent}% of your monthly notification email allowance"
     storage_warning:
       subject: "You've used %{percent}% of your storage allowance"
       subject_blocked: "Storage full - uploads are paused until you buy more"

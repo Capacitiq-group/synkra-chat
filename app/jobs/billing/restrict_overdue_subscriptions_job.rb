@@ -18,6 +18,8 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
   def perform
     restrict_overdue_subscriptions
     send_usage_warnings
+    send_ai_ops_warnings
+    send_notification_email_warnings
     send_storage_warnings
     rollover_free_tier_periods
   end
@@ -44,6 +46,32 @@ class Billing::RestrictOverdueSubscriptionsJob < ApplicationJob
       subscription.mark_warning_sent!(threshold)
     rescue StandardError => e
       Rails.logger.error "[SynkraBilling] Failed to send usage warning for subscription #{subscription.id}: #{e.message}"
+    end
+  end
+
+  # AI ops warning sweep - mirrors send_usage_warnings. Both reset
+  # per period (see SynkraSubscription#start_new_period!), so they
+  # share the messages pattern rather than the storage one.
+  def send_ai_ops_warnings
+    SynkraSubscription.where(status: %w[active past_due]).find_each do |subscription|
+      threshold = subscription.next_unnotified_ai_ops_threshold
+      next if threshold.nil?
+      Billing::NotificationMailer.ai_ops_warning(subscription: subscription, threshold: threshold).deliver_later
+      subscription.mark_ai_ops_warning_sent!(threshold)
+    rescue StandardError => e
+      Rails.logger.error "[SynkraBilling] Failed to send AI ops warning for subscription #{subscription.id}: #{e.message}"
+    end
+  end
+
+  # Notification email warning sweep - same shape.
+  def send_notification_email_warnings
+    SynkraSubscription.where(status: %w[active past_due]).find_each do |subscription|
+      threshold = subscription.next_unnotified_notification_email_threshold
+      next if threshold.nil?
+      Billing::NotificationMailer.notification_email_warning(subscription: subscription, threshold: threshold).deliver_later
+      subscription.mark_notification_email_warning_sent!(threshold)
+    rescue StandardError => e
+      Rails.logger.error "[SynkraBilling] Failed to send notification email warning for subscription #{subscription.id}: #{e.message}"
     end
   end
 

@@ -260,11 +260,48 @@ class SynkraSubscription < ApplicationRecord
     update!(last_usage_warning_threshold: threshold)
   end
 
+  # AI ops warning threshold - mirrors the message one, resets each
+  # period (start_new_period! clears both).
+  def next_unnotified_ai_ops_threshold
+    fraction = ai_ops_usage_fraction
+    already_notified = last_ai_ops_warning_threshold.to_f
+    SynkraPlan::WARNING_THRESHOLDS.select { |t| fraction >= t && t > already_notified }.max
+  end
+
+  def ai_ops_usage_fraction
+    allowance = ai_ops_allowance.to_i
+    return 0.0 if allowance <= 0
+    [ai_ops_used.to_f / allowance, 1.0].min
+  end
+
+  def mark_ai_ops_warning_sent!(threshold)
+    update!(last_ai_ops_warning_threshold: threshold)
+  end
+
+  # Notification email warning threshold - same shape, own column.
+  def next_unnotified_notification_email_threshold
+    fraction = notification_email_usage_fraction
+    already_notified = last_notification_email_warning_threshold.to_f
+    SynkraPlan::WARNING_THRESHOLDS.select { |t| fraction >= t && t > already_notified }.max
+  end
+
+  def notification_email_usage_fraction
+    allowance = email_allowance.to_i
+    return 0.0 if allowance <= 0
+    [emails_used.to_f / allowance, 1.0].min
+  end
+
+  def mark_notification_email_warning_sent!(threshold)
+    update!(last_notification_email_warning_threshold: threshold)
+  end
+
   def start_new_period!
     update!(
       current_period_start: Time.current,
       current_period_end: 1.month.from_now,
-      last_usage_warning_threshold: nil
+      last_usage_warning_threshold: nil,
+      last_ai_ops_warning_threshold: nil,
+      last_notification_email_warning_threshold: nil
     )
   end
 

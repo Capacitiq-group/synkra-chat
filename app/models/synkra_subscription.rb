@@ -210,6 +210,20 @@ class SynkraSubscription < ApplicationRecord
   # Message#record_synkra_usage_event), not before - it must reflect
   # the allowance state at the moment the message actually went
   # through, not a pre-check.
+  def consume_purchased_notification_email_credit_if_over_plan_allowance!
+    return unless notification_emails_over_plan_allowance?
+    return if purchased_notification_email_credits <= 0
+    decrement!(:purchased_notification_email_credits)
+  end
+
+  def notification_emails_over_plan_allowance?
+    emails_used >= email_allowance
+  end
+
+  def notification_emails_exhausted?
+    notification_emails_over_plan_allowance? && purchased_notification_email_credits <= 0
+  end
+
   def consume_purchased_message_credit_if_over_plan_allowance!
     return unless plan_allowance_exhausted?
     return if purchased_message_credits <= 0

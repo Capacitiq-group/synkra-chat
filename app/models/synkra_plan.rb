@@ -53,6 +53,7 @@ class SynkraPlan
     'free' => {
       name: 'Synkra Chat Free',
       price_zar: 0,
+      price_usd: 0,
       staff_limit: 1,
       business_initiated_message_allowance: 250,
       storage_mb_allowance: 1024,
@@ -65,6 +66,7 @@ class SynkraPlan
     'starter' => {
       name: 'Chat Starter',
       price_zar: 299,
+      price_usd: 20,
       staff_limit: 7,
       business_initiated_message_allowance: 3000,
       storage_mb_allowance: 3072,
@@ -75,6 +77,7 @@ class SynkraPlan
     'business' => {
       name: 'Business',
       price_zar: 599,
+      price_usd: 40,
       staff_limit: 15,
       business_initiated_message_allowance: 8000,
       storage_mb_allowance: 10_240,
@@ -85,6 +88,7 @@ class SynkraPlan
     'pro' => {
       name: 'Chat Pro',
       price_zar: 999,
+      price_usd: 65,
       staff_limit: 50,
       business_initiated_message_allowance: 25_000,
       storage_mb_allowance: 15_360,
@@ -98,17 +102,20 @@ class SynkraPlan
   # as the standard plan - only the price and Paystack plan differ. Paystack
   # plans are fixed-amount, so each programme price is its own Paystack
   # plan; price_zar here MUST match that plan's amount in Paystack.
-  # Whole-rand prices confirmed 21 Sep 2026 (Refilwe).
+  # Whole-rand prices confirmed 21 Sep 2026 (Refilwe). price_usd added
+  # 24 Sep 2026 - same 35%/60% discount applied to the base plan's own
+  # price_usd (display-only, like price_usd everywhere else in this
+  # class - see EXTRA_SEAT_PRICE_USD below).
   PROGRAMME_PLANS = {
     'student' => {
-      'starter' => { price_zar: 195, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_STUDENT', nil) },
-      'business' => { price_zar: 389, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_STUDENT', nil) },
-      'pro' => { price_zar: 649, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_STUDENT', nil) }
+      'starter' => { price_zar: 195, price_usd: 13, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_STUDENT', nil) },
+      'business' => { price_zar: 389, price_usd: 26, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_STUDENT', nil) },
+      'pro' => { price_zar: 649, price_usd: 42, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_STUDENT', nil) }
     },
     'community' => {
-      'starter' => { price_zar: 119, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_COMMUNITY', nil) },
-      'business' => { price_zar: 239, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_COMMUNITY', nil) },
-      'pro' => { price_zar: 399, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_COMMUNITY', nil) }
+      'starter' => { price_zar: 119, price_usd: 8, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER_COMMUNITY', nil) },
+      'business' => { price_zar: 239, price_usd: 16, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS_COMMUNITY', nil) },
+      'pro' => { price_zar: 399, price_usd: 26, paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO_COMMUNITY', nil) }
     }
   }.freeze
 
@@ -125,6 +132,12 @@ class SynkraPlan
     (PROGRAMME_PLANS[programme.to_s] || {}).transform_values { |config| config[:price_zar] }
   end
 
+  # Same shape as programme_prices, in USD - display-only (see
+  # PROGRAMME_PLANS' price_usd comment).
+  def self.programme_prices_usd(programme)
+    (PROGRAMME_PLANS[programme.to_s] || {}).transform_values { |config| config[:price_usd] }
+  end
+
   # Confirmed 13 Sep 2026 (Refilwe): R30/GB/month for storage beyond a
   # plan's storage_mb_allowance. Not yet wired to anything - see the
   # class comment above.
@@ -133,6 +146,17 @@ class SynkraPlan
   # Confirmed 13 Sep 2026 (Refilwe): R69/seat/month for any seat beyond
   # the plan's staff_limit - see Billing::ExtraSeatService.
   EXTRA_SEAT_PRICE_ZAR = 69
+
+  # USD display-only equivalents (24 Sep 2026) for the two constants
+  # above, using the same ~15 ZAR/USD rate implied by the base plan
+  # prices' own ZAR->USD figures (R299->$20, R599->$40, R999->$65).
+  # The actual Paystack charge for add-ons is always in ZAR regardless
+  # of this - see SynkraSubscription#preferred_currency. Not tied to a
+  # live exchange rate on purpose - kept fixed so prices match whatever
+  # Chat's own marketing site publishes; update both in lockstep if the
+  # business changes the published figures.
+  EXTRA_STORAGE_PRICE_USD_PER_GB = 2.00
+  EXTRA_SEAT_PRICE_USD = 4.60
 
   # Ranked lowest to highest - used by nothing in the backend today,
   # but keeping the hash insertion order meaningful (free < starter <

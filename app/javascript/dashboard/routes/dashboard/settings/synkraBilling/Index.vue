@@ -47,9 +47,12 @@ const {
   buyMessageAddon,
   buyExtraSeats,
   buyExtraStorage,
+  preferredCurrency,
+  setCurrency,
 } = useSynkraBilling();
 
-const { activeProgramme, activePrices } = useSynkraProgrammes();
+const { activeProgramme, activePrices, activePricesUsd } =
+  useSynkraProgrammes();
 
 const cancelDialogRef = ref(null);
 const messageAddonDialogRef = ref(null);
@@ -59,11 +62,11 @@ const extraStorageDialogRef = ref(null);
 // Mirrors Billing::MessageAddonPack::PACKS (synkra_chat's own repo) -
 // same drift-risk caveat as PLAN_CATALOGUE below.
 const MESSAGE_PACKS = [
-  { key: 'pack_5k', price_zar: 50, units: 5_000 },
-  { key: 'pack_10k', price_zar: 100, units: 10_000 },
-  { key: 'pack_25k', price_zar: 250, units: 25_000 },
-  { key: 'pack_50k', price_zar: 500, units: 50_000 },
-  { key: 'pack_100k', price_zar: 1_000, units: 100_000 },
+  { key: 'pack_5k', price_zar: 50, price_usd: 3.33, units: 5_000 },
+  { key: 'pack_10k', price_zar: 100, price_usd: 6.67, units: 10_000 },
+  { key: 'pack_25k', price_zar: 250, price_usd: 16.67, units: 25_000 },
+  { key: 'pack_50k', price_zar: 500, price_usd: 33.33, units: 50_000 },
+  { key: 'pack_100k', price_zar: 1_000, price_usd: 66.67, units: 100_000 },
 ];
 
 // Mirrors app/models/synkra_plan.rb - there's no API endpoint that
@@ -81,6 +84,7 @@ const PLAN_CATALOGUE = [
     key: 'free',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.FREE_NAME'),
     priceZar: 0,
+    priceUsd: 0,
     messageAllowance: 250,
     staffLimit: 1,
   },
@@ -88,6 +92,7 @@ const PLAN_CATALOGUE = [
     key: 'starter',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.STARTER_NAME'),
     priceZar: 299,
+    priceUsd: 20,
     messageAllowance: 3000,
     staffLimit: 7,
   },
@@ -95,6 +100,7 @@ const PLAN_CATALOGUE = [
     key: 'business',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.BUSINESS_NAME'),
     priceZar: 599,
+    priceUsd: 40,
     messageAllowance: 8000,
     staffLimit: 15,
   },
@@ -102,6 +108,7 @@ const PLAN_CATALOGUE = [
     key: 'pro',
     name: t('SYNKRA_BILLING_SETTINGS.PLANS.PRO_NAME'),
     priceZar: 999,
+    priceUsd: 65,
     messageAllowance: 25000,
     staffLimit: 50,
   },
@@ -145,6 +152,11 @@ const handlePlanSelect = planKey => {
   } else if (action === 'downgrade') {
     scheduleDowngrade(planKey);
   }
+};
+
+const handleCurrencyToggle = currency => {
+  if (currency === preferredCurrency.value) return;
+  setCurrency(currency);
 };
 
 const handleCancelClick = () => cancelDialogRef.value?.dialogRef?.open();
@@ -307,11 +319,38 @@ onMounted(async () => {
         <StudentVerificationCard />
         <CommunityAccessCard />
 
-        <BillingHeader
-          class="px-1 mt-2"
-          :title="t('SYNKRA_BILLING_SETTINGS.PLANS.TITLE')"
-          :description="t('SYNKRA_BILLING_SETTINGS.PLANS.DESCRIPTION')"
-        />
+        <div class="flex items-center justify-between px-1 mt-2 gap-2">
+          <BillingHeader
+            :title="t('SYNKRA_BILLING_SETTINGS.PLANS.TITLE')"
+            :description="t('SYNKRA_BILLING_SETTINGS.PLANS.DESCRIPTION')"
+          />
+          <div
+            class="flex rounded-lg border border-n-weak overflow-hidden flex-shrink-0"
+          >
+            <button
+              class="text-sm px-3 py-1.5"
+              :class="
+                preferredCurrency === 'zar'
+                  ? 'bg-n-brand text-white'
+                  : 'bg-n-solid-2 text-n-slate-11'
+              "
+              @click="handleCurrencyToggle('zar')"
+            >
+              {{ t('SYNKRA_BILLING_SETTINGS.PLANS.CURRENCY_ZAR') }}
+            </button>
+            <button
+              class="text-sm px-3 py-1.5"
+              :class="
+                preferredCurrency === 'usd'
+                  ? 'bg-n-brand text-white'
+                  : 'bg-n-solid-2 text-n-slate-11'
+              "
+              @click="handleCurrencyToggle('usd')"
+            >
+              {{ t('SYNKRA_BILLING_SETTINGS.PLANS.CURRENCY_USD') }}
+            </button>
+          </div>
+        </div>
         <div class="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
           <PlanCard
             v-for="planOption in PLAN_CATALOGUE"
@@ -319,8 +358,11 @@ onMounted(async () => {
             :plan-key="planOption.key"
             :name="planOption.name"
             :price-zar="planOption.priceZar"
+            :price-usd="planOption.priceUsd"
             :discounted-price-zar="activePrices?.[planOption.key] || null"
+            :discounted-price-usd="activePricesUsd?.[planOption.key] || null"
             :programme="activeProgramme"
+            :currency="preferredCurrency"
             :message-allowance="planOption.messageAllowance"
             :staff-limit="planOption.staffLimit"
             :is-current="planOption.key === plan"
@@ -340,6 +382,7 @@ onMounted(async () => {
         ref="messageAddonDialogRef"
         type="messages"
         :packs="MESSAGE_PACKS"
+        :currency="preferredCurrency"
         :on-purchase="buyMessageAddon"
       />
       <AddonPurchaseDialog

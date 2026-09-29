@@ -812,7 +812,9 @@
     "PLANS": {
       "TITLE": "Plans",
       "DESCRIPTION": "Choose the plan that fits your team.",
-      "PRICE": "R{price} / month",
+      "PRICE": "{symbol}{price} / month",
+      "CURRENCY_ZAR": "ZAR",
+      "CURRENCY_USD": "USD",
       "STUDENT_PRICE": "Student price",
       "COMMUNITY_PRICE": "Community price",
       "CURRENT": "Current plan",
@@ -837,7 +839,8 @@
       "CHECKOUT": "Couldn't start checkout. Please try again.",
       "CHANGE_PLAN": "Couldn't change your plan. Please try again.",
       "CANCEL": "Couldn't cancel your subscription. Please try again.",
-      "RESUME": "Couldn't resume your subscription. Please try again."
+      "RESUME": "Couldn't resume your subscription. Please try again.",
+      "SET_CURRENCY": "Couldn't update your display currency. Please try again."
     },
     "SUCCESS": {
       "PLAN_SCHEDULED": "Your plan change has been scheduled for the end of the current period.",

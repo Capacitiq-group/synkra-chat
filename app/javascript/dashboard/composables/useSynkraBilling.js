@@ -31,6 +31,11 @@ export function useSynkraBilling() {
     () => !!subscription.value?.cancel_at_period_end
   );
   const pendingPlan = computed(() => subscription.value?.pending_plan);
+  // Display-only - never affects what's actually charged via Paystack
+  // (always ZAR) - see SynkraSubscription#preferred_currency.
+  const preferredCurrency = computed(
+    () => subscription.value?.preferred_currency || 'zar'
+  );
 
   const fetchSubscription = async ({ silent = false } = {}) => {
     if (!silent) isFetching.value = true;
@@ -155,6 +160,16 @@ export function useSynkraBilling() {
     useAlert(t('SYNKRA_BILLING_SETTINGS.SUCCESS.STORAGE_PURCHASED'));
   };
 
+  // Display-only currency toggle - see preferredCurrency above.
+  const setCurrency = async currency => {
+    try {
+      const response = await SynkraBillingAPI.setCurrency(currency);
+      subscription.value = response.data;
+    } catch (error) {
+      useAlert(t('SYNKRA_BILLING_SETTINGS.ERRORS.SET_CURRENCY'));
+    }
+  };
+
   return {
     subscription,
     plan,
@@ -165,6 +180,7 @@ export function useSynkraBilling() {
     isCancelled,
     isCancelling,
     pendingPlan,
+    preferredCurrency,
     isFetching,
     isProcessing,
     isConfirmingPayment,
@@ -178,5 +194,6 @@ export function useSynkraBilling() {
     buyMessageAddon,
     buyExtraSeats,
     buyExtraStorage,
+    setCurrency,
   };
 }

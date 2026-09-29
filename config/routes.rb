@@ -405,6 +405,7 @@ Rails.application.routes.draw do
               post :change_plan
               post :cancel
               post :resume
+              post :set_currency
             end
             resources :message_addons, only: %i[index create]
             resources :extra_seats, only: [:create]

@@ -39,5 +39,24 @@ export function useSynkraProgrammes() {
     return null;
   });
 
-  return { student, community, fetchProgrammes, activeProgramme, activePrices };
+  // Same as activePrices, in USD - display-only (the actual Paystack
+  // charge is always in ZAR regardless).
+  const activePricesUsd = computed(() => {
+    if (activeProgramme.value === 'community') {
+      return community.value?.discounted_prices_usd || null;
+    }
+    if (activeProgramme.value === 'student') {
+      return student.value?.discounted_prices_usd || null;
+    }
+    return null;
+  });
+
+  return {
+    student,
+    community,
+    fetchProgrammes,
+    activeProgramme,
+    activePrices,
+    activePricesUsd,
+  };
 }

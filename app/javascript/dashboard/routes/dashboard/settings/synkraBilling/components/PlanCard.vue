@@ -1,17 +1,27 @@
 <script setup>
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ButtonV4 from 'next/button/Button.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
 
-defineProps({
+const props = defineProps({
   planKey: { type: String, required: true },
   name: { type: String, required: true },
   priceZar: { type: Number, required: true },
+  priceUsd: { type: Number, required: true },
   // Set when the account is verified for a discount programme:
-  // discountedPriceZar is what this plan costs them, programme is
+  // discountedPriceZar/Usd is what this plan costs them, programme is
   // 'student' | 'community' (decides the label).
   discountedPriceZar: { type: Number, default: null },
+  discountedPriceUsd: { type: Number, default: null },
   programme: { type: String, default: null },
+  // Display-only - the actual Paystack charge is always in ZAR
+  // regardless of this (see SynkraSubscription#preferred_currency).
+  currency: {
+    type: String,
+    default: 'zar',
+    validator: value => ['zar', 'usd'].includes(value),
+  },
   messageAllowance: { type: Number, required: true },
   staffLimit: { type: Number, required: true },
   isCurrent: { type: Boolean, default: false },
@@ -31,6 +41,17 @@ defineProps({
 const emit = defineEmits(['select']);
 
 const { t } = useI18n();
+
+const isUsd = computed(() => props.currency === 'usd');
+const currencySymbol = computed(() => (isUsd.value ? '$' : 'R'));
+const basePrice = computed(() =>
+  isUsd.value ? props.priceUsd : props.priceZar
+);
+// null (not 0) when no programme discount applies, so the template's
+// v-if checks below still work as "is there a discount to show".
+const discountedPrice = computed(() =>
+  isUsd.value ? props.discountedPriceUsd : props.discountedPriceZar
+);
 </script>
 
 <template>
@@ -44,18 +65,24 @@ const { t } = useI18n();
       <div>
         <h3 class="text-lg font-medium text-n-slate-12">{{ name }}</h3>
         <p class="text-base text-n-slate-11 mt-1.5">
-          <span v-if="discountedPriceZar" class="line-through mr-1.5">
-            {{ t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', { price: priceZar }) }}
-          </span>
-          <span :class="{ 'text-n-slate-12 font-medium': discountedPriceZar }">
+          <span v-if="discountedPrice" class="line-through mr-1.5">
             {{
               t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', {
-                price: discountedPriceZar || priceZar,
+                symbol: currencySymbol,
+                price: basePrice,
+              })
+            }}
+          </span>
+          <span :class="{ 'text-n-slate-12 font-medium': discountedPrice }">
+            {{
+              t('SYNKRA_BILLING_SETTINGS.PLANS.PRICE', {
+                symbol: currencySymbol,
+                price: discountedPrice || basePrice,
               })
             }}
           </span>
         </p>
-        <p v-if="discountedPriceZar" class="text-xs text-n-teal-11 mt-1">
+        <p v-if="discountedPrice" class="text-xs text-n-teal-11 mt-1">
           {{
             programme === 'community'
               ? t('SYNKRA_BILLING_SETTINGS.PLANS.COMMUNITY_PRICE')

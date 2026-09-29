@@ -32,6 +32,13 @@ class SynkraBillingAPI extends ApiClient {
     return axios.post(`${this.url}/resume`);
   }
 
+  // Display-only - toggles which currency Chat's own billing UI shows
+  // prices in. Never changes what's actually charged via Paystack
+  // (always ZAR) - see SynkraSubscription#preferred_currency.
+  setCurrency(currency) {
+    return axios.post(`${this.url}/set_currency`, { currency });
+  }
+
   buyMessageAddon(packKey) {
     return axios.post(
       `/api/v1/accounts/${this.accountIdFromRoute}/billing/message_addons`,

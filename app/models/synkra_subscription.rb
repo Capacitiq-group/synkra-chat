@@ -20,6 +20,9 @@ class SynkraSubscription < ApplicationRecord
 
   validates :plan, inclusion: { in: SynkraPlan.names }
   validates :status, inclusion: { in: STATUSES }
+  # Display-only - never changes what's actually charged via Paystack
+  # (always ZAR). See the preferred_currency migration's comment.
+  validates :preferred_currency, inclusion: { in: %w[zar usd] }
 
   before_validation :set_default_period, on: :create
 
@@ -29,18 +32,15 @@ class SynkraSubscription < ApplicationRecord
 
   # Plan config with the programme discount this subscription is
   # actually being charged under (pricing_programme) applied.
+  # pricing_programme itself is a real column (see
+  # AddProgrammePricingToSynkraSubscriptions) - set at checkout/by the
+  # Paystack webhook handler, cleared on cancellation, and compared
+  # against SynkraProgrammeVerification by Billing::ExpireProgrammesJob
+  # to detect expiry. Do NOT redefine pricing_programme as a computed
+  # method here - that would shadow the real stored value with a
+  # live-recomputed guess and silently break all of that.
   def priced_plan_config
     SynkraPlan.for_programme(plan, pricing_programme)
-  end
-
-  # Which discount programme (if any) currently applies to this
-  # account's billing - 'student', 'community', or nil for standard
-  # pricing. No active verification in synkra_programme_verifications
-  # = no programme billing, per that model's own file comment.
-  def pricing_programme
-    SynkraProgrammeVerification::PROGRAMMES.find do |programme|
-      SynkraProgrammeVerification.active_verification_for(account_id, programme).present?
-    end
   end
 
   # The plan's own staff_limit plus any purchased extra seats

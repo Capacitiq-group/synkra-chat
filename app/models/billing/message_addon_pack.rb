@@ -4,12 +4,16 @@
 # non-expiring, R50 pack-price floor. A plain Ruby config, not a
 # database table, matching SynkraPlan's own pattern.
 module Billing::MessageAddonPack
+  # price_usd figures are display-only (same ~15 ZAR/USD rate implied
+  # by SynkraPlan's own plan prices - see that class's comment on
+  # EXTRA_SEAT_PRICE_USD) - the actual Paystack charge for a pack
+  # purchase is always in ZAR, unaffected by this.
   PACKS = [
-    { key: 'pack_5k', price_zar: 50, units: 5_000 },
-    { key: 'pack_10k', price_zar: 100, units: 10_000 },
-    { key: 'pack_25k', price_zar: 250, units: 25_000 },
-    { key: 'pack_50k', price_zar: 500, units: 50_000 },
-    { key: 'pack_100k', price_zar: 1_000, units: 100_000 }
+    { key: 'pack_5k', price_zar: 50, price_usd: 3.33, units: 5_000 },
+    { key: 'pack_10k', price_zar: 100, price_usd: 6.67, units: 10_000 },
+    { key: 'pack_25k', price_zar: 250, price_usd: 16.67, units: 25_000 },
+    { key: 'pack_50k', price_zar: 500, price_usd: 33.33, units: 50_000 },
+    { key: 'pack_100k', price_zar: 1_000, price_usd: 66.67, units: 100_000 }
   ].freeze
 
   def self.find(pack_key)

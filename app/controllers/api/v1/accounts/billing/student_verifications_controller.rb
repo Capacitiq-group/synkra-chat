@@ -80,6 +80,7 @@ class Api::V1::Accounts::Billing::StudentVerificationsController < Api::V1::Acco
     {
       programme: 'student',
       discounted_prices: SynkraPlan.programme_prices('student'),
+      discounted_prices_usd: SynkraPlan.programme_prices_usd('student'),
       review: review && { status: review.status, submitted_at: review.submitted_at, note: review.status == 'needs_info' ? review.review_note : nil },
       rejection: rejection && { note: rejection.review_note, reviewed_at: rejection.reviewed_at },
       extensions: SynkraProgrammeVerification::STUDENT_EMAIL_EXTENSIONS,

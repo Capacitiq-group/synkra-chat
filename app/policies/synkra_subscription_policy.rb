@@ -53,4 +53,11 @@ class SynkraSubscriptionPolicy < ApplicationPolicy
   def claim?
     @account_user.administrator?
   end
+
+  # SubscriptionsController#set_currency - toggles which currency
+  # Chat's own billing UI displays prices in (display-only, see
+  # SynkraSubscription#preferred_currency).
+  def set_currency?
+    @account_user.administrator?
+  end
 end

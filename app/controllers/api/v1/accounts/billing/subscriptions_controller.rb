@@ -71,6 +71,20 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
     render json: subscription_payload
   end
 
+  # Toggles which currency Chat's own billing UI displays prices in.
+  # Display-only - never changes what's actually charged via Paystack
+  # (always ZAR - see SynkraSubscription#preferred_currency).
+  def set_currency
+    currency = params[:currency].to_s
+    unless %w[zar usd].include?(currency)
+      render json: { error: 'Invalid currency' }, status: :unprocessable_entity
+      return
+    end
+
+    @subscription.update!(preferred_currency: currency)
+    render json: subscription_payload
+  end
+
   private
 
   def fetch_subscription
@@ -82,6 +96,12 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
       plan: @subscription.plan,
       plan_name: @subscription.plan_config[:name],
       price_zar: @subscription.priced_plan_config[:price_zar],
+      price_usd: @subscription.priced_plan_config[:price_usd],
+      preferred_currency: @subscription.preferred_currency,
+      extra_seat_price_zar: SynkraPlan::EXTRA_SEAT_PRICE_ZAR,
+      extra_seat_price_usd: SynkraPlan::EXTRA_SEAT_PRICE_USD,
+      extra_storage_price_zar_per_gb: SynkraPlan::EXTRA_STORAGE_PRICE_ZAR_PER_GB,
+      extra_storage_price_usd_per_gb: SynkraPlan::EXTRA_STORAGE_PRICE_USD_PER_GB,
       pricing_programme: @subscription.pricing_programme,
       status: @subscription.status,
       billing_cycle: @subscription.billing_cycle,

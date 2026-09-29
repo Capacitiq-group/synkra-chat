@@ -9,6 +9,13 @@ const props = defineProps({
   // 'seats' | 'storage' | 'messages' - each has different pricing/input shape
   type: { type: String, required: true },
   packs: { type: Array, default: () => [] }, // only used for type === 'messages'
+  // Display-only - the actual Paystack charge is always in ZAR
+  // regardless of this (see SynkraSubscription#preferred_currency).
+  currency: {
+    type: String,
+    default: 'zar',
+    validator: value => ['zar', 'usd'].includes(value),
+  },
   // Async function that actually performs the purchase - a prop
   // rather than an emit, since Vue's emit() has no return value to
   // await: a plain emit here would close the dialog and clear the
@@ -21,6 +28,10 @@ const props = defineProps({
 const { t } = useI18n();
 const dialogRef = ref(null);
 const quantity = ref(1);
+
+const currencySymbol = computed(() => (props.currency === 'usd' ? '$' : 'R'));
+const packPrice = pack =>
+  props.currency === 'usd' ? pack.price_usd : pack.price_zar;
 const selectedPackKey = ref(props.packs[0]?.key);
 const isPurchasing = ref(false);
 
@@ -87,7 +98,7 @@ defineExpose({ dialogRef });
         />
         <span class="text-sm">
           {{ pack.units.toLocaleString() }} {{ t('SYNKRA_BILLING_SETTINGS.ADDONS.MESSAGES.UNIT') }}
-          — R{{ pack.price_zar }}
+          — {{ currencySymbol }}{{ packPrice(pack) }}
         </span>
       </label>
     </div>

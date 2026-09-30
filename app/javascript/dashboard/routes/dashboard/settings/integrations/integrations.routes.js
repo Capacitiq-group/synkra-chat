@@ -40,7 +40,10 @@ export default {
           component: Webhook,
           name: 'settings_integrations_webhook',
           meta: {
-            featureFlag: FEATURE_FLAGS.INTEGRATIONS,
+            // Synkra Chat V1: gated on api_and_webhooks (globally enabled)
+            // instead of integrations (globally disabled), so this route
+            // is reachable without un-hiding the full Integrations suite.
+            featureFlag: FEATURE_FLAGS.API_AND_WEBHOOKS,
             permissions: ['administrator'],
           },
         },

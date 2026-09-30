@@ -108,7 +108,9 @@ const channelList = computed(() => {
 // Synkra Chat V1: only the Website channel is offered to customers.
 // The full channelList above is left untouched so other channels can be
 // re-enabled later just by removing this filter - nothing is deleted.
-const SYNKRA_V1_ENABLED_CHANNELS = ['website'];
+// Synkra Chat V1: only Website and API channels are offered. The
+// API channel lets developers build custom inboxes for their own apps.
+const SYNKRA_V1_ENABLED_CHANNELS = ['website', 'api'];
 const visibleChannelList = computed(() =>
   channelList.value.filter(channel =>
     SYNKRA_V1_ENABLED_CHANNELS.includes(channel.key)

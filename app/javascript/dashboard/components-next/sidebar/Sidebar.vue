@@ -934,6 +934,16 @@ const menuItems = computed(() => {
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
         },
+        {
+          // Synkra Chat V1: standalone Webhooks entry, always visible.
+          // Sits outside the isIntegrationsVisibleInV1 gate so users
+          // can configure webhook subscriptions without exposing the
+          // rest of the Integrations suite (Slack, Linear, Notion).
+          name: 'Settings Webhooks',
+          label: t('SIDEBAR.WEBHOOKS'),
+          icon: 'i-lucide-webhook',
+          to: accountScopedRoute('settings_integrations_webhook'),
+        },
         ...(isIntegrationsVisibleInV1
           ? [
               {

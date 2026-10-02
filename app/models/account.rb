@@ -163,6 +163,29 @@ class Account < ApplicationRecord
     super.presence || ENV.fetch('MAILER_SENDER_EMAIL') { GlobalConfig.get('MAILER_SUPPORT_EMAIL')['MAILER_SUPPORT_EMAIL'] }
   end
 
+  # Synkra Chat: developer-facing features gated behind paid plans.
+  # Free-tier accounts (plan == 'free', or no subscription yet) can't
+  # use the public API, webhooks, or API-channel inboxes. The override
+  # sits here so every existing reader - the sidebar, the Webhooks
+  # route, the account JSON payload that feeds the frontend, and the
+  # webhooks controller itself - picks up the gate automatically.
+  PAID_ONLY_FEATURES = %i[api_and_webhooks].freeze
+
+  def feature_enabled?(name)
+    return false if paid_only_feature?(name) && synkra_free_plan?
+
+    super
+  end
+
+  def paid_only_feature?(name)
+    PAID_ONLY_FEATURES.include?(name.to_sym)
+  end
+
+  def synkra_free_plan?
+    sub = synkra_subscription
+    sub.nil? || sub.plan.to_s == 'free'
+  end
+
   def usage_limits
     {
       agents: ChatwootApp.max_limit.to_i,

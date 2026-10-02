@@ -74,6 +74,7 @@ en:
       cannot_revoke_current: You cannot revoke the current session.
 
   errors:
+    api_and_webhooks_paid_only: "Webhooks and the API channel are available on paid plans. Upgrade to continue."
     account:
       not_authorized: You are not authorized to access this account
       email_limit_exceeded: The daily email limit for this account has been reached

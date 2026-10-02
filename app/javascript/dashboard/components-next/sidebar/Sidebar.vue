@@ -70,6 +70,17 @@ const isFeatureEnabledonAccount = useMapGetter(
   'accounts/isFeatureEnabledonAccount'
 );
 
+// Synkra Chat: Webhooks and the API channel are paid-tier features.
+// Free-tier accounts have this flag forced to false by the backend
+// (see Account#feature_enabled? override in the Rails app), so the
+// computed reads directly from the account payload.
+const apiAndWebhooksEnabled = computed(() =>
+  isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.API_AND_WEBHOOKS
+  )
+);
+
 const hasAdvancedAssignment = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
@@ -934,16 +945,21 @@ const menuItems = computed(() => {
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
         },
-        {
-          // Synkra Chat V1: standalone Webhooks entry, always visible.
-          // Sits outside the isIntegrationsVisibleInV1 gate so users
-          // can configure webhook subscriptions without exposing the
-          // rest of the Integrations suite (Slack, Linear, Notion).
-          name: 'Settings Webhooks',
-          label: t('SIDEBAR.WEBHOOKS'),
-          icon: 'i-lucide-webhook',
-          to: accountScopedRoute('settings_integrations_webhook'),
-        },
+        ...(apiAndWebhooksEnabled.value
+          ? [
+              {
+                // Synkra Chat V1: standalone Webhooks entry, gated on
+                // api_and_webhooks (paid plans only). Sits outside the
+                // isIntegrationsVisibleInV1 gate so users can configure
+                // webhook subscriptions without exposing the rest of
+                // the Integrations suite.
+                name: 'Settings Webhooks',
+                label: t('SIDEBAR.WEBHOOKS'),
+                icon: 'i-lucide-webhook',
+                to: accountScopedRoute('settings_integrations_webhook'),
+              },
+            ]
+          : []),
         ...(isIntegrationsVisibleInV1
           ? [
               {

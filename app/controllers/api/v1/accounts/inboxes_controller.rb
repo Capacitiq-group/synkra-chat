@@ -4,6 +4,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
   before_action :fetch_agent_bot, only: [:set_agent_bot]
   # we are already handling the authorization in fetch inbox
   before_action :check_authorization, except: [:show]
+  before_action :ensure_api_channel_allowed, only: [:create]
 
   include Api::V1::Accounts::Concerns::WhatsappHealthManagement
 
@@ -96,6 +97,16 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def fetch_agent_bot
     @agent_bot = AgentBot.accessible_to(Current.account).find(params[:agent_bot]) if params[:agent_bot]
+  end
+
+  # Synkra Chat: the API channel is a paid-tier feature - creating one
+  # on a Free account is rejected with a clear 402 rather than a 422.
+  def ensure_api_channel_allowed
+    return unless params.dig(:channel, :type) == 'api'
+    return if Current.account.feature_enabled?(:api_and_webhooks)
+
+    render json: { error: I18n.t('errors.api_and_webhooks_paid_only') },
+           status: :payment_required
   end
 
   def create_channel

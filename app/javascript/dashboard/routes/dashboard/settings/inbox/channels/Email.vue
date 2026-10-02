@@ -40,12 +40,17 @@ const emailProviderList = computed(() => {
       key: 'other_provider',
       icon: 'i-woot-mail',
     },
-  ].filter(providerConfig => {
-    if (isAChatwootInstance.value) {
-      return true;
-    }
-    return providerConfig.isEnabled;
-  });
+  ]
+    // Synkra Chat V1: OAuth (Google / Microsoft) is not offered — the
+    // customer never hands over mailbox credentials. Forwarding mode
+    // (the 'other_provider' option) is the only path.
+    .filter(providerConfig => providerConfig.key === 'other_provider')
+    .filter(providerConfig => {
+      if (isAChatwootInstance.value) {
+        return true;
+      }
+      return providerConfig.isEnabled;
+    });
 });
 
 function onClick(emailProvider) {

@@ -419,11 +419,19 @@
         "API": {
           "ERROR_MESSAGE": "We were not able to save the email channel"
         },
-        "FINISH_MESSAGE": "Your email inbox has been created successfully! You can start forwarding your emails to the address below, or configure SMTP and IMAP credentials to send and receive emails directly.",
-        "FINISH_MESSAGE_NO_FORWARDING": "Your email inbox has been created successfully! You need to configure SMTP and IMAP credentials to send and receive emails. Without these settings, no emails will be processed.",
+        "FINISH_MESSAGE": "Your email inbox is ready. Forward messages from your business address to the Synkra address below and they'll arrive here as conversations.",
+        "FINISH_MESSAGE_NO_FORWARDING": "Your email inbox has been created. Forwarding is not currently available on this instance — please contact Synkra support.",
         "FORWARDING_ADDRESS_LABEL": "Forward emails to this address:",
-        "CONFIGURE_SMTP_IMAP_LINK": "Click here",
-        "CONFIGURE_SMTP_IMAP_TEXT": " to configure IMAP and SMTP settings"
+        "FINISH_INSTRUCTIONS": {
+          "HEADING": "How to set up forwarding",
+          "DESCRIPTION": "Pick your email provider below and follow the steps. You'll need to do this in the settings of the mailbox that currently receives your customer emails.",
+          "GMAIL_TAB": "Gmail",
+          "MICROSOFT_TAB": "Microsoft 365 / Outlook",
+          "OTHER_TAB": "Other provider",
+          "GMAIL_STEPS": "1. Open Gmail in a browser and click the gear icon, then See all settings.\n2. Go to the Forwarding and POP/IMAP tab.\n3. Click Add a forwarding address.\n4. Paste the Synkra address shown above and click Next.\n5. Google will ask you to confirm. Click Proceed, then OK.\n6. Check the inbox of your business email (the one you entered). Google will have sent a confirmation email there.\n7. Open that email and click the verification link.\n8. Return here — forwarding is now active.",
+          "MICROSOFT_STEPS": "1. Sign in to Outlook on the web at outlook.office.com.\n2. Click the gear icon, then View all Outlook settings.\n3. Go to Mail, then Forwarding.\n4. Turn on Enable forwarding and paste the Synkra address shown above.\n5. Optionally tick Keep a copy of forwarded messages.\n6. Click Save.\n7. Microsoft may send a verification email to your business inbox — open it and complete any confirmation it asks for.\n8. Return here — forwarding is now active.",
+          "OTHER_STEPS": "The exact steps depend on your provider, but the process is the same everywhere:\n\n1. Open the settings of the mailbox that receives your customer emails.\n2. Find the forwarding or auto-forward option (often under Rules, Filters, or Forwarding).\n3. Add the Synkra address shown above as a forwarding destination.\n4. Save the rule.\n5. If your provider sends a verification email, open it and complete the confirmation.\n6. Return here — forwarding is now active."
+        }
       },
       "LINE_CHANNEL": {
         "TITLE": "LINE Channel",
@@ -1363,8 +1371,8 @@
         "DESCRIPTION": "Connect with Google"
       },
       "OTHER_PROVIDERS": {
-        "TITLE": "Other Providers",
-        "DESCRIPTION": "Connect with Other Providers"
+        "TITLE": "Forward from my existing email",
+        "DESCRIPTION": "Keep using your current email provider. Forward messages to a Synkra address and they'll arrive here as conversations."
       }
     },
     "CHANNELS": {

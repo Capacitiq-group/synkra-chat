@@ -41,13 +41,27 @@
 # Billing::ExtraSeatService.
 #
 # storage_mb_allowance CONFIRMED same day: Free 1GB, Starter 3GB,
-# Business 10GB, Pro 15GB, extra storage R30/GB. NOT YET TRACKED OR
-# ENFORCED ANYWHERE - unlike messages/seats, nothing currently measures
-# an account's actual storage usage at all (no ActiveStorage blob-size
-# query, no scheduled job, no controller). storage_mb_allowance and
-# EXTRA_STORAGE_PRICE_ZAR_PER_GB below are confirmed numbers with
-# nothing wired to them yet - a real gap, not display-only like the
-# message/seat numbers briefly were.
+# Business 10GB, Pro 15GB, extra storage R30/GB.
+#
+# NOW TRACKED AND ENFORCED (as of 2 Oct 2026):
+#   - Billing::RecalculateStorageUsageJob runs daily at 03:00 UTC and
+#     recomputes SynkraSubscription#storage_used_mb from
+#     Billing::StorageUsageCalculator.
+#   - SynkraSubscription#storage_blocked? returns true once cached
+#     usage reaches effective_storage_mb_allowance (plan allowance plus
+#     any purchased_extra_storage_gb).
+#   - Attachment#validate_storage_allowance and Captain::Document both
+#     check storage_blocked? and reject new uploads with a clear
+#     message.
+#   - The cached value is up to ~24h stale, a deliberate tradeoff
+#     documented in the recalc job's own comment. Worst case, an
+#     account slips past quota for one day before the next recalc
+#     blocks them.
+#
+# The previous version of this comment claimed storage was neither
+# tracked nor enforced. That was true when it was written and has been
+# wrong since the storage enforcement shipped. Corrected here to match
+# the actual code.
 class SynkraPlan
   PLANS = {
     'free' => {

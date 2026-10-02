@@ -127,8 +127,10 @@ class Api::V1::Accounts::Billing::SubscriptionsController < Api::V1::Accounts::B
         # is hidden - see synkra_plan.rb's header comment.
         ai_ops_used: @subscription.ai_ops_used,
         ai_ops_allowance: @subscription.ai_ops_allowance,
+        purchased_ai_ops_credits: @subscription.purchased_ai_ops_credits,
         emails_used: @subscription.emails_used,
-        email_allowance: @subscription.email_allowance
+        email_allowance: @subscription.email_allowance,
+        purchased_notification_email_credits: @subscription.purchased_notification_email_credits
       }
     }
   end

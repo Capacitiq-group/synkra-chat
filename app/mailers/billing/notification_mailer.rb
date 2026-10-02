@@ -43,6 +43,36 @@ class Billing::NotificationMailer < ApplicationMailer
     )
   end
 
+  # AI ops warning - mirrors #usage_warning (messages) exactly. Own
+  # view because the wording is different ("AI operations allowance",
+  # "buy an add-on pack").
+  def ai_ops_warning(subscription:, threshold:)
+    return unless smtp_config_set_or_development?
+    @subscription = subscription
+    @threshold_percent = (threshold * 100).to_i
+    @plan_name = subscription.plan_config[:name]
+    @recipients = admin_emails(subscription.account)
+    return if @recipients.empty?
+    send_mail_with_liquid(
+      to: @recipients,
+      subject: I18n.t('billing_mailer.ai_ops_warning.subject', percent: @threshold_percent)
+    )
+  end
+
+  # Notification email warning - same shape.
+  def notification_email_warning(subscription:, threshold:)
+    return unless smtp_config_set_or_development?
+    @subscription = subscription
+    @threshold_percent = (threshold * 100).to_i
+    @plan_name = subscription.plan_config[:name]
+    @recipients = admin_emails(subscription.account)
+    return if @recipients.empty?
+    send_mail_with_liquid(
+      to: @recipients,
+      subject: I18n.t('billing_mailer.notification_email_warning.subject', percent: @threshold_percent)
+    )
+  end
+
   def payment_failed(subscription:)
     return unless smtp_config_set_or_development?
 

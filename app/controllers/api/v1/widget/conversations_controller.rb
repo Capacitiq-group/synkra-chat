@@ -79,6 +79,13 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   def send_transcript_email
     return if conversation.contact&.email.blank?
 
+    subscription = conversation.account.synkra_subscription
+    if subscription&.notification_emails_exhausted?
+      render json: { error: I18n.t('captain.notification_email_limit_reached') },
+             status: :payment_required
+      return
+    end
+
     ConversationReplyMailer.with(account: conversation.account).conversation_transcript(
       conversation,
       conversation.contact.email
@@ -94,6 +101,7 @@ class Api::V1::Widget::ConversationsController < Api::V1::Widget::BaseController
   # must never affect whether the transcript itself is sent.
   def record_transcript_email_usage(account)
     SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'conversation_transcript')
+    account.synkra_subscription&.consume_purchased_notification_email_credit_if_over_plan_allowance!
   rescue StandardError => e
     Rails.logger.error("[SynkraBilling] Failed to record email usage event for account #{account.id}: #{e.message}")
   end

@@ -275,6 +275,23 @@ class Conversation < ApplicationRecord
     # rubocop:disable Rails/SkipsModelValidations
     update_column(:waiting_since, nil)
     # rubocop:enable Rails/SkipsModelValidations
+    enqueue_transcript_email_after_resolve
+  end
+
+  # Auto-send a transcript to the customer when a conversation is
+  # resolved. Runs async so it never blocks the resolve action, and the
+  # job itself re-checks everything (account toggle, contact email,
+  # credit balance) before sending - see Conversations::SendTranscriptEmailJob.
+  #
+  # Idempotent per resolution: if the same conversation is resolved
+  # twice (unresolve -> resolve), only the first resolution triggers a
+  # send. Prevents double-charging the notification email meter.
+  def enqueue_transcript_email_after_resolve
+    attrs = (additional_attributes || {}).dup
+    return if attrs['transcript_sent_at'].present?
+    attrs['transcript_sent_at'] = Time.current.iso8601
+    update_column(:additional_attributes, attrs)
+    Conversations::SendTranscriptEmailJob.perform_later(id)
   end
 
   def ensure_snooze_until_reset

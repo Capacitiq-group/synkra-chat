@@ -12,8 +12,11 @@ module AccountEmailRateLimitable
     Redis::Alfred.get(email_count_cache_key).to_i
   end
 
+  # Per-account toggle for auto-transcripts on conversation resolve.
+  # Default is ON (opt-out). Stored in account.settings['email_transcript_enabled'];
+  # a missing key means "use the default" (true). Only explicit false disables.
   def email_transcript_enabled?
-    true
+    settings.fetch('email_transcript_enabled', true)
   end
 
   def within_email_rate_limit?

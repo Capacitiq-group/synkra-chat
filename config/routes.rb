@@ -408,6 +408,8 @@ Rails.application.routes.draw do
               post :set_currency
             end
             resources :message_addons, only: %i[index create]
+            resources :notification_email_addons, only: %i[index create]
+            resources :ai_ops_addons, only: %i[index create]
             resources :extra_seats, only: [:create]
             resources :extra_storage, only: [:create]
             resource :student_verification, only: %i[show create], controller: 'student_verifications' do

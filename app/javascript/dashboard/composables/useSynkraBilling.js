@@ -144,6 +144,16 @@ export function useSynkraBilling() {
     const response = await SynkraBillingAPI.buyMessageAddon(packKey);
     window.location.href = response.data.authorization_url;
   };
+  // AI ops and notification email packs use the same one-time-Paystack
+  // redirect flow as message packs above.
+  const buyAiOpsAddon = async ({ packKey }) => {
+    const response = await SynkraBillingAPI.buyAiOpsAddon(packKey);
+    window.location.href = response.data.authorization_url;
+  };
+  const buyNotificationEmailAddon = async ({ packKey }) => {
+    const response = await SynkraBillingAPI.buyNotificationEmailAddon(packKey);
+    window.location.href = response.data.authorization_url;
+  };
 
   // Synchronous - grants immediately, no charge until next renewal
   // (see SynkraSubscription#purchase_extra_seats!). Refreshes the
@@ -195,5 +205,7 @@ export function useSynkraBilling() {
     buyExtraSeats,
     buyExtraStorage,
     setCurrency,
+    buyAiOpsAddon,
+    buyNotificationEmailAddon,
   };
 }

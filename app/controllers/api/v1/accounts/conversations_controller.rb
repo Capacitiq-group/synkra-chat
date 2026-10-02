@@ -74,6 +74,11 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     return render_payment_required('Email transcript is not available on your plan') unless @conversation.account.email_transcript_enabled?
     return head :too_many_requests unless @conversation.account.within_email_rate_limit?
 
+    subscription = @conversation.account.synkra_subscription
+    if subscription&.notification_emails_exhausted?
+      return render_payment_required(I18n.t('captain.notification_email_limit_reached'))
+    end
+
     ConversationReplyMailer.with(account: @conversation.account).conversation_transcript(@conversation, params[:email])&.deliver_later
     @conversation.account.increment_email_sent_count
     record_transcript_email_usage(@conversation.account)
@@ -146,6 +151,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   # must never affect whether the transcript itself is sent.
   def record_transcript_email_usage(account)
     SynkraUsageEvent.record!(account: account, resource_type: 'email', source: 'conversation_transcript')
+    account.synkra_subscription&.consume_purchased_notification_email_credit_if_over_plan_allowance!
   rescue StandardError => e
     Rails.logger.error("[SynkraBilling] Failed to record email usage event for account #{account.id}: #{e.message}")
   end

@@ -1,4 +1,11 @@
 Rails.application.routes.draw do
+  # Resend inbound email ingress - provided by the actionmailbox-resend
+  # gem. Receives webhook POSTs from Resend, verifies via Svix, fetches
+  # the full email body + attachments via Resend's API, and hands a
+  # properly-formed RFC822 message to Chatwoot's existing ActionMailbox
+  # pipeline (ApplicationMailbox -> ReplyMailbox -> conversation
+  # creation/threading). See docs/synkra/resend-email-setup.md.
+  mount ActionMailbox::Resend::Engine, at: '/rails/action_mailbox/resend' if defined?(ActionMailbox::Resend::Engine)
   # AUTH STARTS
   mount_devise_token_auth_for 'User', at: 'auth', controllers: {
     confirmations: 'devise_overrides/confirmations',

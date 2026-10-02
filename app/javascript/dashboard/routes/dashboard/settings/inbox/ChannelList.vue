@@ -123,7 +123,7 @@ const SYNKRA_V1_ENABLED_CHANNELS = computed(() =>
 );
 const visibleChannelList = computed(() =>
   channelList.value.filter(channel =>
-    SYNKRA_V1_ENABLED_CHANNELS.includes(channel.key)
+    SYNKRA_V1_ENABLED_CHANNELS.value.includes(channel.key)
   )
 );
 

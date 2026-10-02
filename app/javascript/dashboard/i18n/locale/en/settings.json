@@ -343,6 +343,7 @@
     "WHATSAPP_TEMPLATES": "Templates",
     "NOTIFICATIONS": "Notifications",
     "CANNED_RESPONSES": "Canned Responses",
+    "WEBHOOKS": "Webhooks",
     "INTEGRATIONS": "Integrations",
     "DATA": "Data",
     "PROFILE_SETTINGS": "Profile Settings",

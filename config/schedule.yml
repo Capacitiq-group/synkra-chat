@@ -118,3 +118,10 @@ billing_recalculate_storage_usage_job:
   cron: '0 3 * * *'
   class: 'Billing::RecalculateStorageUsageJob'
   queue: scheduled_jobs
+# executed daily at 04:00 UTC - off-peak, one hour after the storage usage
+# recalc so they don't contend. Copies new or changed blobs from the
+# primary Z1 bucket to the backup Z1 bucket. See Storage::BackupSyncJob.
+storage_backup_sync_job:
+  cron: '0 4 * * *'
+  class: 'Storage::BackupSyncJob'
+  queue: scheduled_jobs

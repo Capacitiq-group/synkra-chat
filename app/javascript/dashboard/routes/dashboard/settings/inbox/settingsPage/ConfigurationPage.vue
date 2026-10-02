@@ -403,6 +403,17 @@ export default {
     </SettingsFieldSection>
   </div>
   <div v-else-if="isAnEmailChannel">
+    <div
+      v-if="inbox.forwarding_verification_pending_at"
+      class="mb-4 py-3 px-4 bg-n-amber-3 outline-n-amber-4 text-n-amber-11 outline outline-1 -outline-offset-1 rounded-xl"
+    >
+      <p class="text-body-para font-medium mb-1">
+        {{ $t('INBOX_MGMT.SETTINGS_POPUP.FORWARDING_VERIFICATION.TITLE') }}
+      </p>
+      <p class="text-body-para mb-0">
+        {{ $t('INBOX_MGMT.SETTINGS_POPUP.FORWARDING_VERIFICATION.DESCRIPTION') }}
+      </p>
+    </div>
     <div>
       <SettingsFieldSection
         :label="$t('INBOX_MGMT.SETTINGS_POPUP.FORWARD_EMAIL_TITLE')"

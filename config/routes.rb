@@ -798,6 +798,7 @@ Rails.application.routes.draw do
           post :request_info
         end
       end
+      resources :email_verification_reviews, only: %i[index]
       resource :instance_status, only: [:show]
 
       resource :settings, only: [:show] do

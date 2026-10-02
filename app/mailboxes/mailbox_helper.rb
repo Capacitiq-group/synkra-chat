@@ -11,6 +11,32 @@ module MailboxHelper
     return if @conversation.messages.find_by(source_id: source_id).present?
 
     @message = @conversation.messages.create!(sanitized_message_attributes(source_id))
+    detect_forwarding_verification_email
+  end
+
+  # Synkra Chat: if this inbound email is a mailbox-provider forwarding
+  # verification (Google / Microsoft / etc.), mark the Channel::Email as
+  # having a pending verification. The inbox Configuration page and the
+  # super admin review view read from that column. Detection is
+  # deliberately conservative - see
+  # Synkra::Email::ForwardingVerificationDetector.
+  #
+  # Never raises: a detection hiccup must not block the email from
+  # reaching the customer's conversation.
+  def detect_forwarding_verification_email
+    channel = @conversation.inbox.channel
+    return unless channel.is_a?(Channel::Email)
+
+    provider = Synkra::Email::ForwardingVerificationDetector.new(processed_mail.mail).detect
+    return if provider.blank?
+
+    Rails.logger.info(
+      "[SynkraEmail] Forwarding verification email detected from #{provider} " \
+      "for inbox #{@conversation.inbox.id} - flagging pending"
+    )
+    channel.update!(forwarding_verification_pending_at: Time.current)
+  rescue StandardError => e
+    Rails.logger.error "[SynkraEmail] Forwarding verification detection failed: #{e.message}"
   end
 
   def add_attachments_to_message

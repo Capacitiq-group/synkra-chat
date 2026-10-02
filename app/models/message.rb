@@ -146,6 +146,7 @@ class Message < ApplicationRecord
   # if it were going to - so this only ever fires for messages that
   # were actually allowed through.
   after_create_commit :record_synkra_usage_event
+  after_create_commit :record_inbound_email_usage_event
 
   after_update_commit :dispatch_update_event
   after_commit :reindex_for_search, if: :should_index?, on: [:create, :update]
@@ -352,6 +353,41 @@ class Message < ApplicationRecord
       # period rolls over, they upgrade, or they buy an add-on pack.
       errors.add(:base, "This account has used its #{subscription.plan_config[:name]} plan's message allowance for this period - upgrade your plan, buy a message add-on pack, or wait for it to renew to keep replying through the platform")
     end
+  end
+
+  # Synkra Chat: inbound emails on an Email-channel inbox consume one
+  # credit from the shared email allowance pool - same pool as outbound
+  # agent replies and notification emails (transcripts). The founder's
+  # rule: "as long as an email was sent it needs to consume" - inbound
+  # counts the same as outbound.
+  #
+  # Deliberately a separate callback from record_synkra_usage_event,
+  # which exits early for incoming messages (it filters on
+  # billable_outgoing_message?). Keeping them separate means neither
+  # path can accidentally double-fire for the other.
+  #
+  # Never blocks the message. Inbound customer emails always arrive,
+  # even past the allowance - the credit is metered but the email is
+  # not rejected. Blocking inbound would mean customers emailing a
+  # business that's over quota would be silently dropped, which is
+  # worse than the business running over their allowance by a few
+  # units. The block only applies to actions the business chooses to
+  # take (transcripts, outbound replies).
+  def record_inbound_email_usage_event
+    return unless incoming?
+    return unless conversation.inbox.channel_type == 'Channel::Email'
+
+    SynkraUsageEvent.record!(
+      account: account,
+      resource_type: 'email',
+      source: 'inbound_email',
+      reference: self
+    )
+    synkra_subscription_for_billing&.consume_purchased_notification_email_credit_if_over_plan_allowance!
+  rescue StandardError => e
+    # Usage metering must never take down inbound email delivery - log
+    # and move on. Same fail-open reasoning as the outbound path above.
+    Rails.logger.error "[SynkraBilling] Failed to record inbound email usage for message #{id}: #{e.message}"
   end
 
   def record_synkra_usage_event

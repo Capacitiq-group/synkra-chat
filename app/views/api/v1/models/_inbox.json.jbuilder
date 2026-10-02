@@ -81,6 +81,12 @@ if resource.email?
   json.email resource.channel.try(:email)
   json.forwarding_enabled ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN', '').present?
   json.forward_to_email resource.channel.try(:forward_to_email) if ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN', '').present?
+  # Synkra Chat: forwarding-verification state on email channels. Nil
+  # when not applicable or when no verification email has arrived yet.
+  if resource.channel.is_a?(Channel::Email)
+    json.forwarding_verification_pending_at resource.channel.forwarding_verification_pending_at
+    json.forwarding_verification_completed_at resource.channel.forwarding_verification_completed_at
+  end
   if Current.account_user&.administrator? && defined?(with_branded_email_layout) && with_branded_email_layout.present? &&
      Current.account.feature_enabled?(:branded_email_templates)
     json.branded_email_layout resource.branded_email_layout

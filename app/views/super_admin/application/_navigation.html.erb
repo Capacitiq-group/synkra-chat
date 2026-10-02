@@ -49,6 +49,7 @@ as defined by the routes in the `admin/` namespace
   <div>
     <ul class="my-4">
       <%= render partial: "nav_item", locals: { icon: 'icon-shield-check-line', url: super_admin_programme_reviews_url, label: 'Programme reviews' } %>
+      <%= render partial: "nav_item", locals: { icon: 'icon-mail-check-line', url: super_admin_email_verification_reviews_url, label: 'Email verifications' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-mist-fill', url: sidekiq_web_url, label: 'Sidekiq Dashboard' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-health-book-line', url: super_admin_instance_status_url, label: 'Instance Health' } %>
       <%= render partial: "nav_item", locals: { icon: 'icon-mail-send-fill', url: super_admin_push_diagnostics_url, label: 'Push Diagnostics' } %>

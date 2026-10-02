@@ -904,6 +904,10 @@
       "HMAC_MANDATORY_DESCRIPTION": "If enabled, requests that cannot be verified will be rejected.",
       "INBOX_IDENTIFIER": "Inbox Identifier",
       "INBOX_IDENTIFIER_SUB_TEXT": "Use the `inbox_identifier` token shown here to authentication your API clients.",
+      "FORWARDING_VERIFICATION": {
+        "TITLE": "Verification email received",
+        "DESCRIPTION": "Your mailbox provider sent a forwarding confirmation to this Synkra inbox. Open it in your Conversations list and click the confirmation link to complete setup."
+      },
       "FORWARD_EMAIL_TITLE": "Forward to Email",
       "FORWARD_EMAIL_SUB_TEXT": "Start forwarding your emails to the following email address.",
       "FORWARD_EMAIL_NOT_CONFIGURED": "Forwarding emails to your inbox is currently disabled on this installation. To use this feature, it must be enabled by your administrator. Please get in touch with them to proceed.",

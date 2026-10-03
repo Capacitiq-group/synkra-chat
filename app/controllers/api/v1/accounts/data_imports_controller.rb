@@ -4,6 +4,7 @@ class Api::V1::Accounts::DataImportsController < Api::V1::Accounts::BaseControll
   DATA_IMPORT_FEATURE = 'data_import'.freeze
 
   before_action :ensure_data_import_feature_enabled
+  before_action :ensure_data_import_monthly_limit_not_exceeded, only: [:create]
   before_action :set_data_import, only: [:show, :start, :retry_import, :abandon, :error_logs, :skip_logs]
   before_action :check_authorization
 
@@ -95,6 +96,28 @@ class Api::V1::Accounts::DataImportsController < Api::V1::Accounts::BaseControll
   end
 
   private
+
+  # Synkra: cap data imports per calendar month. The limit comes from
+  # SynkraSubscription#effective_data_import_monthly_limit (reads
+  # SynkraPlan::PLANS). nil means unlimited; 0 means none. Imports count
+  # when created, regardless of later status - abandoned and failed still
+  # consume a slot.
+  def ensure_data_import_monthly_limit_not_exceeded
+    subscription = Current.account.synkra_subscription
+    return if subscription.nil?
+
+    limit = subscription.effective_data_import_monthly_limit
+    return if limit.nil?
+
+    count = Current.account.data_imports
+                            .where(created_at: Time.current.beginning_of_month..)
+                            .count
+    return if count < limit
+
+    render json: {
+      error: I18n.t('synkra.data_import.monthly_limit_reached', limit: limit)
+    }, status: :unprocessable_entity
+  end
 
   def ensure_data_import_feature_enabled
     raise Pundit::NotAuthorizedError unless Current.account.feature_enabled?(DATA_IMPORT_FEATURE)

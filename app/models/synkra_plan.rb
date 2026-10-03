@@ -74,6 +74,7 @@ class SynkraPlan
       ai_ops_allowance: 0,
       email_allowance: 300,
       macros_limit: 0,
+      data_import_monthly_limit: 0,
       # No Paystack plan code - genuinely free, never goes through
       # checkout at all (only ever reached via change_plan/downgrade).
       paystack_plan_code: nil
@@ -88,6 +89,7 @@ class SynkraPlan
       ai_ops_allowance: 1000,
       email_allowance: 2000,
       macros_limit: 0,
+      data_import_monthly_limit: 5,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_STARTER', nil)
     },
     'business' => {
@@ -100,6 +102,7 @@ class SynkraPlan
       ai_ops_allowance: 1750,
       email_allowance: 2750,
       macros_limit: 15,
+      data_import_monthly_limit: 20,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_BUSINESS', nil)
     },
     'pro' => {
@@ -112,6 +115,7 @@ class SynkraPlan
       ai_ops_allowance: 1750,
       email_allowance: 5000,
       macros_limit: 50,
+      data_import_monthly_limit: 100,
       paystack_plan_code: ENV.fetch('PAYSTACK_PLAN_CODE_PRO', nil)
     }
   }.freeze

@@ -58,6 +58,17 @@ class SynkraSubscription < ApplicationRecord
     plan_config[:macros_limit].to_i
   end
 
+  # The plan's own data_import_monthly_limit. Returns nil when the plan
+  # has no value (treated as unlimited by the controller), otherwise an
+  # Integer. See DataImportsController#ensure_data_import_monthly_limit_not_exceeded,
+  # which is the actual enforcement point.
+  def effective_data_import_monthly_limit
+    value = plan_config[:data_import_monthly_limit]
+    return nil if value.nil?
+
+    value.to_i
+  end
+
   # Grants N extra seats immediately, on top of whatever is already
   # purchased - NO CHARGE at the moment of purchase. The first real
   # charge happens automatically at the account's next plan renewal,

@@ -9,3 +9,6 @@ en:
           attributes:
             base:
               synkra_macros_limit_reached: "You've reached your plan's limit of %{limit} macros. Upgrade your plan to add more."
+  synkra:
+    data_import:
+      monthly_limit_reached: "You've reached your plan's limit of %{limit} data imports per month. Upgrade your plan or wait until next month."

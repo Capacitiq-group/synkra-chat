@@ -51,6 +51,13 @@ class SynkraSubscription < ApplicationRecord
     plan_config[:staff_limit].to_i + purchased_extra_seats
   end
 
+  # The plan's own macros_limit - see Macro#ensure_within_synkra_macro_limit,
+  # which is the actual enforcement point. Macros are a Business+ feature;
+  # Free and Starter plans return 0.
+  def effective_macros_limit
+    plan_config[:macros_limit].to_i
+  end
+
   # Grants N extra seats immediately, on top of whatever is already
   # purchased - NO CHARGE at the moment of purchase. The first real
   # charge happens automatically at the account's next plan renewal,

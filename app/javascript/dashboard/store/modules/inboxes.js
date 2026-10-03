@@ -1,36 +1,17 @@
 import * as MutationHelpers from 'shared/helpers/vuex/mutationHelpers';
 import * as types from '../mutation-types';
-import { INBOX_TYPES } from 'shared/mixins/inboxMixin';
+import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import InboxesAPI from '../../api/inboxes';
 import WebChannel from '../../api/channel/webChannel';
 import FBChannel from '../../api/channel/fbChannel';
 import TwilioChannel from '../../api/channel/twilioChannel';
+import WhatsappChannel from '../../api/channel/whatsappChannel';
 import { throwErrorMessage } from '../utils/api';
+import { isSendableTemplate } from '@chatwoot/utils';
 import AnalyticsHelper from '../../helper/AnalyticsHelper';
+import camelcaseKeys from 'camelcase-keys';
 import { ACCOUNT_EVENTS } from '../../helper/AnalyticsHelper/events';
-
-const buildInboxData = inboxParams => {
-  const formData = new FormData();
-  const { channel = {}, ...inboxProperties } = inboxParams;
-  Object.keys(inboxProperties).forEach(key => {
-    formData.append(key, inboxProperties[key]);
-  });
-  const { selectedFeatureFlags, ...channelParams } = channel;
-  // selectedFeatureFlags needs to be empty when creating a website channel
-  if (selectedFeatureFlags) {
-    if (selectedFeatureFlags.length) {
-      selectedFeatureFlags.forEach(featureFlag => {
-        formData.append(`channel[selected_feature_flags][]`, featureFlag);
-      });
-    } else {
-      formData.append('channel[selected_feature_flags][]', '');
-    }
-  }
-  Object.keys(channelParams).forEach(key => {
-    formData.append(`channel[${key}]`, channel[key]);
-  });
-  return formData;
-};
+import { channelActions, buildInboxData } from './inboxes/channelActions';
 
 export const state = {
   records: [],
@@ -49,6 +30,9 @@ export const getters = {
   getInboxes($state) {
     return $state.records;
   },
+  getAllInboxes($state) {
+    return camelcaseKeys($state.records, { deep: true });
+  },
   getWhatsAppTemplates: $state => inboxId => {
     const [inbox] = $state.records.filter(
       record => record.id === Number(inboxId)
@@ -64,15 +48,28 @@ export const getters = {
     const messagesTemplates =
       whatsAppMessageTemplates || apiInboxMessageTemplates;
 
-    // filtering out the whatsapp templates with media
-    if (messagesTemplates instanceof Array) {
-      return messagesTemplates.filter(template => {
-        return !template.components.some(
-          i => i.format === 'IMAGE' || i.format === 'VIDEO'
-        );
-      });
+    return messagesTemplates;
+  },
+  getFilteredWhatsAppTemplates: $state => inboxId => {
+    const [inbox] = $state.records.filter(
+      record => record.id === Number(inboxId)
+    );
+
+    const {
+      message_templates: whatsAppMessageTemplates,
+      additional_attributes: additionalAttributes,
+    } = inbox || {};
+
+    const { message_templates: apiInboxMessageTemplates } =
+      additionalAttributes || {};
+    const templates = whatsAppMessageTemplates || apiInboxMessageTemplates;
+
+    if (!templates || !Array.isArray(templates)) {
+      return [];
     }
-    return [];
+
+    // Sendable-template filtering is shared with the mobile app via @chatwoot/utils.
+    return templates.filter(isSendableTemplate);
   },
   getNewConversationInboxes($state) {
     return $state.records.filter(inbox => {
@@ -92,6 +89,12 @@ export const getters = {
     );
     return inbox || {};
   },
+  getInboxById: $state => inboxId => {
+    const [inbox] = $state.records.filter(
+      record => record.id === Number(inboxId)
+    );
+    return camelcaseKeys(inbox || {}, { deep: true });
+  },
   getUIFlags($state) {
     return $state.uiFlags;
   },
@@ -110,9 +113,35 @@ export const getters = {
         (item.channel_type === INBOX_TYPES.TWILIO && item.medium === 'sms')
     );
   },
+  getWhatsAppInboxes($state) {
+    return $state.records.filter(
+      item => item.channel_type === INBOX_TYPES.WHATSAPP
+    );
+  },
   dialogFlowEnabledInboxes($state) {
     return $state.records.filter(
       item => item.channel_type !== INBOX_TYPES.EMAIL
+    );
+  },
+  getFacebookInboxByInstagramId: $state => instagramId => {
+    return $state.records.find(
+      item =>
+        item.instagram_id === instagramId &&
+        item.channel_type === INBOX_TYPES.FB
+    );
+  },
+  getInstagramInboxByInstagramId: $state => instagramId => {
+    return $state.records.find(
+      item =>
+        item.instagram_id === instagramId &&
+        item.channel_type === INBOX_TYPES.INSTAGRAM
+    );
+  },
+  getTiktokInboxByBusinessId: $state => businessId => {
+    return $state.records.find(
+      item =>
+        item.business_id === businessId &&
+        item.channel_type === INBOX_TYPES.TIKTOK
     );
   },
 };
@@ -141,8 +170,10 @@ export const actions = {
       const response = await InboxesAPI.get(true);
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
       commit(types.default.SET_INBOXES, response.data.payload);
+      return true;
     } catch (error) {
       commit(types.default.SET_INBOXES_UI_FLAG, { isFetching: false });
+      return false;
     }
   },
   createChannel: async ({ commit }, params) => {
@@ -155,9 +186,8 @@ export const actions = {
       sendAnalyticsEvent(channel.type);
       return response.data;
     } catch (error) {
-      const errorMessage = error?.response?.data?.message;
       commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: false });
-      throw new Error(errorMessage);
+      return throwErrorMessage(error);
     }
   },
   createWebsiteChannel: async ({ commit }, params) => {
@@ -196,9 +226,28 @@ export const actions = {
       return response.data;
     } catch (error) {
       commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: false });
-      throw new Error(error);
+      throw error;
     }
   },
+  createWhatsAppEmbeddedSignup: async ({ commit }, params) => {
+    try {
+      commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: true });
+      const response = await WhatsappChannel.createEmbeddedSignup(params);
+      commit(types.default.ADD_INBOXES, response.data);
+      commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: false });
+      sendAnalyticsEvent('whatsapp');
+      return response.data;
+    } catch (error) {
+      commit(types.default.SET_INBOXES_UI_FLAG, { isCreating: false });
+      throw error;
+    }
+  },
+  ...channelActions,
+  // TODO: Extract other create channel methods to separate files to reduce file size
+  // - createChannel
+  // - createWebsiteChannel
+  // - createTwilioChannel
+  // - createFBChannel
   updateInbox: async ({ commit }, { id, formData = true, ...inboxParams }) => {
     commit(types.default.SET_INBOXES_UI_FLAG, { isUpdating: true });
     try {
@@ -259,6 +308,38 @@ export const actions = {
       await InboxesAPI.deleteInboxAvatar(inboxId);
     } catch (error) {
       throw new Error(error);
+    }
+  },
+  syncTemplates: async (_, inboxId) => {
+    try {
+      await InboxesAPI.syncTemplates(inboxId);
+    } catch (error) {
+      throw new Error(error);
+    }
+  },
+  createCSATTemplate: async (_, { inboxId, template }) => {
+    const response = await InboxesAPI.createCSATTemplate(inboxId, template);
+    return response.data;
+  },
+  getCSATTemplateStatus: async (_, { inboxId }) => {
+    const response = await InboxesAPI.getCSATTemplateStatus(inboxId);
+    return response.data;
+  },
+  analyzeCSATTemplateUtility: async (_, { inboxId, template }) => {
+    const response = await InboxesAPI.analyzeCSATTemplateUtility(
+      inboxId,
+      template
+    );
+    return response.data;
+  },
+  resetSecret: async ({ commit }, inboxId) => {
+    try {
+      const response = await InboxesAPI.resetSecret(inboxId);
+      commit(types.default.EDIT_INBOXES, response.data);
+      return response.data;
+    } catch (error) {
+      throwErrorMessage(error);
+      return null;
     }
   },
 };

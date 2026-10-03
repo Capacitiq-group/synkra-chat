@@ -5,6 +5,8 @@
 #  id                    :bigint           not null, primary key
 #  content               :text
 #  description           :text
+#  draft_content         :text
+#  draft_title           :string
 #  locale                :string           default("en"), not null
 #  meta                  :jsonb
 #  position              :integer
@@ -23,12 +25,17 @@
 #
 # Indexes
 #
+#  index_articles_on_account_id             (account_id)
 #  index_articles_on_associated_article_id  (associated_article_id)
 #  index_articles_on_author_id              (author_id)
+#  index_articles_on_portal_id              (portal_id)
 #  index_articles_on_slug                   (slug) UNIQUE
+#  index_articles_on_status                 (status)
+#  index_articles_on_views                  (views)
 #
 class Article < ApplicationRecord
   include PgSearch::Model
+  include LlmFormattable
 
   has_many :associated_articles,
            class_name: :Article,
@@ -48,15 +55,19 @@ class Article < ApplicationRecord
 
   before_validation :ensure_account_id
   before_validation :ensure_article_slug
+  before_validation :ensure_locale_in_article
+
+  # Slugs that collide with help center routes (e.g. /hc/:slug/:locale/search)
+  RESERVED_SLUGS = %w[search articles categories].freeze
 
   validates :account_id, presence: true
   validates :author_id, presence: true
   validates :title, presence: true
-  validates :content, presence: true
+  validates :content, presence: true, if: :published?
+  validates :slug, exclusion: { in: RESERVED_SLUGS }
 
   # ensuring that the position is always set correctly
   before_create :add_position_to_article
-  before_create :add_locale_to_article
   after_save :category_id_changed_action, if: :saved_change_to_category_id?
 
   enum status: { draft: 0, published: 1, archived: 2 }
@@ -71,18 +82,24 @@ class Article < ApplicationRecord
   scope :order_by_views, -> { reorder(views: :desc) }
 
   # TODO: if text search slows down https://www.postgresql.org/docs/current/textsearch-features.html#TEXTSEARCH-UPDATE-TRIGGERS
+  # - the A, B and C are for weightage. See: https://github.com/Casecommons/pg_search#weighting
+  # - the normalization is for ensuring the long articles that mention the search term too many times are not ranked higher.
+  #   it divides rank by log(document_length) to prevent longer articles from ranking higher just due to sizeSee: https://github.com/Casecommons/pg_search#normalization
+  # - the ranking is to ensure that articles with higher weightage are ranked higher
   pg_search_scope(
     :text_search,
-    against: %i[
-      title
-      description
-      content
-    ],
+    against: {
+      title: 'A',
+      description: 'B',
+      content: 'C'
+    },
     using: {
       tsearch: {
-        prefix: true
+        prefix: true,
+        normalization: 2
       }
-    }
+    },
+    ranked_by: ':tsearch'
   )
 
   def self.search(params)
@@ -121,13 +138,41 @@ class Article < ApplicationRecord
     # rubocop:enable Rails/SkipsModelValidations
   end
 
-  def self.update_positions(positions_hash)
-    positions_hash.each do |article_id, new_position|
-      # Find the article by its ID and update its position
-      article = Article.find(article_id)
-      article.update!(position: new_position)
+  def self.update_positions(portal:, positions_hash:)
+    return {} if positions_hash.blank?
+
+    moved_ids = positions_hash.keys.map(&:to_i)
+
+    transaction do
+      positions_hash.each do |article_id, new_position|
+        portal.articles.find(article_id).update!(position: new_position)
+      end
+      # Re-space touched categories to clean gaps and return the final positions
+      rebalance_positions(portal, moved_ids)
     end
   end
+
+  def self.rebalance_positions(portal, moved_ids)
+    category_ids = portal.articles.where(id: moved_ids).distinct.pluck(:category_id).compact
+    category_ids.each_with_object({}) do |category_id, positions|
+      resequence_category(portal, category_id, moved_ids, positions)
+    end
+  end
+
+  def self.resequence_category(portal, category_id, moved_ids, positions)
+    ordered = portal.articles.where(category_id: category_id)
+                    .sort_by { |article| [article.position || 0, moved_ids.include?(article.id) ? 1 : 0, article.id] }
+    return if ordered.length < 2 # a lone article can't collide, leave it as-is
+
+    ordered.each_with_index do |article, index|
+      new_position = (index + 1) * 10
+      positions[article.id] = new_position
+      next if article.position == new_position
+
+      article.update_column(:position, new_position) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+  private_class_method :rebalance_positions, :resequence_category
 
   private
 
@@ -143,11 +188,11 @@ class Article < ApplicationRecord
     update_article_position_in_category
   end
 
-  def add_locale_to_article
+  def ensure_locale_in_article
     self.locale = if category.present?
                     category.locale
                   else
-                    portal.default_locale
+                    locale.presence || portal.default_locale
                   end
   end
 

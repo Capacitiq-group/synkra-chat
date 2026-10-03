@@ -7,9 +7,12 @@
 #  custom_attributes     :jsonb
 #  domain                :string(100)
 #  feature_flags         :bigint           default(0), not null
+#  feature_flags_ext_1   :bigint           default(0), not null
+#  internal_attributes   :jsonb            not null
 #  limits                :jsonb
 #  locale                :integer          default("en")
 #  name                  :string           not null
+#  settings              :jsonb
 #  status                :integer          default("active")
 #  support_email         :string(100)
 #  created_at            :datetime         not null
@@ -21,26 +24,51 @@
 #
 
 class Account < ApplicationRecord
-  # used for single column multi flags
+  # used for multi-flag bitset columns
   include FlagShihTzu
   include Reportable
   include Featurable
   include CacheKeys
+  include CaptainFeaturable
+  include AccountEmailRateLimitable
+  include AccountSettingsSchema
 
   DEFAULT_QUERY_SETTING = {
     flag_query_mode: :bit_operator,
     check_for_column: false
   }.freeze
+  SUSPENSION_CATEGORIES = %w[spam non_payment other].freeze
 
-  validates :auto_resolve_duration, numericality: { greater_than_or_equal_to: 1, less_than_or_equal_to: 999, allow_nil: true }
+  attr_accessor :suspension_category, :suspension_reason
+
+  validates :name, presence: true
+  # `domain` is the inbound email domain used to construct reply addresses
+  # (see `inbound_email_domain`). Do not repurpose it for a website or any
+  # non-mail-related domain.
   validates :domain, length: { maximum: 100 }
+  validates_with JsonSchemaValidator,
+                 schema: SETTINGS_PARAMS_SCHEMA,
+                 attribute_resolver: ->(record) { record.settings }
+  validate :validate_reporting_timezone
+  validate :validate_support_email_format, if: :will_save_change_to_support_email?
+
+  store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
+
+  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
+  store_accessor :settings, :captain_models, :captain_features
+  store_accessor :settings, :reporting_timezone
+  store_accessor :settings, :keep_pending_on_bot_failure
+  store_accessor :settings, :captain_auto_resolve_mode, :captain_false_promise_harness_enabled
+  include AccountCaptainAutoResolve
 
   has_many :account_users, dependent: :destroy_async
   has_many :agent_bot_inboxes, dependent: :destroy_async
   has_many :agent_bots, dependent: :destroy_async
   has_many :api_channels, dependent: :destroy_async, class_name: '::Channel::Api'
   has_many :articles, dependent: :destroy_async, class_name: '::Article'
+  has_many :assignment_policies, dependent: :destroy_async
   has_many :automation_rules, dependent: :destroy_async
+  has_many :automation_rule_pending_executions, dependent: :delete_all
   has_many :macros, dependent: :destroy_async
   has_many :campaigns, dependent: :destroy_async
   has_many :canned_responses, dependent: :destroy_async
@@ -54,6 +82,8 @@ class Account < ApplicationRecord
   has_many :data_imports, dependent: :destroy_async
   has_many :email_channels, dependent: :destroy_async, class_name: '::Channel::Email'
   has_many :facebook_pages, dependent: :destroy_async, class_name: '::Channel::FacebookPage'
+  has_many :instagram_channels, dependent: :destroy_async, class_name: '::Channel::Instagram'
+  has_many :tiktok_channels, dependent: :destroy_async, class_name: '::Channel::Tiktok'
   has_many :hooks, dependent: :destroy_async, class_name: 'Integrations::Hook'
   has_many :inboxes, dependent: :destroy_async
   has_many :labels, dependent: :destroy_async
@@ -66,23 +96,33 @@ class Account < ApplicationRecord
   has_many :portals, dependent: :destroy_async, class_name: '::Portal'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
-  has_many :telegram_bots, dependent: :destroy_async
   has_many :telegram_channels, dependent: :destroy_async, class_name: '::Channel::Telegram'
   has_many :twilio_sms, dependent: :destroy_async, class_name: '::Channel::TwilioSms'
   has_many :twitter_profiles, dependent: :destroy_async, class_name: '::Channel::TwitterProfile'
   has_many :users, through: :account_users
   has_many :web_widgets, dependent: :destroy_async, class_name: '::Channel::WebWidget'
   has_many :webhooks, dependent: :destroy_async
+  # Synkra Chat billing
+  has_one :synkra_subscription, dependent: :destroy
+  has_many :synkra_usage_events, dependent: :destroy_async
   has_many :whatsapp_channels, dependent: :destroy_async, class_name: '::Channel::Whatsapp'
   has_many :working_hours, dependent: :destroy_async
 
   has_one_attached :contacts_export
 
-  enum locale: LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h
-  enum status: { active: 0, suspended: 1 }
+  enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
+  enum :status, { active: 0, suspended: 1 }
+
+  scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation
+  # Synkra Chat billing: every account gets a Basic subscription the
+  # moment it's created - there's no "no subscription" state to handle
+  # elsewhere in the codebase.
+  after_create_commit :provision_synkra_subscription
+  after_update_commit :clear_unread_conversation_counts_cache, if: :saved_change_to_feature_conversation_unread_counts?
+  after_update :resume_delayed_automations, if: -> { saved_change_to_feature_delayed_automations? && feature_delayed_automations? }
   after_destroy :remove_account_sequences
 
   def agents
@@ -110,6 +150,10 @@ class Account < ApplicationRecord
     }
   end
 
+  def suspension_history
+    internal_attributes['suspensions'] || []
+  end
+
   def inbound_email_domain
     domain.presence || GlobalConfig.get('MAILER_INBOUND_EMAIL_DOMAIN')['MAILER_INBOUND_EMAIL_DOMAIN'] || ENV.fetch('MAILER_INBOUND_EMAIL_DOMAIN',
                                                                                                                    false)
@@ -119,6 +163,64 @@ class Account < ApplicationRecord
     super.presence || ENV.fetch('MAILER_SENDER_EMAIL') { GlobalConfig.get('MAILER_SUPPORT_EMAIL')['MAILER_SUPPORT_EMAIL'] }
   end
 
+  # Synkra Chat: developer-facing features gated behind paid plans.
+  # Every flag listed below is a Synkra-paid feature. Free-tier accounts
+  # (plan == 'free', or no subscription yet) get nothing. Paid accounts
+  # get the flag only if their current plan ranks at or above the tier
+  # required by TIER_REQUIREMENTS.
+  #
+  # Plans are ranked in SynkraPlan::PLANS order:
+  #   free < starter < business < pro
+  #
+  # The override sits here so every existing reader - the sidebar, the
+  # Webhooks route, the account JSON payload that feeds the frontend,
+  # and the webhooks controller itself - picks up the gate automatically.
+  #
+  # "Hide don't delete": we don't touch the feature bitset for these
+  # flags. The bitset is not consulted; the plan tier alone decides.
+  # This means the answer is always consistent with the account's
+  # current subscription, with no bitset-sync migration needed.
+  PAID_ONLY_FEATURES = %i[
+    api_and_webhooks
+    companies
+    data_import
+    macros
+    advanced_search
+    advanced_search_indexing
+  ].freeze
+
+  TIER_REQUIREMENTS = {
+    'api_and_webhooks' => 'starter',
+    'companies' => 'starter',
+    'data_import' => 'starter',
+    'macros' => 'business',
+    'advanced_search' => 'pro',
+    'advanced_search_indexing' => 'pro'
+  }.freeze
+
+  def feature_enabled?(name)
+    return tier_allows?(name) if paid_only_feature?(name)
+    super
+  end
+
+  def paid_only_feature?(name)
+    PAID_ONLY_FEATURES.include?(name.to_sym)
+  end
+
+  def tier_allows?(name)
+    return false if synkra_free_plan?
+    required = TIER_REQUIREMENTS[name.to_s]
+    return true if required.nil?
+    current_rank = SynkraPlan::PLANS.keys.index(synkra_subscription&.plan.to_s) || 0
+    required_rank = SynkraPlan::PLANS.keys.index(required) || 0
+    current_rank >= required_rank
+  end
+
+  def synkra_free_plan?
+    sub = synkra_subscription
+    sub.nil? || sub.plan.to_s == 'free'
+  end
+
   def usage_limits
     {
       agents: ChatwootApp.max_limit.to_i,
@@ -126,10 +228,62 @@ class Account < ApplicationRecord
     }
   end
 
+  def api_and_webhooks_enabled?
+    true
+  end
+
+  def locale_english_name
+    # the locale can also be something like pt_BR, en_US, fr_FR, etc.
+    # the format is `<locale_code>_<country_code>`
+    # we need to extract the language code from the locale
+    account_locale = locale&.split('_')&.first
+    ISO_639.find(account_locale)&.english_name&.downcase || 'english'
+  end
+
+  def onboarding_step
+    step = custom_attributes['onboarding_step']
+    return nil if step.blank?
+
+    enrichment_key = format(Redis::Alfred::ACCOUNT_ONBOARDING_ENRICHMENT, account_id: id)
+    Redis::Alfred.exists?(enrichment_key) ? 'enrichment' : step
+  end
+
+  def reset_cache_keys
+    super
+    clear_unread_conversation_counts_cache
+  end
+
   private
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def provision_synkra_subscription
+    SynkraSubscription.find_or_create_by!(account: self) do |sub|
+      sub.plan = 'free'
+      sub.status = 'active'
+      # Without this, a fresh account's period would be nil until the
+      # next hourly Billing::RestrictOverdueSubscriptionsJob sweep
+      # picks it up - harmless, but there's no reason to wait when we
+      # can just set it correctly here.
+      sub.current_period_start = Time.current
+      sub.current_period_end = 1.month.from_now
+    end
+    # "Automations" (Chat<->Flow bridge, 12 Sep 2026) - provisions a
+    # Flow shadow client for every account on creation, not lazily on
+    # first use. Async: this must never slow down or fail account
+    # signup if Flow is briefly unreachable. See
+    # Automations::ProvisionFlowJob and Automations::FlowClient.
+    Automations::ProvisionFlowJob.perform_later(id)
+  end
+
+  def clear_unread_conversation_counts_cache
+    ::Conversations::UnreadCounts::Store.clear_account!(id)
+  end
+
+  def resume_delayed_automations
+    AutomationRulePendingExecution.reschedule_paused(self)
   end
 
   trigger.after(:insert).for_each(:row) do
@@ -144,6 +298,22 @@ class Account < ApplicationRecord
     # method overridden in enterprise module
   end
 
+  def validate_reporting_timezone
+    return if reporting_timezone.blank? || ActiveSupport::TimeZone[reporting_timezone].present?
+
+    errors.add(:reporting_timezone, I18n.t('errors.account.reporting_timezone.invalid'))
+  end
+
+  def validate_support_email_format
+    value = attributes['support_email']
+    return if value.blank?
+
+    parsed = Mail::Address.new(value).address
+    errors.add(:support_email, I18n.t('errors.account.support_email.invalid')) if parsed.blank?
+  rescue Mail::Field::ParseError, Mail::Field::IncompleteParseError
+    errors.add(:support_email, I18n.t('errors.account.support_email.invalid'))
+  end
+
   def remove_account_sequences
     ActiveRecord::Base.connection.exec_query("drop sequence IF EXISTS camp_dpid_seq_#{id}")
     ActiveRecord::Base.connection.exec_query("drop sequence IF EXISTS conv_dpid_seq_#{id}")
@@ -151,5 +321,6 @@ class Account < ApplicationRecord
 end
 
 Account.prepend_mod_with('Account')
+Account.prepend_mod_with('Account::PlanUsageAndLimits')
 Account.include_mod_with('Concerns::Account')
 Account.include_mod_with('Audit::Account')

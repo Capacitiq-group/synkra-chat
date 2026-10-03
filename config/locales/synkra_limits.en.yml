@@ -1,0 +1,14 @@
+# Synkra-only i18n keys, kept in a separate file so upstream Chatwoot
+# locale updates never conflict with our additions. Rails merges this
+# into the main I18n backend at load time alongside config/locales/en.yml.
+en:
+  activerecord:
+    errors:
+      models:
+        macro:
+          attributes:
+            base:
+              synkra_macros_limit_reached: "You've reached your plan's limit of %{limit} macros. Upgrade your plan to add more."
+  synkra:
+    data_import:
+      monthly_limit_reached: "You've reached your plan's limit of %{limit} data imports per month. Upgrade your plan or wait until next month."

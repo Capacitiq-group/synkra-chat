@@ -4,9 +4,17 @@ import { required, minLength } from '@vuelidate/validators';
 import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import { convertToAttributeSlug } from 'dashboard/helper/commons.js';
+import { normalizeRegexPattern } from 'shared/helpers/Validators';
 import { ATTRIBUTE_MODELS, ATTRIBUTE_TYPES } from './constants';
 
+import NextButton from 'dashboard/components-next/button/Button.vue';
+import TagInput from 'dashboard/components-next/taginput/TagInput.vue';
+
 export default {
+  components: {
+    NextButton,
+    TagInput,
+  },
   props: {
     onClose: {
       type: Function,
@@ -35,12 +43,9 @@ export default {
       regexPattern: null,
       regexCue: null,
       regexEnabled: false,
-      models: ATTRIBUTE_MODELS,
-      types: ATTRIBUTE_TYPES,
       values: [],
-      options: [],
       show: true,
-      isTouched: false,
+      tagInputTouched: false,
     };
   },
 
@@ -48,21 +53,33 @@ export default {
     ...mapGetters({
       uiFlags: 'getUIFlags',
     }),
-    isMultiselectInvalid() {
-      return this.isTouched && this.values.length === 0;
+    models() {
+      return ATTRIBUTE_MODELS.map(item => ({
+        ...item,
+        option: this.$t(`ATTRIBUTES_MGMT.ATTRIBUTE_MODELS.${item.key}`),
+      }));
     },
-    isTagInputInvalid() {
+    types() {
+      return ATTRIBUTE_TYPES.map(item => ({
+        ...item,
+        option: this.$t(`ATTRIBUTES_MGMT.ATTRIBUTE_TYPES.${item.key}`),
+      }));
+    },
+    isTagInputEmpty() {
       return this.isAttributeTypeList && this.values.length === 0;
     },
+    isTagInputInvalid() {
+      return this.tagInputTouched && this.isTagInputEmpty;
+    },
     attributeListValues() {
-      return this.values.map(item => item.name);
+      return this.values;
     },
     isButtonDisabled() {
       return (
         this.v$.displayName.$invalid ||
         this.v$.description.$invalid ||
         this.uiFlags.isCreating ||
-        this.isTagInputInvalid
+        this.isTagInputEmpty
       );
     },
     keyErrorMessage() {
@@ -83,19 +100,10 @@ export default {
   },
 
   validations: {
-    displayName: {
-      required,
-      minLength: minLength(1),
-    },
-    description: {
-      required,
-    },
-    attributeModel: {
-      required,
-    },
-    attributeType: {
-      required,
-    },
+    displayName: { required, minLength: minLength(1) },
+    description: { required },
+    attributeModel: { required },
+    attributeType: { required },
     attributeKey: {
       required,
       isKey(value) {
@@ -104,17 +112,14 @@ export default {
     },
   },
 
+  watch: {
+    attributeType() {
+      this.tagInputTouched = false;
+      this.values = [];
+    },
+  },
+
   methods: {
-    addTagValue(tagValue) {
-      const tag = {
-        name: tagValue,
-      };
-      this.values.push(tag);
-      this.$refs.tagInput.$el.focus();
-    },
-    onTouch() {
-      this.isTouched = true;
-    },
     onDisplayNameChange() {
       this.attributeKey = convertToAttributeSlug(this.displayName);
     },
@@ -138,9 +143,7 @@ export default {
           attribute_display_type: this.attributeType,
           attribute_key: this.attributeKey,
           attribute_values: this.attributeListValues,
-          regex_pattern: this.regexPattern
-            ? new RegExp(this.regexPattern).toString()
-            : null,
+          regex_pattern: normalizeRegexPattern(this.regexPattern),
           regex_cue: this.regexCue,
         });
         this.alertMessage = this.$t('ATTRIBUTES_MGMT.ADD.API.SUCCESS_MESSAGE');
@@ -158,7 +161,7 @@ export default {
 </script>
 
 <template>
-  <woot-modal :show.sync="show" :on-close="onClose">
+  <woot-modal v-model:show="show" :on-close="onClose">
     <div class="flex flex-col h-auto overflow-auto">
       <woot-modal-header :header-title="$t('ATTRIBUTES_MGMT.ADD.TITLE')" />
 
@@ -186,7 +189,7 @@ export default {
                 : ''
             "
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.NAME.PLACEHOLDER')"
-            @input="onDisplayNameChange"
+            @update:model-value="onDisplayNameChange"
             @blur="v$.displayName.$touch"
           />
           <woot-input
@@ -222,26 +225,27 @@ export default {
               {{ $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.ERROR') }}
             </span>
           </label>
-          <div v-if="isAttributeTypeList" class="multiselect--wrap">
-            <label>
+          <div v-if="isAttributeTypeList" class="mb-4">
+            <label class="mb-1 block">
               {{ $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.LABEL') }}
             </label>
-            <multiselect
-              ref="tagInput"
-              v-model="values"
-              :placeholder="
-                $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.PLACEHOLDER')
-              "
-              label="name"
-              track-by="name"
-              :class="{ invalid: isMultiselectInvalid }"
-              :options="options"
-              multiple
-              taggable
-              @close="onTouch"
-              @tag="addTagValue"
-            />
-            <label v-show="isMultiselectInvalid" class="error-message">
+            <div
+              class="rounded-xl border px-3 py-2"
+              :class="isTagInputInvalid ? 'border-n-ruby-9' : 'border-n-weak'"
+            >
+              <TagInput
+                v-model="values"
+                :placeholder="
+                  $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.PLACEHOLDER')
+                "
+                allow-create
+                @blur="tagInputTouched = true"
+              />
+            </div>
+            <label
+              v-show="isTagInputInvalid"
+              class="text-n-ruby-9 dark:text-n-ruby-9 text-sm font-normal mt-1"
+            >
               {{ $t('ATTRIBUTES_MGMT.ADD.FORM.TYPE.LIST.ERROR') }}
             </label>
           </div>
@@ -270,13 +274,18 @@ export default {
             :placeholder="$t('ATTRIBUTES_MGMT.ADD.FORM.REGEX_CUE.PLACEHOLDER')"
           />
           <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
-            <woot-submit-button
-              :disabled="isButtonDisabled"
-              :button-text="$t('ATTRIBUTES_MGMT.ADD.SUBMIT')"
+            <NextButton
+              faded
+              slate
+              type="reset"
+              :label="$t('ATTRIBUTES_MGMT.ADD.CANCEL_BUTTON_TEXT')"
+              @click.prevent="onClose"
             />
-            <button class="button clear" @click.prevent="onClose">
-              {{ $t('ATTRIBUTES_MGMT.ADD.CANCEL_BUTTON_TEXT') }}
-            </button>
+            <NextButton
+              type="submit"
+              :label="$t('ATTRIBUTES_MGMT.ADD.SUBMIT')"
+              :disabled="isButtonDisabled"
+            />
           </div>
         </div>
       </form>
@@ -286,39 +295,7 @@ export default {
 
 <style lang="scss" scoped>
 .key-value {
-  padding: 0 var(--space-small) var(--space-small) 0;
+  padding: 0 0.5rem 0.5rem 0;
   font-family: monospace;
-}
-
-.multiselect--wrap {
-  margin-bottom: var(--space-normal);
-
-  .error-message {
-    color: var(--r-400);
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-normal);
-  }
-
-  .invalid {
-    ::v-deep {
-      .multiselect__tags {
-        border: 1px solid var(--r-400);
-      }
-    }
-  }
-}
-
-::v-deep {
-  .multiselect {
-    margin-bottom: 0;
-  }
-
-  .multiselect__content-wrapper {
-    display: none;
-  }
-
-  .multiselect--active .multiselect__tags {
-    border-radius: var(--border-radius-normal);
-  }
 }
 </style>

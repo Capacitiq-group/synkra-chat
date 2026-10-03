@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useStore, useMapGetter } from 'dashboard/composables/store';
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { useAlert } from 'dashboard/composables';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
-import WootSubmitButton from 'dashboard/components/buttons/FormSubmitButton.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 const emit = defineEmits(['close']);
 
@@ -113,7 +113,7 @@ const addAgent = async () => {
         <label :class="{ error: v$.agentName.$error }">
           {{ $t('AGENT_MGMT.ADD.FORM.NAME.LABEL') }}
           <input
-            v-model.trim="agentName"
+            v-model="agentName"
             type="text"
             :placeholder="$t('AGENT_MGMT.ADD.FORM.NAME.PLACEHOLDER')"
             @input="v$.agentName.$touch"
@@ -139,7 +139,7 @@ const addAgent = async () => {
         <label :class="{ error: v$.agentEmail.$error }">
           {{ $t('AGENT_MGMT.ADD.FORM.EMAIL.LABEL') }}
           <input
-            v-model.trim="agentEmail"
+            v-model="agentEmail"
             type="email"
             :placeholder="$t('AGENT_MGMT.ADD.FORM.EMAIL.PLACEHOLDER')"
             @input="v$.agentEmail.$touch"
@@ -148,16 +148,19 @@ const addAgent = async () => {
       </div>
 
       <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
-        <div class="w-full">
-          <WootSubmitButton
-            :disabled="v$.$invalid || uiFlags.isCreating"
-            :button-text="$t('AGENT_MGMT.ADD.FORM.SUBMIT')"
-            :loading="uiFlags.isCreating"
-          />
-          <button class="button clear" @click.prevent="emit('close')">
-            {{ $t('AGENT_MGMT.ADD.CANCEL_BUTTON_TEXT') }}
-          </button>
-        </div>
+        <Button
+          faded
+          slate
+          type="reset"
+          :label="$t('AGENT_MGMT.ADD.CANCEL_BUTTON_TEXT')"
+          @click.prevent="emit('close')"
+        />
+        <Button
+          type="submit"
+          :label="$t('AGENT_MGMT.ADD.FORM.SUBMIT')"
+          :disabled="v$.$invalid || uiFlags.isCreating"
+          :is-loading="uiFlags.isCreating"
+        />
       </div>
     </form>
   </div>

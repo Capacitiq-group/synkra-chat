@@ -29,9 +29,11 @@ class Macro < ApplicationRecord
   enum visibility: { personal: 0, global: 1 }
 
   validate :json_actions_format
+  validate :ensure_within_synkra_macro_limit, on: :create
 
-  ACTIONS_ATTRS = %w[send_message add_label assign_team assign_agent mute_conversation change_status remove_label remove_assigned_team
-                     resolve_conversation snooze_conversation change_priority send_email_transcript send_attachment add_private_note].freeze
+  ACTIONS_ATTRS = %w[send_message add_label assign_team assign_agent mute_conversation change_status remove_label remove_assigned_agent
+                     remove_assigned_team resolve_conversation snooze_conversation change_priority send_email_transcript
+                     send_attachment add_private_note send_webhook_event].freeze
 
   def set_visibility(user, params)
     self.visibility = params[:visibility]
@@ -40,7 +42,7 @@ class Macro < ApplicationRecord
 
   def self.with_visibility(user, _params)
     records = Current.account.macros.global
-    records = records.or(personal.where(created_by_id: user.id))
+    records = records.or(personal.where(created_by_id: user.id, account_id: Current.account.id))
     records.order(:id)
   end
 
@@ -63,6 +65,21 @@ class Macro < ApplicationRecord
   end
 
   private
+
+  # Synkra: cap macros per plan. Reads SynkraSubscription#effective_macros_limit
+  # (Business 15, Pro 50; Free/Starter 0). Create-time only: editing
+  # an existing macro is always allowed.
+  def ensure_within_synkra_macro_limit
+    return if account.nil?
+
+    subscription = account.synkra_subscription
+    return if subscription.nil?
+
+    limit = subscription.effective_macros_limit
+    return if account.macros.where.not(id: id).count < limit
+
+    errors.add(:base, :synkra_macros_limit_reached, limit: limit)
+  end
 
   def json_actions_format
     return if actions.blank?

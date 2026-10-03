@@ -1,15 +1,17 @@
 import fromUnixTime from 'date-fns/fromUnixTime';
 import differenceInDays from 'date-fns/differenceInDays';
 import Cookies from 'js-cookie';
+import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
+import { SESSION_STORAGE_KEYS } from 'dashboard/constants/sessionStorage';
+import { LocalStorage } from 'shared/helpers/localStorage';
+import SessionStorage from 'shared/helpers/sessionStorage';
+import { emitter } from 'shared/helpers/mitt';
 import {
   ANALYTICS_IDENTITY,
   ANALYTICS_RESET,
   CHATWOOT_RESET,
   CHATWOOT_SET_USER,
-} from '../../helper/scriptHelpers';
-import { LOCAL_STORAGE_KEYS } from 'dashboard/constants/localStorage';
-import { LocalStorage } from 'shared/helpers/localStorage';
-import { emitter } from 'shared/helpers/mitt';
+} from '../../constants/appEvents';
 
 Cookies.defaults = { sameSite: 'Lax' };
 
@@ -44,6 +46,10 @@ export const clearLocalStorageOnLogout = () => {
   LocalStorage.remove(LOCAL_STORAGE_KEYS.DRAFT_MESSAGES);
 };
 
+export const clearSessionStorageOnLogout = () => {
+  SessionStorage.remove(SESSION_STORAGE_KEYS.IMPERSONATION_USER);
+};
+
 export const deleteIndexedDBOnLogout = async () => {
   let dbs = [];
   try {
@@ -75,6 +81,7 @@ export const clearCookiesOnLogout = () => {
   emitter.emit(ANALYTICS_RESET);
   clearBrowserSessionCookies();
   clearLocalStorageOnLogout();
+  clearSessionStorageOnLogout();
   const globalConfig = window.globalConfig || {};
   const logoutRedirectLink = globalConfig.LOGOUT_REDIRECT_LINK || '/';
   window.location = logoutRedirectLink;
@@ -93,9 +100,30 @@ export const parseAPIErrorResponse = error => {
   return error;
 };
 
+// Flattens a Rails-style error hash ({ base: ["msg"] } or { name: ["msg"] })
+// into a readable string. Passes strings through unchanged. Returns null
+// when the shape isn't recognised, so callers can fall back.
+const flattenErrorMessage = errorMessage => {
+  if (typeof errorMessage === 'string') return errorMessage;
+  if (!errorMessage || typeof errorMessage !== 'object') return null;
+  const firstArray = Object.values(errorMessage).find(Array.isArray);
+  if (firstArray && firstArray.length) return String(firstArray[0]);
+  if (typeof errorMessage.message === 'string') return errorMessage.message;
+  return null;
+};
+
 export const throwErrorMessage = error => {
-  const errorMessage = parseAPIErrorResponse(error);
-  throw new Error(errorMessage);
+  // Prefer the raw response body. parseAPIErrorResponse returns an
+  // object for Rails-style validation hashes ({ error: { base: [...] } }),
+  // and `new Error(object)` produces the useless string "[object Object]".
+  const raw =
+    error?.response?.data?.error ??
+    error?.response?.data?.errors?.[0] ??
+    error?.response?.data?.message ??
+    parseAPIErrorResponse(error);
+
+  const flat = flattenErrorMessage(raw);
+  throw new Error(flat || 'Request failed');
 };
 
 export const parseLinearAPIErrorResponse = (error, defaultMessage) => {

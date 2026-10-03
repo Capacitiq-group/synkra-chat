@@ -4,7 +4,6 @@ import { differenceInSeconds } from 'date-fns';
 import {
   isAConversationRoute,
   isAInboxViewRoute,
-  isNotificationRoute,
 } from 'dashboard/helper/routeHelpers';
 import ReconnectService from 'dashboard/helper/ReconnectService';
 
@@ -23,7 +22,6 @@ vi.mock('date-fns', () => ({
 vi.mock('dashboard/helper/routeHelpers', () => ({
   isAConversationRoute: vi.fn(),
   isAInboxViewRoute: vi.fn(),
-  isNotificationRoute: vi.fn(),
 }));
 
 const storeMock = {
@@ -37,8 +35,10 @@ const storeMock = {
 
 const routerMock = {
   currentRoute: {
-    name: '',
-    params: { conversation_id: null },
+    value: {
+      name: '',
+      params: { conversation_id: null },
+    },
   },
 };
 
@@ -222,7 +222,7 @@ describe('ReconnectService', () => {
 
   describe('fetchConversationMessagesOnReconnect', () => {
     it('should dispatch syncActiveConversationMessages if conversationId exists', async () => {
-      routerMock.currentRoute.params.conversation_id = 1;
+      routerMock.currentRoute.value.params.conversation_id = 1;
       await reconnectService.fetchConversationMessagesOnReconnect();
       expect(storeMock.dispatch).toHaveBeenCalledWith(
         'syncActiveConversationMessages',
@@ -231,7 +231,7 @@ describe('ReconnectService', () => {
     });
 
     it('should not dispatch syncActiveConversationMessages if conversationId does not exist', async () => {
-      routerMock.currentRoute.params.conversation_id = null;
+      routerMock.currentRoute.value.params.conversation_id = null;
       await reconnectService.fetchConversationMessagesOnReconnect();
       expect(storeMock.dispatch).not.toHaveBeenCalledWith(
         'syncActiveConversationMessages',
@@ -294,18 +294,11 @@ describe('ReconnectService', () => {
       await reconnectService.handleRouteSpecificFetch();
       expect(spy).toHaveBeenCalled();
     });
-
-    it('should fetch notifications if current route is a notification route', async () => {
-      isNotificationRoute.mockReturnValue(true);
-      const spy = vi.spyOn(reconnectService, 'fetchNotificationsOnReconnect');
-      await reconnectService.handleRouteSpecificFetch();
-      expect(spy).toHaveBeenCalled();
-    });
   });
 
   describe('setConversationLastMessageId', () => {
     it('should dispatch setConversationLastMessageId if conversationId exists', async () => {
-      routerMock.currentRoute.params.conversation_id = 1;
+      routerMock.currentRoute.value.params.conversation_id = 1;
       await reconnectService.setConversationLastMessageId();
       expect(storeMock.dispatch).toHaveBeenCalledWith(
         'setConversationLastMessageId',
@@ -314,7 +307,7 @@ describe('ReconnectService', () => {
     });
 
     it('should not dispatch setConversationLastMessageId if conversationId does not exist', async () => {
-      routerMock.currentRoute.params.conversation_id = null;
+      routerMock.currentRoute.value.params.conversation_id = null;
       await reconnectService.setConversationLastMessageId();
       expect(storeMock.dispatch).not.toHaveBeenCalledWith(
         'setConversationLastMessageId',

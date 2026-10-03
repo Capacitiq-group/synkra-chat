@@ -6,7 +6,6 @@ class OauthCallbackController < ApplicationController
     )
 
     handle_response
-    ::Redis::Alfred.delete(cache_key)
   rescue StandardError => e
     ChatwootExceptionTracker.new(e).capture_exception
     redirect_to '/'
@@ -17,6 +16,8 @@ class OauthCallbackController < ApplicationController
   def handle_response
     inbox, already_exists = find_or_create_inbox
 
+    return redirect_to app_onboarding_inbox_setup_url(account_id: account.id) if return_to == 'onboarding'
+
     if already_exists
       redirect_to app_email_inbox_settings_url(account_id: account.id, inbox_id: inbox.id)
     else
@@ -25,7 +26,7 @@ class OauthCallbackController < ApplicationController
   end
 
   def find_or_create_inbox
-    channel_email = Channel::Email.find_by(email: users_data['email'], account: account)
+    channel_email = find_channel_by_email
     # we need this value to know where to redirect on sucessful processing of the callback
     channel_exists = channel_email.present?
 
@@ -39,9 +40,13 @@ class OauthCallbackController < ApplicationController
     [channel_email.inbox, channel_exists]
   end
 
+  def find_channel_by_email
+    Channel::Email.find_by(email: users_data['email'], account: account)
+  end
+
   def update_channel(channel_email)
     channel_email.update!({
-                            imap_login: users_data['email'], imap_address: imap_address,
+                            imap_login: imap_login_identity, imap_address: imap_address,
                             imap_port: '993', imap_enabled: true,
                             provider: provider_name,
                             provider_config: {
@@ -52,6 +57,13 @@ class OauthCallbackController < ApplicationController
                           })
   end
 
+  # Identity used as the IMAP/SMTP login (SASL XOAUTH2 `user=` field). Defaults to the
+  # id_token's email claim; providers override when their server requires a different
+  # claim (e.g. Microsoft SMTP requires UPN).
+  def imap_login_identity
+    users_data['email']
+  end
+
   def provider_name
     raise NotImplementedError
   end
@@ -60,13 +72,10 @@ class OauthCallbackController < ApplicationController
     raise NotImplementedError
   end
 
-  def cache_key
-    "#{provider_name}::#{users_data['email'].downcase}"
-  end
-
   def create_channel_with_inbox
     ActiveRecord::Base.transaction do
       channel_email = Channel::Email.create!(email: users_data['email'], account: account)
+
       account.inboxes.create!(
         account: account,
         channel: channel_email,
@@ -81,12 +90,31 @@ class OauthCallbackController < ApplicationController
     decoded_token[0]
   end
 
-  def account_id
-    ::Redis::Alfred.get(cache_key)
+  # The sgid purpose carries the onboarding return hint (see
+  # OauthAuthorizationController#state). Try the onboarding purpose first — a match
+  # both resolves the account and records the return target — then fall back to the
+  # default purpose used by every other caller.
+  def account_from_signed_id
+    raise ActionController::BadRequest, 'Missing state variable' if params[:state].blank?
+
+    if (account = GlobalID::Locator.locate_signed(params[:state], for: 'onboarding'))
+      @return_to = 'onboarding'
+    else
+      account = GlobalID::Locator.locate_signed(params[:state])
+    end
+
+    raise 'Invalid or expired state' if account.nil?
+
+    account
   end
 
   def account
-    @account ||= Account.find(account_id)
+    @account ||= account_from_signed_id
+  end
+
+  def return_to
+    account # resolving the sgid records which purpose matched
+    @return_to
   end
 
   # Fallback name, for when name field is missing from users_data

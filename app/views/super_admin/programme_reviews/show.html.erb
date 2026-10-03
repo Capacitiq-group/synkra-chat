@@ -1,0 +1,73 @@
+<% content_for(:title) do %>Review: <%= @verification.programme.titleize %><% end %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">
+    <%= @verification.programme.titleize %> - <%= @verification.account ? "#{@verification.account.name} (ID #{@verification.account_id})" : "#{@verification.contact_email} (no account yet)" %>
+  </h1>
+  <div><%= link_to 'Back to queue', super_admin_programme_reviews_path %></div>
+</header>
+
+<section class="main-content__body">
+  <p class="text-sm mb-4">
+    Status: <strong><%= @verification.status.humanize %></strong>
+    &middot; Route: <%= @verification.verification_method %>
+    &middot; Submitted: <%= @verification.submitted_at&.strftime('%-d %b %Y %H:%M') %>
+    &middot; Applicant: <%= @verification.user ? "#{@verification.user.name} (#{@verification.user.email})" : @verification.contact_email %>
+  </p>
+
+  <% if @verification.ocr_result.present? %>
+    <div class="mb-6 border border-slate-100 rounded-md p-4">
+      <h2 class="text-base font-semibold mb-2">Automatic document check</h2>
+      <% reasons = Array(@verification.ocr_result['reasons']) %>
+      <p class="text-sm mb-2">
+        <% if reasons.empty? %>All rules passed.<% else %>Flagged for review: <strong><%= reasons.join(', ') %></strong><% end %>
+      </p>
+      <p class="text-sm text-slate-600">Account name: <strong><%= @verification.user.name %></strong></p>
+      <dl class="text-sm">
+        <% @verification.ocr_result.except('reasons').each do |key, value| %>
+          <dt class="font-medium mt-1"><%= key.humanize %></dt><dd><%= value.to_s %></dd>
+        <% end %>
+      </dl>
+    </div>
+  <% end %>
+
+  <% if @verification.application_data.present? %>
+    <div class="mb-6 border border-slate-100 rounded-md p-4">
+      <h2 class="text-base font-semibold mb-2">Application</h2>
+      <dl class="text-sm">
+        <% @verification.application_data.each do |key, value| %>
+          <dt class="font-medium mt-2"><%= key.humanize %></dt><dd style="white-space: pre-wrap;"><%= value.to_s %></dd>
+        <% end %>
+      </dl>
+    </div>
+  <% end %>
+
+  <div class="mb-6 border border-slate-100 rounded-md p-4">
+    <h2 class="text-base font-semibold mb-2">Uploaded files (<%= @verification.documents.count %>)</h2>
+    <ul class="text-sm">
+      <% @verification.documents.each do |document| %>
+        <li><%= link_to document.filename.to_s, rails_blob_path(document, disposition: 'inline'), target: '_blank', rel: 'noopener' %>
+          <span class="text-slate-500">(<%= number_to_human_size(document.byte_size) %>)</span></li>
+      <% end %>
+    </ul>
+  </div>
+
+  <% if @verification.review_note.present? %>
+    <p class="text-sm mb-4">Previous note: <em><%= @verification.review_note %></em></p>
+  <% end %>
+
+  <% if %w[review needs_info].include?(@verification.status) %>
+    <div class="border border-slate-100 rounded-md p-4">
+      <h2 class="text-base font-semibold mb-2">Decision</h2>
+      <p class="text-sm text-slate-600 mb-2">The note is emailed to the applicant. It is required to reject or to ask for more information.</p>
+      <%= form_with url: approve_super_admin_programme_review_path(@verification), method: :post, local: true do |f| %>
+        <%= f.text_area :note, rows: 3, class: 'border border-slate-100 p-1.5 rounded-md w-full', placeholder: 'Note to the applicant' %>
+        <div class="flex gap-2 mt-3">
+          <%= f.submit 'Approve', class: 'border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-md cursor-pointer' %>
+          <%= f.submit 'Request more information', formaction: request_info_super_admin_programme_review_path(@verification), class: 'border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-md cursor-pointer' %>
+          <%= f.submit 'Reject', formaction: reject_super_admin_programme_review_path(@verification), class: 'border border-slate-200 bg-slate-50 px-3 py-1.5 rounded-md cursor-pointer' %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</section>

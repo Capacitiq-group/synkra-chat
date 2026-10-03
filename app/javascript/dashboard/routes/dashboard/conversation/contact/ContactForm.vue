@@ -4,13 +4,21 @@ import {
   DuplicateContactException,
   ExceptionWithMessage,
 } from 'shared/helpers/CustomErrors';
-import { useVuelidate } from '@vuelidate/core';
 import { required, email } from '@vuelidate/validators';
+import { useVuelidate } from '@vuelidate/core';
 import countries from 'shared/constants/countries.js';
 import { isPhoneNumberValid } from 'shared/helpers/Validators';
 import parsePhoneNumber from 'libphonenumber-js';
+import NextButton from 'dashboard/components-next/button/Button.vue';
+import Avatar from 'next/avatar/Avatar.vue';
+import ComboBox from 'dashboard/components-next/combobox/ComboBox.vue';
 
 export default {
+  components: {
+    NextButton,
+    Avatar,
+    ComboBox,
+  },
   props: {
     contact: {
       type: Object,
@@ -25,6 +33,7 @@ export default {
       default: () => {},
     },
   },
+  emits: ['cancel', 'success'],
   setup() {
     return { v$: useVuelidate() };
   },
@@ -49,12 +58,15 @@ export default {
         twitter: '',
         linkedin: '',
         github: '',
+        telegram: '',
       },
       socialProfileKeys: [
         { key: 'facebook', prefixURL: 'https://facebook.com/' },
         { key: 'twitter', prefixURL: 'https://twitter.com/' },
         { key: 'linkedin', prefixURL: 'https://linkedin.com/' },
         { key: 'github', prefixURL: 'https://github.com/' },
+        { key: 'telegram', prefixURL: 'https://t.me/' },
+        { key: 'tiktok', prefixURL: 'https://tiktok.com/@' },
       ],
     };
   },
@@ -125,6 +137,12 @@ export default {
       if (!name && !id) return '';
       return `${name} (${id})`;
     },
+    onCountryChange(value) {
+      const selected = this.countries.find(c => c.id === value);
+      this.country = selected
+        ? { id: selected.id, name: selected.name }
+        : { id: '', name: '' };
+    },
     setDialCode() {
       if (
         this.phoneNumber !== '' &&
@@ -159,13 +177,16 @@ export default {
       const {
         social_profiles: socialProfiles = {},
         screen_name: twitterScreenName,
+        social_telegram_user_name: telegramUserName,
       } = additionalAttributes;
       this.socialProfileUserNames = {
         twitter: socialProfiles.twitter || twitterScreenName || '',
         facebook: socialProfiles.facebook || '',
         linkedin: socialProfiles.linkedin || '',
         github: socialProfiles.github || '',
+        telegram: socialProfiles.telegram || telegramUserName || '',
         instagram: socialProfiles.instagram || '',
+        tiktok: socialProfiles.tiktok || '',
       };
     },
     getContactObject() {
@@ -199,9 +220,6 @@ export default {
         contactObject.isFormData = true;
       }
       return contactObject;
-    },
-    onPhoneNumberInputChange(value, code) {
-      this.activeDialCode = code;
     },
     setPhoneCode(code) {
       if (this.phoneNumber !== '' && this.parsePhoneNumber) {
@@ -272,25 +290,26 @@ export default {
     class="w-full px-8 pt-6 pb-8 contact--form"
     @submit.prevent="handleSubmit"
   >
-    <div>
-      <div class="w-full">
-        <woot-avatar-uploader
-          :label="$t('CONTACT_FORM.FORM.AVATAR.LABEL')"
-          :src="avatarUrl"
-          :username-avatar="name"
-          :delete-avatar="!!avatarUrl"
-          class="settings-item"
-          @change="handleImageUpload"
-          @onAvatarDelete="handleAvatarDelete"
-        />
-      </div>
+    <div class="flex flex-col mb-4 items-start gap-1 w-full">
+      <label class="mb-0.5 text-sm font-medium text-n-slate-12">
+        {{ $t('CONTACT_FORM.FORM.AVATAR.LABEL') }}
+      </label>
+      <Avatar
+        :src="avatarUrl"
+        :size="72"
+        :name="contact.name"
+        allow-upload
+        rounded-full
+        @upload="handleImageUpload"
+        @delete="handleAvatarDelete"
+      />
     </div>
     <div>
       <div class="w-full">
         <label :class="{ error: v$.name.$error }">
           {{ $t('CONTACT_FORM.FORM.NAME.LABEL') }}
           <input
-            v-model.trim="name"
+            v-model="name"
             type="text"
             :placeholder="$t('CONTACT_FORM.FORM.NAME.PLACEHOLDER')"
             @input="v$.name.$touch"
@@ -300,7 +319,7 @@ export default {
         <label :class="{ error: v$.email.$error }">
           {{ $t('CONTACT_FORM.FORM.EMAIL_ADDRESS.LABEL') }}
           <input
-            v-model.trim="email"
+            v-model="email"
             type="text"
             :placeholder="$t('CONTACT_FORM.FORM.EMAIL_ADDRESS.PLACEHOLDER')"
             @input="v$.email.$touch"
@@ -315,7 +334,7 @@ export default {
       <label :class="{ error: v$.description.$error }">
         {{ $t('CONTACT_FORM.FORM.BIO.LABEL') }}
         <textarea
-          v-model.trim="description"
+          v-model="description"
           type="text"
           :placeholder="$t('CONTACT_FORM.FORM.BIO.PLACEHOLDER')"
           @input="v$.description.$touch"
@@ -335,9 +354,8 @@ export default {
             :value="phoneNumber"
             :error="isPhoneNumberNotValid"
             :placeholder="$t('CONTACT_FORM.FORM.PHONE_NUMBER.PLACEHOLDER')"
-            @input="onPhoneNumberInputChange"
             @blur="v$.phoneNumber.$touch"
-            @setCode="setPhoneCode"
+            @set-code="setPhoneCode"
           />
           <span v-if="isPhoneNumberNotValid" class="message">
             {{ phoneNumberError }}
@@ -345,38 +363,35 @@ export default {
         </label>
         <div
           v-if="isPhoneNumberNotValid || !phoneNumber"
-          class="relative mx-0 mt-0 mb-2.5 p-2 rounded-md text-sm border border-solid border-yellow-500 text-yellow-700 dark:border-yellow-700 bg-yellow-200/60 dark:bg-yellow-200/20 dark:text-yellow-400"
+          class="relative mx-0 mt-0 mb-2.5 p-2 rounded-md text-sm border border-solid border-n-amber-5 text-n-amber-12 bg-n-amber-3"
         >
           {{ $t('CONTACT_FORM.FORM.PHONE_NUMBER.HELP') }}
         </div>
       </div>
     </div>
     <woot-input
-      v-model.trim="companyName"
+      v-model="companyName"
       class="w-full"
       :label="$t('CONTACT_FORM.FORM.COMPANY_NAME.LABEL')"
       :placeholder="$t('CONTACT_FORM.FORM.COMPANY_NAME.PLACEHOLDER')"
     />
-    <div>
-      <div class="w-full">
-        <label>
-          {{ $t('CONTACT_FORM.FORM.COUNTRY.LABEL') }}
-        </label>
-        <multiselect
-          v-model="country"
-          track-by="id"
-          label="name"
-          :placeholder="$t('CONTACT_FORM.FORM.COUNTRY.PLACEHOLDER')"
-          selected-label
-          :select-label="$t('CONTACT_FORM.FORM.COUNTRY.SELECT_PLACEHOLDER')"
-          :deselect-label="$t('CONTACT_FORM.FORM.COUNTRY.REMOVE')"
-          :custom-label="countryNameWithCode"
-          :max-height="160"
-          :options="countries"
-          allow-empty
-          :option-height="104"
-        />
-      </div>
+    <div class="w-full mb-4">
+      <label>
+        {{ $t('CONTACT_FORM.FORM.COUNTRY.LABEL') }}
+      </label>
+      <ComboBox
+        :model-value="country.id"
+        :options="
+          countries.map(c => ({
+            value: c.id,
+            label: countryNameWithCode(c),
+          }))
+        "
+        class="[&>div>button]:!bg-n-alpha-black2"
+        :placeholder="$t('CONTACT_FORM.FORM.COUNTRY.PLACEHOLDER')"
+        :search-placeholder="$t('CONTACT_FORM.FORM.COUNTRY.SELECT_PLACEHOLDER')"
+        @update:model-value="onCountryChange"
+      />
     </div>
     <woot-input
       v-model="city"
@@ -393,35 +408,30 @@ export default {
         class="flex items-stretch w-full mb-4"
       >
         <span
-          class="flex items-center h-10 px-2 text-sm border-solid bg-slate-50 border-y ltr:border-l rtl:border-r ltr:rounded-l-md rtl:rounded-r-md dark:bg-slate-700 text-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-600"
+          class="flex items-center h-10 px-2 text-sm border-solid border-y ltr:border-l rtl:border-r ltr:rounded-l-md rtl:rounded-r-md bg-n-solid-3 text-n-slate-11 border-n-weak"
         >
           {{ socialProfile.prefixURL }}
         </span>
         <input
           v-model="socialProfileUserNames[socialProfile.key]"
-          class="input-group-field ltr:!rounded-l-none rtl:rounded-r-none !mb-0"
+          class="input-group-field ltr:!rounded-l-none rtl:!rounded-r-none !mb-0"
           type="text"
         />
       </div>
     </div>
-    <div class="flex flex-row justify-end w-full gap-2 px-0 py-2">
-      <div class="w-full">
-        <woot-submit-button
-          :loading="inProgress"
-          :button-text="$t('CONTACT_FORM.FORM.SUBMIT')"
-        />
-        <button class="button clear" @click.prevent="onCancel">
-          {{ $t('CONTACT_FORM.FORM.CANCEL') }}
-        </button>
-      </div>
+    <div class="flex flex-row justify-start w-full gap-2 px-0 py-2">
+      <NextButton
+        type="submit"
+        :label="$t('CONTACT_FORM.FORM.SUBMIT')"
+        :is-loading="inProgress"
+      />
+      <NextButton
+        faded
+        slate
+        type="reset"
+        :label="$t('CONTACT_FORM.FORM.CANCEL')"
+        @click.prevent="onCancel"
+      />
     </div>
   </form>
 </template>
-
-<style scoped lang="scss">
-::v-deep {
-  .multiselect .multiselect__tags .multiselect__single {
-    @apply pl-0;
-  }
-}
-</style>

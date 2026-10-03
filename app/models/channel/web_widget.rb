@@ -3,6 +3,7 @@
 # Table name: channel_web_widgets
 #
 #  id                    :integer          not null, primary key
+#  allowed_domains       :text             default("")
 #  continuity_via_email  :boolean          default(TRUE), not null
 #  feature_flags         :integer          default(7), not null
 #  hmac_mandatory        :boolean          default(FALSE)
@@ -31,7 +32,7 @@ class Channel::WebWidget < ApplicationRecord
 
   self.table_name = 'channel_web_widgets'
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
-                    :continuity_via_email, :hmac_mandatory,
+                    :continuity_via_email, :hmac_mandatory, :allowed_domains,
                     { pre_chat_form_options: [:pre_chat_message, :require_email,
                                               { pre_chat_fields:
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
@@ -50,6 +51,7 @@ class Channel::WebWidget < ApplicationRecord
             2 => :emoji_picker,
             3 => :end_conversation,
             4 => :use_inbox_avatar_for_bot,
+            5 => :allow_mobile_webview,
             :column => 'feature_flags',
             :check_for_column => false
 
@@ -66,7 +68,6 @@ class Channel::WebWidget < ApplicationRecord
         var BASE_URL=\"#{ENV.fetch('FRONTEND_URL', '')}\";
         var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
         g.src=BASE_URL+\"/packs/js/sdk.js\";
-        g.defer = true;
         g.async = true;
         s.parentNode.insertBefore(g,s);
         g.onload=function(){
@@ -83,14 +84,20 @@ class Channel::WebWidget < ApplicationRecord
   def validate_pre_chat_options
     return if pre_chat_form_options.with_indifferent_access['pre_chat_fields'].present?
 
+    # Synkra Chat V1: every new website widget requires full name + email
+    # before a customer can send their first message (this is the base
+    # of the customer identity/session layer - actual email *verification*
+    # is a separate, not-yet-built layer on top of this collected value).
+    self.pre_chat_form_enabled = true
+
     self.pre_chat_form_options = {
       pre_chat_message: 'Share your queries or comments here.',
       pre_chat_fields: [
         {
-          'field_type': 'standard', 'label': 'Email Id', 'name': 'emailAddress', 'type': 'email', 'required': true, 'enabled': false
+          'field_type': 'standard', 'label': 'Email Id', 'name': 'emailAddress', 'type': 'email', 'required': true, 'enabled': true
         },
         {
-          'field_type': 'standard', 'label': 'Full name', 'name': 'fullName', 'type': 'text', 'required': false, 'enabled': false
+          'field_type': 'standard', 'label': 'Full name', 'name': 'fullName', 'type': 'text', 'required': true, 'enabled': true
         },
         {
           'field_type': 'standard', 'label': 'Phone number', 'name': 'phoneNumber', 'type': 'text', 'required': false, 'enabled': false

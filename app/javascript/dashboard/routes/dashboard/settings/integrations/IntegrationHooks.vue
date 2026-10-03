@@ -6,12 +6,16 @@ import { useIntegrationHook } from 'dashboard/composables/useIntegrationHook';
 import NewHook from './NewHook.vue';
 import SingleIntegrationHooks from './SingleIntegrationHooks.vue';
 import MultipleIntegrationHooks from './MultipleIntegrationHooks.vue';
+import SettingsLayout from '../SettingsLayout.vue';
+import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
 
 export default {
   components: {
     NewHook,
     SingleIntegrationHooks,
     MultipleIntegrationHooks,
+    SettingsLayout,
+    BaseSettingsHeader,
   },
   props: {
     integrationId: {
@@ -28,6 +32,7 @@ export default {
       isIntegrationSingle,
       isHookTypeInbox,
     } = useIntegrationHook(integrationId);
+
     return {
       integration,
       isIntegrationMultiple,
@@ -71,6 +76,9 @@ export default {
       return this.$t('INTEGRATION_APPS.DELETE.CANCEL_BUTTON_TEXT');
     },
   },
+  mounted() {
+    this.$store.dispatch('integrations/get');
+  },
   methods: {
     openAddHookModal() {
       this.showAddHookModal = true;
@@ -108,39 +116,41 @@ export default {
 </script>
 
 <template>
-  <div class="overflow-auto p-4 max-w-full my-auto flex flex-wrap h-full">
-    <woot-button
-      v-if="showAddButton"
-      color-scheme="success"
-      class-names="button--fixed-top"
-      icon="add-circle"
-      @click="openAddHookModal"
-    >
-      {{ $t('INTEGRATION_APPS.ADD_BUTTON') }}
-    </woot-button>
-    <div v-if="showIntegrationHooks" class="w-full">
-      <div v-if="isIntegrationMultiple">
-        <MultipleIntegrationHooks
-          :integration-id="integrationId"
-          @delete="openDeletePopup"
-        />
-      </div>
+  <SettingsLayout :is-loading="uiFlags.isFetching">
+    <template v-if="isIntegrationSingle" #header>
+      <BaseSettingsHeader
+        :title="integration.name || ''"
+        description=""
+        :feature-name="integrationId"
+        :back-button-label="$t('INTEGRATION_SETTINGS.HEADER')"
+      />
+    </template>
+    <template #body>
+      <div v-if="showIntegrationHooks" class="w-full">
+        <div v-if="isIntegrationMultiple">
+          <MultipleIntegrationHooks
+            :integration-id="integrationId"
+            :show-add-button="showAddButton"
+            @add="openAddHookModal"
+            @delete="openDeletePopup"
+          />
+        </div>
 
-      <div v-if="isIntegrationSingle">
-        <SingleIntegrationHooks
-          :integration-id="integrationId"
-          @add="openAddHookModal"
-          @delete="openDeletePopup"
-        />
+        <div v-if="isIntegrationSingle">
+          <SingleIntegrationHooks
+            :integration-id="integrationId"
+            @add="openAddHookModal"
+            @delete="openDeletePopup"
+          />
+        </div>
       </div>
-    </div>
-
-    <woot-modal :show.sync="showAddHookModal" :on-close="hideAddHookModal">
+    </template>
+    <woot-modal v-model:show="showAddHookModal" :on-close="hideAddHookModal">
       <NewHook :integration-id="integrationId" @close="hideAddHookModal" />
     </woot-modal>
 
     <woot-delete-modal
-      :show.sync="showDeleteConfirmationPopup"
+      v-model:show="showDeleteConfirmationPopup"
       :on-close="closeDeletePopup"
       :on-confirm="confirmDeletion"
       :title="deleteTitle"
@@ -148,5 +158,5 @@ export default {
       :confirm-text="confirmText"
       :reject-text="cancelText"
     />
-  </div>
+  </SettingsLayout>
 </template>

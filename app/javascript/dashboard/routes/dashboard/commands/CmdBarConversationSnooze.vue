@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { useStore, useStoreGetters } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
-import { useI18n } from 'dashboard/composables/useI18n';
+import { useI18n } from 'vue-i18n';
 import { useEmitter } from 'dashboard/composables/emitter';
 import { getUnixTime } from 'date-fns';
 import { findSnoozeTime } from 'dashboard/helper/snoozeHelpers';
@@ -31,6 +31,8 @@ const toggleStatus = async (status, snoozedUntil) => {
 const onCmdSnoozeConversation = snoozeType => {
   if (snoozeType === wootConstants.SNOOZE_OPTIONS.UNTIL_CUSTOM_TIME) {
     showCustomSnoozeModal.value = true;
+  } else if (typeof snoozeType === 'number') {
+    toggleStatus(wootConstants.STATUS_TYPE.SNOOZED, snoozeType);
   } else {
     toggleStatus(
       wootConstants.STATUS_TYPE.SNOOZED,
@@ -61,12 +63,12 @@ useEmitter(CMD_SNOOZE_CONVERSATION, onCmdSnoozeConversation);
 
 <template>
   <woot-modal
-    :show.sync="showCustomSnoozeModal"
+    v-model:show="showCustomSnoozeModal"
     :on-close="hideCustomSnoozeModal"
   >
     <CustomSnoozeModal
       @close="hideCustomSnoozeModal"
-      @chooseTime="chooseSnoozeTime"
+      @choose-time="chooseSnoozeTime"
     />
   </woot-modal>
 </template>

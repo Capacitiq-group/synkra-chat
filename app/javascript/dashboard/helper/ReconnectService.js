@@ -4,7 +4,6 @@ import { differenceInSeconds } from 'date-fns';
 import {
   isAConversationRoute,
   isAInboxViewRoute,
-  isNotificationRoute,
 } from 'dashboard/helper/routeHelpers';
 
 const MAX_DISCONNECT_SECONDS = 10800;
@@ -63,10 +62,14 @@ class ReconnectService {
   };
 
   fetchFilteredOrSavedConversations = async queryData => {
-    await this.store.dispatch('fetchFilteredConversations', {
-      queryData,
-      page: 1,
-    });
+    try {
+      await this.store.dispatch('fetchFilteredConversations', {
+        queryData,
+        page: 1,
+      });
+    } catch (error) {
+      // Ignore error, reconnect flow should continue
+    }
   };
 
   fetchConversationsOnReconnect = async () => {
@@ -85,7 +88,8 @@ class ReconnectService {
   };
 
   fetchConversationMessagesOnReconnect = async () => {
-    const { conversation_id: conversationId } = this.router.currentRoute.params;
+    const { conversation_id: conversationId } =
+      this.router.currentRoute.value.params;
     if (conversationId) {
       await this.store.dispatch('syncActiveConversationMessages', {
         conversationId: Number(conversationId),
@@ -109,7 +113,7 @@ class ReconnectService {
   };
 
   handleRouteSpecificFetch = async () => {
-    const currentRoute = this.router.currentRoute.name;
+    const currentRoute = this.router.currentRoute.value.name;
     if (isAConversationRoute(currentRoute, true)) {
       await this.fetchConversationsOnReconnect();
       await this.fetchConversationMessagesOnReconnect();
@@ -117,13 +121,12 @@ class ReconnectService {
       await this.fetchNotificationsOnReconnect(
         this.store.getters['notifications/getNotificationFilters']
       );
-    } else if (isNotificationRoute(currentRoute)) {
-      await this.fetchNotificationsOnReconnect();
     }
   };
 
   setConversationLastMessageId = async () => {
-    const { conversation_id: conversationId } = this.router.currentRoute.params;
+    const { conversation_id: conversationId } =
+      this.router.currentRoute.value.params;
     if (conversationId) {
       await this.store.dispatch('setConversationLastMessageId', {
         conversationId: Number(conversationId),

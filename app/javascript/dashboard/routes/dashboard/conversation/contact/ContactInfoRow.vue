@@ -2,10 +2,14 @@
 import { useAlert } from 'dashboard/composables';
 import EmojiOrIcon from 'shared/components/EmojiOrIcon.vue';
 import { copyTextToClipboard } from 'shared/helpers/clipboard';
+import NextButton from 'dashboard/components-next/button/Button.vue';
+import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
 
 export default {
   components: {
     EmojiOrIcon,
+    NextButton,
+    InlineInput,
   },
   props: {
     href: {
@@ -28,6 +32,21 @@ export default {
       type: Boolean,
       default: false,
     },
+    editable: {
+      type: Boolean,
+      default: false,
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+  },
+  emits: ['update'],
+  data() {
+    return {
+      isEditing: false,
+      editValue: '',
+    };
   },
   methods: {
     async onCopy(e) {
@@ -35,16 +54,54 @@ export default {
       await copyTextToClipboard(this.value);
       useAlert(this.$t('CONTACT_PANEL.COPY_SUCCESSFUL'));
     },
+    startEditing() {
+      if (!this.editable) return;
+      this.editValue = this.value || '';
+      this.isEditing = true;
+      this.$nextTick(() => {
+        this.$refs.editInput?.focus();
+      });
+    },
+    saveEdit() {
+      if (!this.isEditing) return;
+      this.isEditing = false;
+      const trimmed = this.editValue.trim();
+      if (trimmed !== (this.value || '')) {
+        this.$emit('update', trimmed);
+      }
+    },
+    cancelEdit() {
+      this.isEditing = false;
+    },
   },
 };
 </script>
 
 <template>
-  <div class="w-full h-5 ltr:-ml-1 rtl:-mr-1">
+  <div class="group/row w-full h-5 ltr:-ml-1 rtl:-mr-1">
+    <!-- Inline edit mode -->
+    <div v-if="isEditing" class="flex items-center w-full min-w-0 gap-2">
+      <EmojiOrIcon
+        :icon="icon"
+        :emoji="emoji"
+        icon-size="14"
+        class="flex-shrink-0 ltr:ml-1 rtl:mr-1"
+      />
+      <InlineInput
+        ref="editInput"
+        v-model="editValue"
+        :placeholder="title"
+        @enter-press="saveEdit"
+        @escape-press="cancelEdit"
+        @blur="saveEdit"
+      />
+    </div>
+
+    <!-- Read mode with link -->
     <a
-      v-if="href"
+      v-else-if="href"
       :href="href"
-      class="flex items-center gap-2 text-slate-800 dark:text-slate-100 hover:underline"
+      class="flex items-center gap-2 text-n-slate-11 hover:underline"
     >
       <EmojiOrIcon
         :icon="icon"
@@ -59,26 +116,31 @@ export default {
       >
         {{ value }}
       </span>
-      <span v-else class="text-sm text-slate-300 dark:text-slate-600">{{
-        $t('CONTACT_PANEL.NOT_AVAILABLE')
-      }}</span>
-
-      <woot-button
+      <span v-else class="text-sm text-n-slate-11">
+        {{ $t('CONTACT_PANEL.NOT_AVAILABLE') }}
+      </span>
+      <NextButton
         v-if="showCopy"
-        type="submit"
-        variant="clear"
-        size="tiny"
-        color-scheme="secondary"
-        icon="clipboard"
-        class-names="p-0"
+        ghost
+        xs
+        slate
+        class="ltr:-ml-1 rtl:-mr-1"
+        icon="i-lucide-clipboard"
         @click="onCopy"
+      />
+      <NextButton
+        v-if="editable"
+        ghost
+        xs
+        slate
+        class="ltr:-ml-1 rtl:-mr-1 opacity-0 group-hover/row:opacity-100 transition-opacity"
+        icon="i-lucide-pencil"
+        @click.prevent="startEditing"
       />
     </a>
 
-    <div
-      v-else
-      class="flex items-center gap-2 text-slate-800 dark:text-slate-100"
-    >
+    <!-- Read mode without link -->
+    <div v-else class="flex items-center gap-2 text-n-slate-11">
       <EmojiOrIcon
         :icon="icon"
         :emoji="emoji"
@@ -87,13 +149,21 @@ export default {
       />
       <span
         v-if="value"
+        v-dompurify-html="value"
         class="overflow-hidden text-sm whitespace-nowrap text-ellipsis"
-      >
-        {{ value }}
+      />
+      <span v-else class="text-sm text-n-slate-11">
+        {{ $t('CONTACT_PANEL.NOT_AVAILABLE') }}
       </span>
-      <span v-else class="text-sm text-slate-300 dark:text-slate-600">{{
-        $t('CONTACT_PANEL.NOT_AVAILABLE')
-      }}</span>
+      <NextButton
+        v-if="editable"
+        ghost
+        xs
+        slate
+        class="ltr:-ml-1 rtl:-mr-1 opacity-0 group-hover/row:opacity-100 transition-opacity"
+        icon="i-lucide-pencil"
+        @click="startEditing"
+      />
     </div>
   </div>
 </template>

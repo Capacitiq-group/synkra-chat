@@ -7,14 +7,30 @@ import {
   ArticleMarkdownTransformer,
   EditorState,
   Selection,
+  imageResizeView,
+  toggleMark,
+  wrapInList,
 } from '@chatwoot/prosemirror-schema';
+import {
+  suggestionsPlugin,
+  triggerCharacters,
+} from '@chatwoot/prosemirror-schema/src/mentions/plugin';
 import imagePastePlugin from '@chatwoot/prosemirror-schema/src/plugins/image';
+import embedPreviewPlugin from '@chatwoot/prosemirror-schema/src/plugins/embedPreview';
+import trailingParagraphPlugin from '@chatwoot/prosemirror-schema/src/plugins/trailingParagraph';
+import { embeds as markdownEmbeds } from 'dashboard/helper/markdownEmbeds';
+import { toggleBlockType } from '@chatwoot/prosemirror-schema/src/menu/common';
 import { checkFileSizeLimit } from 'shared/helpers/FileHelper';
+import { isEscape } from 'shared/helpers/KeyboardHelpers';
+import { collapseSelection } from 'dashboard/helper/editorHelper';
 import { useAlert } from 'dashboard/composables';
 import { useUISettings } from 'dashboard/composables/useUISettings';
 import keyboardEventListenerMixins from 'shared/mixins/keyboardEventListenerMixins';
+import SlashCommandMenu from './SlashCommandMenu.vue';
+import VideoEmbedInput from './VideoEmbedInput.vue';
 
 const MAXIMUM_FILE_UPLOAD_SIZE = 4; // in MB
+const SLASH_MENU_OFFSET = 4;
 const createState = (
   content,
   placeholder,
@@ -36,14 +52,23 @@ const createState = (
   });
 };
 
+let editorView = null;
+let state;
+
 export default {
+  components: { SlashCommandMenu, VideoEmbedInput },
   mixins: [keyboardEventListenerMixins],
   props: {
-    value: { type: String, default: '' },
+    modelValue: { type: String, default: '' },
     editorId: { type: String, default: '' },
     placeholder: { type: String, default: '' },
     enabledMenuOptions: { type: Array, default: () => [] },
+    autofocus: {
+      type: Boolean,
+      default: true,
+    },
   },
+  emits: ['blur', 'input', 'update:modelValue', 'keyup', 'focus', 'keydown'],
   setup() {
     const { uiSettings, updateUISettings } = useUISettings();
 
@@ -54,22 +79,25 @@ export default {
   },
   data() {
     return {
-      editorView: null,
-      state: undefined,
-      plugins: [imagePastePlugin(this.handleImageUpload)],
+      plugins: [
+        imagePastePlugin(this.handleImageUpload),
+        this.createSlashPlugin(),
+        embedPreviewPlugin(markdownEmbeds),
+        trailingParagraphPlugin(),
+      ],
+      isTextSelected: false, // Tracks text selection and prevents unnecessary re-renders on mouse selection
+      showSlashMenu: false,
+      slashSearchTerm: '',
+      slashRange: null,
+      slashMenuPosition: null,
+      isSlashMenuInTable: false,
+      showVideoInput: false,
+      videoInputPosition: null,
     };
   },
-  computed: {
-    contentFromEditor() {
-      if (this.editorView) {
-        return ArticleMarkdownSerializer.serialize(this.editorView.state.doc);
-      }
-      return '';
-    },
-  },
   watch: {
-    value(newValue = '') {
-      if (newValue !== this.contentFromEditor) {
+    modelValue(newValue = '') {
+      if (newValue !== this.contentFromEditor()) {
         this.reloadState();
       }
     },
@@ -79,8 +107,8 @@ export default {
   },
 
   created() {
-    this.state = createState(
-      this.value,
+    state = createState(
+      this.modelValue || '',
       this.placeholder,
       this.plugins,
       { onImageUpload: this.openFileBrowser },
@@ -90,10 +118,193 @@ export default {
   mounted() {
     this.createEditorView();
 
-    this.editorView.updateState(this.state);
-    this.focusEditorInputField();
+    editorView.updateState(state);
+    if (this.autofocus) {
+      this.focusEditorInputField();
+    }
+  },
+  beforeUnmount() {
+    if (editorView) {
+      editorView.destroy();
+      editorView = null;
+    }
   },
   methods: {
+    createSlashPlugin() {
+      return suggestionsPlugin({
+        matcher: triggerCharacters('/', 0),
+        suggestionClass: '',
+        onEnter: args => {
+          this.showSlashMenu = true;
+          this.slashRange = args.range;
+          this.slashSearchTerm = args.text || '';
+          this.isSlashMenuInTable = this.isSelectionInsideTable();
+          this.updateSlashMenuPosition(args.range.from);
+          return false;
+        },
+        onChange: args => {
+          this.slashRange = args.range;
+          this.slashSearchTerm = args.text;
+          return false;
+        },
+        onExit: () => {
+          this.slashSearchTerm = '';
+          this.showSlashMenu = false;
+          this.slashMenuPosition = null;
+          return false;
+        },
+        onKeyDown: ({ event }) =>
+          this.$refs.slashMenu?.handleKeyDown(event) ?? false,
+      });
+    },
+    isSelectionInsideTable() {
+      const { $from } = editorView.state.selection;
+      const { table } = editorView.state.schema.nodes;
+      for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type === table) return true;
+      }
+      return false;
+    },
+    updateSlashMenuPosition(pos) {
+      if (!editorView) return;
+      const coords = editorView.coordsAtPos(pos);
+      const editorRect = this.$refs.editor.getBoundingClientRect();
+      const isRtl = getComputedStyle(this.$refs.editor).direction === 'rtl';
+      this.slashMenuPosition = {
+        top: coords.bottom - editorRect.top + SLASH_MENU_OFFSET,
+        ...(isRtl
+          ? { right: editorRect.right - coords.right }
+          : { left: coords.left - editorRect.left }),
+      };
+    },
+    removeSlashTriggerText() {
+      if (!editorView || !this.slashRange) return;
+      const { from, to } = this.slashRange;
+      editorView.dispatch(editorView.state.tr.delete(from, to));
+      state = editorView.state;
+    },
+    executeSlashCommand(actionKey) {
+      if (!editorView) return;
+
+      if (actionKey === 'video') {
+        this.openVideoInput();
+        return;
+      }
+
+      this.removeSlashTriggerText();
+
+      const { schema } = editorView.state;
+      const commandMap = {
+        strong: () =>
+          toggleMark(schema.marks.strong)(
+            editorView.state,
+            editorView.dispatch
+          ),
+        em: () =>
+          toggleMark(schema.marks.em)(editorView.state, editorView.dispatch),
+        strike: () =>
+          toggleMark(schema.marks.strike)(
+            editorView.state,
+            editorView.dispatch
+          ),
+        code: () =>
+          toggleMark(schema.marks.code)(editorView.state, editorView.dispatch),
+        h1: () =>
+          toggleBlockType(schema.nodes.heading, { level: 1 })(
+            editorView.state,
+            editorView.dispatch
+          ),
+        h2: () =>
+          toggleBlockType(schema.nodes.heading, { level: 2 })(
+            editorView.state,
+            editorView.dispatch
+          ),
+        h3: () =>
+          toggleBlockType(schema.nodes.heading, { level: 3 })(
+            editorView.state,
+            editorView.dispatch
+          ),
+        bulletList: () =>
+          wrapInList(schema.nodes.bullet_list)(
+            editorView.state,
+            editorView.dispatch
+          ),
+        orderedList: () =>
+          wrapInList(schema.nodes.ordered_list)(
+            editorView.state,
+            editorView.dispatch
+          ),
+        insertTable: () => {
+          const { table, table_row, table_header, table_cell, paragraph } =
+            schema.nodes;
+          const headerCells = [0, 1, 2].map(() =>
+            table_header.createAndFill(null, paragraph.create())
+          );
+          const dataCells = [0, 1, 2].map(() =>
+            table_cell.createAndFill(null, paragraph.create())
+          );
+          const headerRow = table_row.create(null, headerCells);
+          const dataRow = table_row.create(null, dataCells);
+          const tableNode = table.create(null, [headerRow, dataRow]);
+          const tr = editorView.state.tr.replaceSelectionWith(tableNode);
+          editorView.dispatch(tr.scrollIntoView());
+        },
+        horizontalRule: () => {
+          editorView.dispatch(
+            editorView.state.tr
+              .replaceSelectionWith(schema.nodes.horizontal_rule.create())
+              .scrollIntoView()
+          );
+          const { doc, selection, tr } = editorView.state;
+          editorView.dispatch(
+            tr.setSelection(Selection.near(doc.resolve(selection.to), 1))
+          );
+        },
+        imageUpload: () => this.openFileBrowser(),
+      };
+
+      const command = commandMap[actionKey];
+      if (command) {
+        command();
+        state = editorView.state;
+        this.emitOnChange();
+        editorView.focus();
+      }
+    },
+    openVideoInput() {
+      // Capture the caret position before removing the trigger clears it.
+      this.videoInputPosition = this.slashMenuPosition;
+      this.removeSlashTriggerText();
+      this.showVideoInput = true;
+    },
+    insertVideoEmbed(url) {
+      this.showVideoInput = false;
+      this.videoInputPosition = null;
+      if (!editorView) return;
+
+      const { schema } = editorView.state;
+      const linkMark = schema.marks.link.create({ href: url });
+      const paragraph = schema.nodes.paragraph.create(
+        null,
+        schema.text(url, [linkMark])
+      );
+      const tr = editorView.state.tr.replaceSelectionWith(paragraph);
+      editorView.dispatch(tr.scrollIntoView());
+      state = editorView.state;
+      this.emitOnChange();
+      editorView.focus();
+    },
+    cancelVideoInput() {
+      this.showVideoInput = false;
+      this.videoInputPosition = null;
+      editorView?.focus();
+    },
+    contentFromEditor() {
+      if (editorView) {
+        return ArticleMarkdownSerializer.serialize(editorView.state.doc);
+      }
+      return '';
+    },
     openFileBrowser() {
       this.$refs.imageUploadInput.click();
     },
@@ -145,53 +356,52 @@ export default {
       }
     },
     onImageUploadStart(fileUrl) {
-      const { selection } = this.editorView.state;
+      const { selection } = editorView.state;
       const from = selection.from;
-      const node = this.editorView.state.schema.nodes.image.create({
+      const node = editorView.state.schema.nodes.image.create({
         src: fileUrl,
       });
-      const paragraphNode = this.editorView.state.schema.node('paragraph');
+      const paragraphNode = editorView.state.schema.node('paragraph');
       if (node) {
         // Insert the image and the caption wrapped inside a paragraph
-        const tr = this.editorView.state.tr
+        const tr = editorView.state.tr
           .replaceSelectionWith(paragraphNode)
           .insert(from + 1, node);
 
-        this.editorView.dispatch(tr.scrollIntoView());
+        editorView.dispatch(tr.scrollIntoView());
         this.focusEditorInputField();
       }
     },
     reloadState() {
-      this.state = createState(
-        this.value,
+      state = createState(
+        this.modelValue || '',
         this.placeholder,
         this.plugins,
         { onImageUpload: this.openFileBrowser },
         this.enabledMenuOptions
       );
-      this.editorView.updateState(this.state);
+      editorView.updateState(state);
       this.focusEditorInputField();
     },
     createEditorView() {
-      this.editorView = new EditorView(this.$refs.editor, {
-        state: this.state,
+      editorView = new EditorView(this.$refs.editor, {
+        state: state,
+        nodeViews: {
+          image: imageResizeView,
+        },
         dispatchTransaction: tx => {
-          this.state = this.state.apply(tx);
-          this.emitOnChange();
+          state = state.apply(tx);
+          editorView.updateState(state);
+          if (tx.docChanged) {
+            this.emitOnChange();
+          }
+          this.checkSelection(state);
         },
         handleDOMEvents: {
-          keyup: () => {
-            this.onKeyup();
-          },
-          keydown: (view, event) => {
-            this.onKeydown(event);
-          },
-          focus: () => {
-            this.onFocus();
-          },
-          blur: () => {
-            this.onBlur();
-          },
+          keyup: this.onKeyup,
+          focus: this.onFocus,
+          blur: this.onBlur,
+          keydown: this.onKeydown,
           paste: (view, event) => {
             const data = event.clipboardData.files;
             if (data.length > 0) {
@@ -207,33 +417,94 @@ export default {
         },
       });
     },
-
     handleKeyEvents() {},
     focusEditorInputField() {
-      const { tr } = this.editorView.state;
+      const { tr } = editorView.state;
       const selection = Selection.atEnd(tr.doc);
 
-      this.editorView.dispatch(tr.setSelection(selection));
-      this.editorView.focus();
+      editorView.dispatch(tr.setSelection(selection));
+      editorView.focus();
     },
-
     emitOnChange() {
-      this.editorView.updateState(this.state);
-
-      this.$emit('input', this.contentFromEditor);
+      this.$emit('update:modelValue', this.contentFromEditor());
+      this.$emit('input', this.contentFromEditor());
     },
-
     onKeyup() {
       this.$emit('keyup');
     },
-    onKeydown() {
+    onKeydown(view, event) {
       this.$emit('keydown');
+      if (isEscape(event)) {
+        if (this.showSlashMenu) {
+          this.showSlashMenu = false;
+          this.slashSearchTerm = '';
+          this.slashMenuPosition = null;
+          return true;
+        }
+        collapseSelection(editorView);
+        return true;
+      }
+      return false;
     },
     onBlur() {
+      // ProseMirror keeps its selection on blur — clear the menu flag manually.
+      this.isTextSelected = false;
+      this.$refs.editor?.classList.remove('has-selection');
       this.$emit('blur');
     },
     onFocus() {
       this.$emit('focus');
+    },
+    checkSelection(editorState) {
+      const { selection } = editorState;
+      // Skip NodeSelection (from Esc -> selectParentNode); only text ranges count.
+      const hasSelection = !selection.empty && !selection.node;
+      // If the selection state is the same as the previous state, do nothing
+      if (hasSelection === this.isTextSelected) return;
+      // Update the selection state
+      this.isTextSelected = hasSelection;
+
+      const { editor } = this.$refs;
+
+      // Toggle the 'has-selection' class based on whether there's a selection
+      editor.classList.toggle('has-selection', hasSelection);
+      // If there's a selection, update the menubar position
+      if (hasSelection) this.setMenubarPosition(editorState);
+    },
+    setMenubarPosition(editorState) {
+      if (!editorState.selection) return;
+
+      // Get the start and end positions of the selection
+      const { from, to } = editorState.selection;
+      const { editor } = this.$refs;
+      // Get the editor's position relative to the viewport
+      const { left: editorLeft, top: editorTop } =
+        editor.getBoundingClientRect();
+
+      // Get the editor's width
+      const editorWidth = editor.offsetWidth;
+      const menubar = editor.querySelector('.ProseMirror-menubar');
+      const menubarWidth = menubar ? menubar.scrollWidth : 480;
+
+      // Get the end position of the selection
+      const { bottom: endBottom, right: endRight } = editorView.coordsAtPos(to);
+      // Get the start position of the selection
+      const { left: startLeft } = editorView.coordsAtPos(from);
+
+      // Calculate the top position for the menubar (10px below the selection)
+      const top = endBottom - editorTop + 10;
+      // Calculate the left position for the menubar
+      // This centers the menubar on the selection while keeping it within the editor's bounds
+      const left = Math.max(
+        0,
+        Math.min(
+          (startLeft + endRight) / 2 - editorLeft,
+          editorWidth - menubarWidth
+        )
+      );
+      // Set the CSS custom properties for positioning the menubar
+      editor.style.setProperty('--selection-top', `${top}px`);
+      editor.style.setProperty('--selection-left', `${left}px`);
     },
   },
 };
@@ -241,7 +512,22 @@ export default {
 
 <template>
   <div>
-    <div class="editor-root editor--article">
+    <div class="editor-root editor--article relative">
+      <SlashCommandMenu
+        v-if="showSlashMenu"
+        ref="slashMenu"
+        :search-key="slashSearchTerm"
+        :enabled-menu-options="enabledMenuOptions"
+        :position="slashMenuPosition"
+        :is-in-table="isSlashMenuInTable"
+        @select-action="executeSlashCommand"
+      />
+      <VideoEmbedInput
+        v-if="showVideoInput"
+        :position="videoInputPosition"
+        @submit="insertVideoEmbed"
+        @cancel="cancelVideoInput"
+      />
       <input
         ref="imageUploadInput"
         type="file"
@@ -255,7 +541,7 @@ export default {
 </template>
 
 <style lang="scss">
-@import '~@chatwoot/prosemirror-schema/src/styles/article.scss';
+@import '@chatwoot/prosemirror-schema/src/styles/article.scss';
 
 .ProseMirror-menubar-wrapper {
   display: flex;
@@ -268,6 +554,7 @@ export default {
 }
 
 .editor-root {
+  position: relative;
   width: 100%;
 }
 
@@ -277,12 +564,8 @@ export default {
   overflow: auto;
 }
 
-.ProseMirror-prompt {
-  z-index: var(--z-index-highest);
-  background: var(--white);
-  box-shadow: var(--shadow-large);
-  border-radius: var(--border-radius-normal);
-  border: 1px solid var(--color-border);
-  min-width: 25rem;
+.ProseMirror .cw-embed-preview {
+  max-width: 36rem;
+  margin: 0.5rem 0 1rem;
 }
 </style>

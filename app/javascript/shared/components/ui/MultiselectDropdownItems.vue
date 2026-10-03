@@ -1,13 +1,19 @@
 <script>
 import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
 import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
-import Thumbnail from 'dashboard/components/widgets/Thumbnail.vue';
+import Avatar from 'next/avatar/Avatar.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
+import EmojiIcon from 'dashboard/components-next/emoji-icon-picker/EmojiIcon.vue';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
   components: {
     WootDropdownItem,
     WootDropdownMenu,
-    Thumbnail,
+    Avatar,
+    Icon,
+    EmojiIcon,
+    NextButton,
   },
 
   props: {
@@ -31,7 +37,12 @@ export default {
       type: String,
       default: 'No results found',
     },
+    showEmojiIcon: {
+      type: Boolean,
+      default: false,
+    },
   },
+  emits: ['select'],
 
   data() {
     return {
@@ -42,7 +53,9 @@ export default {
   computed: {
     filteredOptions() {
       return this.options.filter(option => {
-        return option.name.toLowerCase().includes(this.search.toLowerCase());
+        return (option.name || '')
+          .toLowerCase()
+          .includes(this.search.toLowerCase());
       });
     },
     noResult() {
@@ -56,13 +69,19 @@ export default {
 
   methods: {
     onclick(option) {
-      this.$emit('click', option);
+      this.$emit('select', option);
     },
     focusInput() {
       this.$refs.searchbar.focus();
     },
     isActive(option) {
-      return this.selectedItems.some(item => item && option.id === item.id);
+      return this.selectedItems.some(item => {
+        if (!item || option.id !== item.id) return false;
+
+        return (
+          (option.assignee_type || 'User') === (item.assignee_type || 'User')
+        );
+      });
     },
   },
 };
@@ -70,7 +89,7 @@ export default {
 
 <template>
   <div class="dropdown-wrap">
-    <div class="mb-2 flex-shrink-0 flex-grow-0 flex-auto max-h-8">
+    <div class="flex-auto flex-grow-0 flex-shrink-0 mb-2 max-h-8">
       <input
         ref="searchbar"
         v-model="search"
@@ -80,46 +99,83 @@ export default {
         :placeholder="inputPlaceholder"
       />
     </div>
-    <div class="flex justify-start items-start flex-auto overflow-auto">
+    <div class="flex items-start justify-start flex-auto overflow-auto mt-2">
       <div class="w-full max-h-[10rem]">
         <WootDropdownMenu>
-          <WootDropdownItem v-for="option in filteredOptions" :key="option.id">
-            <woot-button
-              class="multiselect-dropdown--item"
-              :variant="isActive(option) ? 'hollow' : 'clear'"
-              color-scheme="secondary"
-              :class="{
-                active: isActive(option),
-              }"
+          <WootDropdownItem
+            v-for="option in filteredOptions"
+            :key="`${option.assignee_type || 'User'}-${option.id}`"
+          >
+            <NextButton
+              slate
+              :variant="isActive(option) ? 'faded' : 'ghost'"
+              trailing-icon
+              :icon="isActive(option) ? 'i-lucide-check' : ''"
+              class="w-full !px-2.5"
               @click="() => onclick(option)"
             >
-              <div class="flex items-center gap-1.5">
-                <Thumbnail
-                  v-if="hasThumbnail"
-                  :src="option.thumbnail"
-                  size="24px"
-                  :username="option.name"
-                  :status="option.availability_status"
-                  has-border
-                />
-                <div
-                  class="flex items-center justify-between w-full min-w-0 gap-2"
+              <div
+                class="flex items-center justify-between w-full min-w-0 gap-2"
+              >
+                <span
+                  class="my-0 overflow-hidden text-sm leading-4 whitespace-nowrap text-ellipsis"
+                  :title="option.name"
                 >
-                  <span
-                    class="leading-4 my-0 overflow-hidden whitespace-nowrap text-ellipsis text-sm"
-                    :title="option.name"
-                  >
-                    {{ option.name }}
-                  </span>
-                  <fluent-icon v-if="isActive(option)" icon="checkmark" />
-                </div>
+                  {{ option.name }}
+                </span>
               </div>
-            </woot-button>
+              <Avatar
+                v-if="
+                  hasThumbnail &&
+                  (!option.icon || option.assignee_type === 'AgentBot')
+                "
+                :src="option.thumbnail"
+                :name="option.name"
+                :status="option.availability_status"
+                :icon-name="
+                  option.assignee_type === 'AgentBot'
+                    ? 'i-lucide-bot'
+                    : undefined
+                "
+                :size="24"
+                hide-offline-status
+                rounded-full
+              >
+                <template
+                  v-if="option.assignee_type === 'AgentBot' && option.thumbnail"
+                  #badge
+                >
+                  <div
+                    class="absolute z-20 flex items-center justify-center rounded-full outline outline-1 outline-n-weak bg-n-solid-1 -bottom-0.5 ltr:-right-0.5 rtl:-left-0.5 size-3.5"
+                  >
+                    <Icon
+                      icon="i-lucide-bot"
+                      class="text-n-slate-11 size-2.5"
+                    />
+                  </div>
+                </template>
+              </Avatar>
+              <div
+                v-else-if="option.icon && showEmojiIcon"
+                class="flex items-center justify-center flex-shrink-0 text-sm rounded-full size-6 outline outline-1 -outline-offset-1 outline-n-weak"
+              >
+                <EmojiIcon
+                  :value="option.icon"
+                  :color="option.icon_color"
+                  class="size-3.5 !text-sm"
+                />
+              </div>
+              <Icon
+                v-else-if="option.icon"
+                :icon="option.icon"
+                class="size-5 text-n-slate-11"
+              />
+            </NextButton>
           </WootDropdownItem>
         </WootDropdownMenu>
         <h4
           v-if="noResult"
-          class="w-full justify-center items-center flex text-slate-500 dark:text-slate-300 py-2 px-2.5 overflow-hidden whitespace-nowrap text-ellipsis text-sm"
+          class="w-full justify-center items-center flex text-n-slate-10 py-2 px-2.5 overflow-hidden whitespace-nowrap text-ellipsis text-sm"
         >
           {{ noSearchResult }}
         </h4>
@@ -134,22 +190,18 @@ export default {
 }
 
 .search-input {
-  @apply m-0 w-full border border-solid border-transparent h-8 text-sm text-slate-700 dark:text-slate-100 rounded-md focus:border-woot-500 bg-slate-50 dark:bg-slate-900;
+  @apply m-0 w-full border border-solid border-transparent h-8 text-sm text-n-slate-12 rounded-md focus:border-n-brand bg-n-background dark:bg-n-background;
 }
 
 .multiselect-dropdown--item {
   @apply justify-between w-full;
 
   &.active {
-    @apply bg-slate-25 dark:bg-slate-700 border-slate-50 dark:border-slate-900 font-medium;
-  }
-
-  &:focus {
-    @apply bg-slate-25 dark:bg-slate-700;
+    @apply bg-n-slate-2 dark:bg-n-solid-3 border-n-weak/50 dark:border-n-weak font-medium;
   }
 
   &:hover {
-    @apply bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100;
+    @apply bg-n-slate-2 dark:bg-n-solid-3 text-n-slate-12;
   }
 }
 </style>

@@ -1,5 +1,10 @@
 {
   "HELP_CENTER": {
+    "TITLE": "Súgóközpont",
+    "NEW_PAGE": {
+      "DESCRIPTION": "Create self-service help center portals for your customers. Help them find answers quickly, without waiting. Streamline inquiries, boost agent efficiency, and elevate customer support.",
+      "CREATE_PORTAL_BUTTON": "Portál létrehozása"
+    },
     "HEADER": {
       "FILTER": "Szűrés",
       "SORT": "Rendezés",
@@ -84,7 +89,7 @@
     },
     "ARTICLE_SEARCH_RESULT": {
       "UNCATEGORIZED": "Kategorizálhatatlan",
-      "SEARCH_RESULTS": "Keresési eredmények %{query}",
+      "SEARCH_RESULTS": "Keresési eredmények {query}",
       "EMPTY_TEXT": "Cikkek keresése a válaszokba való beillesztéshez.",
       "SEARCH_LOADER": "Keresés...",
       "INSERT_ARTICLE": "Beszúrás",
@@ -152,6 +157,12 @@
             "DELETE_SUCCESS": "Portál sikeresen törölve",
             "DELETE_ERROR": "Hiba a portál törlése közben"
           }
+        },
+        "SEND_CNAME_INSTRUCTIONS": {
+          "API": {
+            "SUCCESS_MESSAGE": "CNAME instructions sent successfully",
+            "ERROR_MESSAGE": "Error while sending CNAME instructions"
+          }
         }
       },
       "EDIT": {
@@ -190,26 +201,20 @@
         }
       },
       "ADD": {
-        "CREATE_FLOW": [
-          {
-            "title": "Sugó információk",
-            "route": "new_portal_information",
-            "body": "Általános információk a portálról",
-            "CREATE_BASIC_SETTING_BUTTON": "Portál általános beállításainak létrehozása"
+        "CREATE_FLOW": {
+          "BASIC": {
+            "TITLE": "Sugó információk",
+            "BODY": "Általános információk a portálról"
           },
-          {
-            "title": "Sugó testreszabása",
-            "route": "portal_customization",
-            "body": "Portál személyreszabása",
-            "UPDATE_PORTAL_BUTTON": "Portál beállítások frissítése"
+          "CUSTOMIZATION": {
+            "TITLE": "Sugó testreszabása",
+            "BODY": "Portál személyreszabása"
           },
-          {
-            "title": "Voila! 🎉",
-            "route": "portal_finish",
-            "body": "Kész is!",
-            "FINISH": "Befejezés"
+          "FINISH": {
+            "TITLE": "Voila! 🎉",
+            "BODY": "Kész is!"
           }
-        ],
+        },
         "CREATE_FLOW_PAGE": {
           "BACK_BUTTON": "Vissza",
           "BASIC_SETTINGS_PAGE": {
@@ -250,13 +255,13 @@
         "DOMAIN": {
           "LABEL": "Egyedi domain",
           "PLACEHOLDER": "Portál egyedi domain",
-          "HELP_TEXT": "Add only If you want to use a custom domain for your portals. Eg: https://example.com",
+          "HELP_TEXT": "Add only If you want to use a custom domain for your portals. Eg: {exampleURL}",
           "ERROR": "Adj meg egy érvényes felhasználó URL-t"
         },
         "HOME_PAGE_LINK": {
           "LABEL": "Főoldal link",
           "PLACEHOLDER": "Portál főoldal link",
-          "HELP_TEXT": "The link used to return from the portal to the home page. Eg: https://example.com",
+          "HELP_TEXT": "The link used to return from the portal to the home page. Eg: {exampleURL}",
           "ERROR": "Adj meg egy érvényes kezdőlap URL-jét"
         },
         "THEME_COLOR": {
@@ -311,6 +316,18 @@
           "SUCCESS_MESSAGE": "Terület sikeresen eltávolítva a portálról",
           "ERROR_MESSAGE": "Nem sikerült eltávolítani a területet a portálról. Kérlek, próbáld újra."
         }
+      },
+      "DRAFT_LOCALE": {
+        "API": {
+          "SUCCESS_MESSAGE": "Locale moved to draft successfully",
+          "ERROR_MESSAGE": "Unable to move locale to draft. Try again."
+        }
+      },
+      "PUBLISH_LOCALE": {
+        "API": {
+          "SUCCESS_MESSAGE": "Locale published successfully",
+          "ERROR_MESSAGE": "Unable to publish locale. Try again."
+        }
       }
     },
     "TABLE": {
@@ -349,6 +366,12 @@
         "SUCCESS": "Cikk sikeresen archiválva"
       }
     },
+    "DRAFT_ARTICLE": {
+      "API": {
+        "ERROR": "Error while drafting article",
+        "SUCCESS": "Article drafted successfully"
+      }
+    },
     "DELETE_ARTICLE": {
       "MODAL": {
         "CONFIRM": {
@@ -363,6 +386,16 @@
         "ERROR_MESSAGE": "Hiba a cikk törlésekor"
       }
     },
+    "REORDER_ARTICLE": {
+      "API": {
+        "ERROR_MESSAGE": "Unable to reorder articles. Please try again."
+      }
+    },
+    "REORDER_CATEGORY": {
+      "API": {
+        "ERROR_MESSAGE": "Unable to reorder categories. Please try again."
+      }
+    },
     "CREATE_ARTICLE": {
       "ERROR_MESSAGE": "Kérjük, adj hozzá a cikk címét és tartalmát, ezután csak Te tudod majd frissíteni a beállításokat"
     },
@@ -370,6 +403,12 @@
       "SEARCH": {
         "PLACEHOLDER": "Keresés a bejegyzések között"
       }
+    },
+    "BREADCRUMB": {
+      "ARTICLES": "Articles",
+      "CATEGORIES": "Kategóriák",
+      "LOCALES": "Nyelvek",
+      "SETTINGS": "Beállítások"
     },
     "CATEGORY": {
       "ADD": {
@@ -483,6 +522,584 @@
         }
       }
     },
-    "LOADING": "Loading..."
+    "LOADING": "Loading...",
+    "ARTICLES_PAGE": {
+      "ARTICLE_CARD": {
+        "CARD": {
+          "VIEWS": "{count} view | {count} views",
+          "DROPDOWN_MENU": {
+            "PUBLISH": "Publikálás",
+            "DRAFT": "Vázlat",
+            "ARCHIVE": "Archive",
+            "TRANSLATE": "Fordítás",
+            "DELETE": "Törlés"
+          },
+          "STATUS": {
+            "DRAFT": "Vázlat",
+            "PUBLISHED": "Publikált",
+            "ARCHIVED": "Archivált"
+          },
+          "PENDING_EDITS": "Unpublished edits",
+          "PENDING_EDITS_TOOLTIP": "This published article has unpublished edits",
+          "CATEGORY": {
+            "UNCATEGORISED": "Uncategorised"
+          }
+        }
+      },
+      "ARTICLES_HEADER": {
+        "TABS": {
+          "ALL": "All articles",
+          "MINE": "Enyém",
+          "DRAFT": "Vázlat",
+          "PUBLISHED": "Publikált",
+          "ARCHIVED": "Archivált"
+        },
+        "CATEGORY": {
+          "ALL": "All categories"
+        },
+        "LOCALE": {
+          "ALL": "All locales"
+        },
+        "SEARCH_PLACEHOLDER": "Cikkek keresése...",
+        "NEW_ARTICLE": "New article"
+      },
+      "EMPTY_STATE": {
+        "ALL": {
+          "TITLE": "Write an article",
+          "SUBTITLE": "Write a rich article, let’s get started!",
+          "BUTTON_LABEL": "New article"
+        },
+        "MINE": {
+          "TITLE": "You haven't written any articles here",
+          "SUBTITLE": "All articles written by you show up here for quick access."
+        },
+        "DRAFT": {
+          "TITLE": "There are no articles in drafts",
+          "SUBTITLE": "Draft articles will appear here"
+        },
+        "PUBLISHED": {
+          "TITLE": "There are no published articles",
+          "SUBTITLE": "Published articles will appear here"
+        },
+        "ARCHIVED": {
+          "TITLE": "There are no articles in the archive",
+          "SUBTITLE": "Archived articles don't show up on the portal, you can use it to mark deprecated or outdated pages"
+        },
+        "CATEGORY": {
+          "TITLE": "There are no articles in this category",
+          "SUBTITLE": "Articles in this category will appear here"
+        },
+        "SEARCH": {
+          "TITLE": "No matching articles",
+          "SUBTITLE": "We couldn't find any articles matching your search. Try a different term."
+        }
+      },
+      "BULK_TRANSLATE": {
+        "TITLE": "Bejegyzés lefordítása | {count} bejegyzés lefordítása",
+        "DESCRIPTION": "Fordítsd le a kiválasztott bejegyzést egy másik nyelvre. | Fordítsd le a kiválasztott bejegyzéseket egy másik nyelvre.",
+        "LOCALE_LABEL": "Célnyelv",
+        "LOCALE_PLACEHOLDER": "Válassz nyelvet",
+        "CATEGORY_LABEL": "Célkategória",
+        "CATEGORY_PLACEHOLDER": "Válassz kategóriát",
+        "OPTIONAL": "(opcionális)",
+        "CONFIRM": "Fordítás",
+        "SELECT_ALL": "Összes kijelölése ({count})",
+        "SELECTED_COUNT": "{count} kijelölve",
+        "CLEAR_SELECTION": "Kijelölés törlése",
+        "TRANSLATE_BUTTON": "Fordítás",
+        "CONFIRM_OVERWRITE": "Felülírás és lefordítás",
+        "DUPLICATE_WARNING": "Ehhez a bejegyzéshez már létezik fordítás a kiválasztott nyelven. | {count} bejegyzéshez már létezik fordítás a kiválasztott nyelven.",
+        "DUPLICATE_CONFIRM_HINT": "Kattints a 'Lefordítás' gombra ismét a meglévő fordítás felülírásához.",
+        "API": {
+          "SUCCESS_MESSAGE": "A fordítás folyamatban van. A bejegyzés elkészülés után piszkozatként fog megjelenni.",
+          "ERROR_MESSAGE": "Nem sikerült elindítani a fordítást. Kérlek, próbáld újra."
+        }
+      },
+      "BULK_ACTIONS": {
+        "PUBLISH": "Publikálás",
+        "DRAFT": "Vázlat",
+        "ARCHIVE": "Archiválás",
+        "TRANSLATE": "Fordítás",
+        "MOVE_TO_CATEGORY": "Kategória",
+        "DELETE": "Törlés",
+        "STATUS_SUCCESS": "A bejegyzések sikeresen frissítve",
+        "STATUS_ERROR": "Nem sikerült frissíteni a bejegyzéseket",
+        "STATUS_SKIPPED": "1 article with unpublished edits was skipped — open it to publish or discard. | {count} articles with unpublished edits were skipped — open them to publish or discard.",
+        "STATUS_SKIPPED_ALL": "These articles have unpublished edits — open each to publish or discard.",
+        "CATEGORY_SUCCESS": "Articles moved successfully",
+        "CATEGORY_ERROR": "Failed to move articles",
+        "DELETE_CONFIRM_TITLE": "Bejegyzés törlése | {count} bejegyzés törlése",
+        "DELETE_CONFIRM_DESCRIPTION": "Ez véglegesen törli a kiválasztott bejegyzést. Ez a művelet nem vonható vissza. | Ez véglegesen törli a kijelölt {count} bejegyzést. Ez a művelet nem vonható vissza.",
+        "DELETE_CONFIRM": "Törlés",
+        "DELETE_SUCCESS": "A bejegyzések sikeresen törölve",
+        "DELETE_ERROR": "Nem sikerült törölni a bejegyzéseket"
+      }
+    },
+    "CATEGORY_PAGE": {
+      "CATEGORY_HEADER": {
+        "NEW_CATEGORY": "Új kategória",
+        "EDIT_CATEGORY": "Kategória szerkesztése",
+        "SEARCH_PLACEHOLDER": "Search categories...",
+        "CATEGORIES_COUNT": "{n} category | {n} categories",
+        "BREADCRUMB": {
+          "CATEGORY_LOCALE": "Categories ({localeCode})",
+          "ACTIVE_CATEGORY": "{categoryName} ({categoryCount} articles) | {categoryName} ({categoryCount} article)"
+        }
+      },
+      "CATEGORY_EMPTY_STATE": {
+        "TITLE": "Nincsenek kategóriák",
+        "SUBTITLE": "Categories will appear here. You can add a category by clicking the 'New Category' button."
+      },
+      "SEARCH_EMPTY_STATE": {
+        "TITLE": "No matching categories",
+        "SUBTITLE": "We couldn't find any categories matching your search. Try a different term."
+      },
+      "CATEGORY_CARD": {
+        "ARTICLES_COUNT": "{count} article | {count} articles"
+      },
+      "CATEGORY_DIALOG": {
+        "CREATE": {
+          "API": {
+            "SUCCESS_MESSAGE": "Kategória létrehozva",
+            "ERROR_MESSAGE": "Nem lehet  létrehozni a kategóriát"
+          }
+        },
+        "EDIT": {
+          "API": {
+            "SUCCESS_MESSAGE": "Kategória frissítve",
+            "ERROR_MESSAGE": "Nem lehet frissíteni a kategóriát"
+          }
+        },
+        "DELETE": {
+          "API": {
+            "SUCCESS_MESSAGE": "Kategória törölve",
+            "ERROR_MESSAGE": "Nem lehet törölni a kategóriát"
+          }
+        },
+        "HEADER": {
+          "CREATE": "Kategória létrehozása",
+          "EDIT": "Kategória szerkesztése",
+          "DESCRIPTION": "A kategória szerkesztése frissíti a kategóriát a nyilvános portálon.",
+          "PORTAL": "Portál",
+          "LOCALE": "Nyelv"
+        },
+        "FORM": {
+          "NAME": {
+            "LABEL": "Név",
+            "PLACEHOLDER": "Kategória neve",
+            "ERROR": "Név kötelező"
+          },
+          "SLUG": {
+            "LABEL": "Slug",
+            "PLACEHOLDER": "Kategória az URL-ekhez",
+            "ERROR": "Érme megadása kötelező",
+            "HELP_TEXT": "app.chatwoot.com/hc/{portalSlug}/{localeCode}/categories/{categorySlug}"
+          },
+          "DESCRIPTION": {
+            "LABEL": "Leírás",
+            "PLACEHOLDER": "Adj egy rövid leírást a kategóriához.",
+            "ERROR": "Leírás megadása kötelező"
+          }
+        },
+        "BUTTONS": {
+          "CREATE": "Létrehozás",
+          "EDIT": "Frissítés",
+          "CANCEL": "Mégse"
+        }
+      }
+    },
+    "LOCALES_PAGE": {
+      "LOCALES_COUNT": "No locales available | {n} locale | {n} locales",
+      "NEW_LOCALE_BUTTON_TEXT": "New locale",
+      "SEARCH_PLACEHOLDER": "Search locales...",
+      "SEARCH_EMPTY_STATE": {
+        "TITLE": "No matching locales",
+        "SUBTITLE": "We couldn't find any locales matching your search. Try a different term."
+      },
+      "LOCALE_CARD": {
+        "ARTICLES_COUNT": "{count} article | {count} articles",
+        "CATEGORIES_COUNT": "{count} category | {count} categories",
+        "DEFAULT": "Alapértelmezett",
+        "DRAFT": "Vázlat",
+        "DROPDOWN_MENU": {
+          "MAKE_DEFAULT": "Make default",
+          "MOVE_TO_DRAFT": "Move to draft",
+          "PUBLISH_LOCALE": "Publish locale",
+          "CUSTOMIZE_CONTENT": "Localize content",
+          "SELECT_POPULAR_CONTENT": "Select recommended content",
+          "DELETE": "Törlés"
+        }
+      },
+      "POPULAR_CONTENT_DIALOG": {
+        "TITLE": "Recommended content",
+        "DESCRIPTION": "Pick up to 3 categories and 6 articles to feature on this locale's help center home page. Drag them into the order you want visitors to see.",
+        "SEARCH": "Search...",
+        "EMPTY": "No matching results",
+        "ADD_ANOTHER": "Add another...",
+        "SLOTS_LEFT": "{count} slots left",
+        "OVERRIDING_DEFAULTS": "Overriding defaults for this locale",
+        "CONFIRM": "Save recommendations",
+        "CATEGORIES": {
+          "LABEL": "Recommended categories",
+          "ARTICLES_COUNT": "No articles | {count} article | {count} articles"
+        },
+        "ARTICLES": {
+          "LABEL": "Recommended articles",
+          "IN_CATEGORY": "in {category}",
+          "UNCATEGORIZED": "Kategorizálhatatlan"
+        },
+        "API": {
+          "SUCCESS_MESSAGE": "Recommended content updated successfully",
+          "ERROR_MESSAGE": "Unable to update recommended content. Try again."
+        }
+      },
+      "CONTENT_DIALOG": {
+        "TITLE": "Localize content",
+        "DESCRIPTION": "Set values specific to this locale. Anything left blank falls back to the default locale.",
+        "NAME": {
+          "LABEL": "Név"
+        },
+        "PAGE_TITLE": {
+          "LABEL": "Page title"
+        },
+        "HEADER_TEXT": {
+          "LABEL": "Header text"
+        },
+        "API": {
+          "SUCCESS_MESSAGE": "Locale content updated successfully",
+          "ERROR_MESSAGE": "Unable to update locale content. Try again."
+        }
+      },
+      "ADD_LOCALE_DIALOG": {
+        "TITLE": "Új terület hozzáadása",
+        "DESCRIPTION": "Select the language in which this article will be written. This will be added to your list of translations, and you can add more later.",
+        "COMBOBOX": {
+          "PLACEHOLDER": "Nyelv kiválasztása..."
+        },
+        "STATUS": {
+          "LABEL": "Státusz",
+          "OPTIONS": {
+            "LIVE": "Publikált",
+            "DRAFT": "Vázlat"
+          }
+        },
+        "API": {
+          "SUCCESS_MESSAGE": "Terület sikeresen hozzáadva",
+          "ERROR_MESSAGE": "Nem sikerült területet hozzáadni. Kérlek, próbáld újra."
+        }
+      }
+    },
+    "EDIT_ARTICLE_PAGE": {
+      "HEADER": {
+        "STATUS": {
+          "SAVING": "Mentés...",
+          "SAVED": "Mentve"
+        },
+        "PREVIEW": "Előnézet",
+        "PUBLISH": "Publikálás",
+        "PUBLISH_CHANGES": "Publish changes",
+        "PUBLISH_CHANGES_SUCCESS": "Changes published successfully",
+        "PUBLISH_CHANGES_ERROR": "Could not publish changes",
+        "SAVE_IN_PROGRESS": "Still saving your latest changes — please try again in a moment.",
+        "DISCARD_CHANGES": "Discard changes",
+        "DISCARD_CHANGES_SUCCESS": "Changes discarded",
+        "DISCARD_CHANGES_ERROR": "Could not discard changes",
+        "PENDING_CHANGES": "Pending changes",
+        "VIEW_CHANGES": "View unpublished changes",
+        "DRAFT": "Vázlat",
+        "ARCHIVE": "Archive",
+        "BACK_TO_ARTICLES": "Back to articles"
+      },
+      "PENDING_CHANGES_POPOVER": {
+        "TITLE": "Unpublished changes",
+        "DESCRIPTION": "This article has draft changes that aren't live yet. Apply them before changing the status, or discard them?",
+        "APPLY": "Apply changes",
+        "DISCARD": "Discard changes"
+      },
+      "DIFF_DIALOG": {
+        "TITLE": "Unpublished changes",
+        "DESCRIPTION": "Compare your draft against the version that's currently live.",
+        "TITLE_LABEL": "Cím"
+      },
+      "EDIT_ARTICLE": {
+        "MORE_PROPERTIES": "More properties",
+        "UNCATEGORIZED": "Kategorizálhatatlan",
+        "EDITOR_PLACEHOLDER": "Write something..."
+      },
+      "ARTICLE_PROPERTIES": {
+        "ARTICLE_PROPERTIES": "Article properties",
+        "META_DESCRIPTION": "Meta leírás",
+        "META_DESCRIPTION_PLACEHOLDER": "Add meta description",
+        "META_TITLE": "Meta cím",
+        "META_TITLE_PLACEHOLDER": "Add meta title",
+        "META_TAGS": "Meta tagek",
+        "META_TAGS_PLACEHOLDER": "Add meta tags"
+      },
+      "API": {
+        "ERROR": "Hiba a cikk elmentésekor"
+      }
+    },
+    "PORTAL_SWITCHER": {
+      "NEW_PORTAL": "New portal",
+      "PORTALS": "Portálok",
+      "CREATE_PORTAL": "Create and manage multiple portals",
+      "ARTICLES": "bejegyzések",
+      "DOMAIN": "domain",
+      "PORTAL_NAME": "Portál neve"
+    },
+    "CREATE_PORTAL_DIALOG": {
+      "TITLE": "Create new portal",
+      "DESCRIPTION": "Give your portal a name and create a user-friendly URL slug. You can modify both later in the settings.",
+      "CONFIRM_BUTTON_LABEL": "Létrehozás",
+      "NAME": {
+        "LABEL": "Név",
+        "PLACEHOLDER": "User Guide | Chatwoot",
+        "MESSAGE": "Choose an name for your portal.",
+        "ERROR": "Név kötelező"
+      },
+      "SLUG": {
+        "LABEL": "Slug",
+        "PLACEHOLDER": "user-guide",
+        "ERROR": "Érme megadása kötelező",
+        "FORMAT_ERROR": "Please enter a valid slug, for eg: user-guide"
+      }
+    },
+    "PORTAL_SETTINGS": {
+      "FORM": {
+        "AVATAR": {
+          "LABEL": "Logó",
+          "IMAGE_UPLOAD_ERROR": "A képet nem lehet betölteni! Próbálja újra",
+          "IMAGE_UPLOAD_SUCCESS": "Image added successfully. Please click on save changes to save the logo",
+          "IMAGE_DELETE_SUCCESS": "Logo sikeresen törölve",
+          "IMAGE_DELETE_ERROR": "Unable to delete logo",
+          "IMAGE_UPLOAD_SIZE_ERROR": "A kép mérete kevesebb, mint {size} MB"
+        },
+        "NAME": {
+          "LABEL": "Név",
+          "PLACEHOLDER": "Portál neve",
+          "ERROR": "Név kötelező"
+        },
+        "HEADER_TEXT": {
+          "LABEL": "Header text",
+          "PLACEHOLDER": "Portál fejléc szöveg"
+        },
+        "PAGE_TITLE": {
+          "LABEL": "Page title",
+          "PLACEHOLDER": "Portál oldalcím"
+        },
+        "HOME_PAGE_LINK": {
+          "LABEL": "Home page link",
+          "PLACEHOLDER": "Portál főoldal link",
+          "ERROR": "Enter a valid URL. The Home page link must start with 'http://' or 'https://'."
+        },
+        "SLUG": {
+          "LABEL": "Slug",
+          "PLACEHOLDER": "Portal slug"
+        },
+        "BRAND_COLOR": {
+          "LABEL": "Brand color"
+        },
+        "SAVE_CHANGES": "Save changes"
+      },
+      "CONFIGURATION_FORM": {
+        "CUSTOM_DOMAIN": {
+          "HEADER": "Egyedi felhasználó",
+          "LABEL": "Egyedi felhasználó:",
+          "DESCRIPTION": "You can host your portal on a custom domain. For instance, if your website is yourdomain.com and you want your portal available at docs.yourdomain.com, simply enter that in this field.",
+          "STATUS_DESCRIPTION": "Your custom portal will start working as soon as it is verified.",
+          "PLACEHOLDER": "Portál egyedi domain",
+          "EDIT_BUTTON": "Szerkesztés",
+          "ADD_BUTTON": "Add custom domain",
+          "STATUS": {
+            "LIVE": "Élő",
+            "PENDING": "Awaiting verification",
+            "ERROR": "Verification failed"
+          },
+          "DIALOG": {
+            "ADD_HEADER": "Add custom domain",
+            "EDIT_HEADER": "Edit custom domain",
+            "ADD_CONFIRM_BUTTON_LABEL": "Add domain",
+            "EDIT_CONFIRM_BUTTON_LABEL": "Update domain",
+            "LABEL": "Egyedi felhasználó",
+            "PLACEHOLDER": "Portál egyedi domain",
+            "ERROR": "Custom domain is required",
+            "FORMAT_ERROR": "Please enter a valid domain URL e.g. docs.yourdomain.com"
+          },
+          "DNS_CONFIGURATION_DIALOG": {
+            "HEADER": "DNS configuration",
+            "DESCRIPTION": "Log in to the account you have with your DNS provider, and add a CNAME record for subdomain pointing to chatwoot.help",
+            "COPY": "Successfully copied CNAME",
+            "SEND_INSTRUCTIONS": {
+              "HEADER": "Send instructions",
+              "DESCRIPTION": "If you would prefer to have someone from your development team to handle this step, you can enter email address below, and we will send them the required instructions.",
+              "PLACEHOLDER": "Enter their email",
+              "ERROR": "Enter a valid email address",
+              "SEND_BUTTON": "Elküldés"
+            }
+          }
+        },
+        "DELETE_PORTAL": {
+          "BUTTON": "Delete {portalName}",
+          "HEADER": "Portál törlése",
+          "DESCRIPTION": "Permanently delete this portal. This action is irreversible",
+          "DIALOG": {
+            "HEADER": "Sure you want to delete {portalName}?",
+            "DESCRIPTION": "This is a permanent action that cannot be reversed.",
+            "CONFIRM_BUTTON_LABEL": "Törlés"
+          }
+        },
+        "EDIT_CONFIGURATION": "Edit configuration"
+      },
+      "LAYOUT_CONTENT": {
+        "HEADER": "Megjelenés",
+        "DESCRIPTION": "Válaszd ki az elrendezést, amely a legjobban megfelel a céljaidnak.",
+        "LAYOUT": {
+          "CLASSIC": {
+            "TITLE": "Klasszikus",
+            "DESCRIPTION": "Barátságos kezdőlap kereséssel és kiemelt témákkal."
+          },
+          "SIDEBAR": {
+            "TITLE": "Dokumentáció",
+            "DESCRIPTION": "Egymás melletti navigáció, amely minden útmutatót egy kattintásnyira tart."
+          }
+        },
+        "SOCIAL_LINKS": {
+          "HEADER": "Közösségi hivatkozások",
+          "DESCRIPTION": "Add meg az egyes hálózatok felhasználónevét, és a súgóközpont elkészíti a teljes hivatkozást. A dokumentációs elrendezés láblécében jelenik meg.",
+          "PLACEHOLDER": "felhasználónév",
+          "ADD": "Közösségi hivatkozás hozzáadása",
+          "REMOVE": "Eltávolítás"
+        },
+        "SAVE": "Módosítások mentése"
+      },
+      "INTEGRATIONS": {
+        "HEADER": "Integrációk",
+        "DESCRIPTION": "Connect tools that extend what your help center can do.",
+        "LIVE_CHAT": {
+          "TITLE": "Live chat with Chatwoot",
+          "DESCRIPTION": "Show a live chat widget on your help center so visitors can reach you while they read.",
+          "PLACEHOLDER": "Select live chat widget",
+          "NONE_OPTION": "No widget"
+        },
+        "GTM": {
+          "TITLE": "Google Tag Manager",
+          "DESCRIPTION": "Add analytics and marketing tags by connecting your Tag Manager container.",
+          "PLACEHOLDER": "GTM-XXXXXXX",
+          "HELP": "Find this in your Google Tag Manager workspace. Leave empty to disable.",
+          "INVALID": "Enter a valid container ID, for example GTM-XXXXXXX."
+        },
+        "GA4": {
+          "TITLE": "Google Analytics 4",
+          "DESCRIPTION": "Measure traffic and visitor behavior on your help center with Google Analytics.",
+          "PLACEHOLDER": "G-XXXXXXXXXX",
+          "HELP": "Find the measurement ID under Admin → Data streams in Google Analytics. Leave empty to disable.",
+          "INVALID": "Enter a valid measurement ID, for example G-XXXXXXXXXX."
+        },
+        "HOTJAR": {
+          "TITLE": "Hotjar",
+          "DESCRIPTION": "Understand how visitors use your help center with heatmaps and session recordings.",
+          "PLACEHOLDER": "1234567",
+          "HELP": "Find your site ID under Sites & organizations in Hotjar. Leave empty to disable.",
+          "INVALID": "Enter a numeric Hotjar site ID."
+        },
+        "PLAUSIBLE": {
+          "TITLE": "Plausible",
+          "DESCRIPTION": "Track help center traffic with privacy-friendly Plausible Analytics.",
+          "PLACEHOLDER": "example.com",
+          "HELP": "Enter the domain configured in your Plausible site settings. Leave empty to disable.",
+          "INVALID": "Enter a valid domain, for example example.com."
+        },
+        "AMPLITUDE": {
+          "TITLE": "Amplitude",
+          "DESCRIPTION": "Analyze visitor behavior on your help center with Amplitude.",
+          "PLACEHOLDER": "0123456789abcdef0123456789abcdef",
+          "HELP": "Find the API key in your Amplitude project settings. Leave empty to disable.",
+          "INVALID": "Enter a valid Amplitude API key."
+        },
+        "CLARITY": {
+          "TITLE": "Microsoft Clarity",
+          "DESCRIPTION": "Capture heatmaps and session recordings with Microsoft Clarity.",
+          "PLACEHOLDER": "abcd1234ef",
+          "HELP": "Find the project ID in your Clarity project settings. Leave empty to disable.",
+          "INVALID": "Enter a valid Clarity project ID."
+        },
+        "META_PIXEL": {
+          "TITLE": "Meta Pixel",
+          "DESCRIPTION": "Measure ad conversions and build audiences from help center visits with Meta Pixel.",
+          "PLACEHOLDER": "123456789012345",
+          "HELP": "Find the pixel ID in Meta Events Manager. Leave empty to disable.",
+          "INVALID": "Enter a numeric pixel ID."
+        },
+        "SAVE": "Save changes"
+      },
+      "NAV": {
+        "GENERAL": "Általános",
+        "DOMAIN": "Domain",
+        "APPEARANCE": "Megjelenés",
+        "INTEGRATIONS": "Integrációk"
+      },
+      "API": {
+        "CREATE_PORTAL": {
+          "SUCCESS_MESSAGE": "Portál sikeresen létrehozva",
+          "ERROR_MESSAGE": "Unable to create portal"
+        },
+        "UPDATE_PORTAL": {
+          "SUCCESS_MESSAGE": "Portál sikeresen frissítve",
+          "ERROR_MESSAGE": "Unable to update portal"
+        }
+      }
+    },
+    "PDF_UPLOAD": {
+      "TITLE": "Upload PDF Document",
+      "DESCRIPTION": "Upload a PDF document to automatically generate FAQs using AI",
+      "DRAG_DROP_TEXT": "Drag and drop your PDF file here, or click to select",
+      "SELECT_FILE": "Select PDF File",
+      "ADDITIONAL_CONTEXT_LABEL": "Additional Context (Optional)",
+      "ADDITIONAL_CONTEXT_PLACEHOLDER": "Provide any additional context or instructions for FAQ generation...",
+      "UPLOADING": "Frissítés...",
+      "UPLOAD": "Upload & Process",
+      "CANCEL": "Mégse",
+      "ERROR_INVALID_TYPE": "Please select a valid PDF file",
+      "ERROR_FILE_TOO_LARGE": "File size must be less than 512MB",
+      "ERROR_UPLOAD_FAILED": "Failed to upload PDF. Please try again."
+    },
+    "PDF_DOCUMENTS": {
+      "TITLE": "PDF Documents",
+      "DESCRIPTION": "Manage uploaded PDF documents and generate FAQs from them",
+      "UPLOAD_PDF": "Upload PDF",
+      "UPLOAD_FIRST_PDF": "Upload your first PDF",
+      "UPLOADED_BY": "Uploaded by",
+      "GENERATE_FAQS": "Generate FAQs",
+      "GENERATING": "Generálás...",
+      "CONFIRM_DELETE": "Are you sure you want to delete {filename}?",
+      "EMPTY_STATE": {
+        "TITLE": "No PDF documents yet",
+        "DESCRIPTION": "Upload PDF documents to automatically generate FAQs using AI"
+      },
+      "STATUS": {
+        "UPLOADED": "Ready",
+        "PROCESSING": "Processing",
+        "PROCESSED": "Lezárt",
+        "FAILED": "Failed"
+      }
+    },
+    "CONTENT_GENERATION": {
+      "TITLE": "Content Generation",
+      "DESCRIPTION": "Upload PDF documents to automatically generate FAQ content using AI",
+      "UPLOAD_TITLE": "Upload PDF Document",
+      "DRAG_DROP": "Drag and drop your PDF file here, or click to select",
+      "SELECT_FILE": "Select PDF File",
+      "UPLOADING": "Processing document...",
+      "UPLOAD_SUCCESS": "Document processed successfully!",
+      "UPLOAD_ERROR": "Failed to upload document. Please try again.",
+      "INVALID_FILE_TYPE": "Please select a valid PDF file",
+      "FILE_TOO_LARGE": "File size must be less than 512MB",
+      "GENERATED_CONTENT": "Generated FAQ Content",
+      "PUBLISH_SELECTED": "Publish Selected",
+      "PUBLISHING": "Publishing...",
+      "FROM_DOCUMENT": "From document",
+      "NO_CONTENT": "No generated content available. Upload a PDF document to get started.",
+      "LOADING": "Loading generated content..."
+    }
   }
 }

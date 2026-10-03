@@ -3,7 +3,7 @@
     "TITLE": "Se connecter à Chatwoot",
     "EMAIL": {
       "LABEL": "Courriel",
-      "PLACEHOLDER": "exemple@nomentreprise.fr",
+      "PLACEHOLDER": "exemple{'@'}companyname.com",
       "ERROR": "Veuillez saisir une adresse de courriel valide"
     },
     "PASSWORD": {
@@ -22,6 +22,20 @@
     },
     "FORGOT_PASSWORD": "Mot de passe oublié ?",
     "CREATE_NEW_ACCOUNT": "Créer un nouveau compte",
-    "SUBMIT": "Se connecter"
+    "SUBMIT": "Se connecter",
+    "SAML": {
+      "LABEL": "Se connecter via SSO",
+      "TITLE": "Lancer l'authentification unique (SSO)",
+      "SUBTITLE": "Entrez votre e-mail professionnel pour accéder à votre organisation",
+      "BACK_TO_LOGIN": "Se connecter par mot de passe",
+      "WORK_EMAIL": {
+        "LABEL": "Email professionnel",
+        "PLACEHOLDER": "Entrez votre e-mail professionnel"
+      },
+      "SUBMIT": "Continuer avec SSO",
+      "API": {
+        "ERROR_MESSAGE": "L'authentification SSO a échoué. Veuillez vérifier vos identifiants et réessayer."
+      }
+    }
   }
 }

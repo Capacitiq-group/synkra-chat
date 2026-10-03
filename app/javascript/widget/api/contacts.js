@@ -25,4 +25,26 @@ export default {
       custom_attributes: [customAttribute],
     });
   },
+  // Synkra Chat identity layer: triggers sending the email verification
+  // link. Safe to call even if already verified (backend just returns
+  // { verified: true } without sending anything).
+  verifyEmail() {
+    return API.post(buildUrl('widget/contact_verification'));
+  },
+  // Synkra Chat identity layer: for a visitor on a new device who has
+  // chatted before. Does not require any existing auth - that's the
+  // point.
+  requestContinuation(email) {
+    return API.post(buildUrl('widget/contact_continuation'), { email });
+  },
+  // Synkra Chat global identity layer
+  requestGlobalIdentity(email) {
+    return API.post(buildUrl('widget/global_identity'), { email });
+  },
+  verifyGlobalIdentityOtp(email, otp) {
+    return API.post(buildUrl('widget/global_identity/verify_otp'), {
+      email,
+      otp,
+    });
+  },
 };

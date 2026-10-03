@@ -5,7 +5,8 @@ json.payload do
       json.account_id conversation.account_id
       json.created_at conversation.created_at.to_i
       json.message do
-        json.partial! 'message', formats: [:json], message: conversation.messages.try(:first)
+        first_message = conversation.messages.first
+        json.partial! 'message', formats: [:json], message: first_message if first_message.present?
       end
       json.contact do
         json.partial! 'contact', formats: [:json], contact: conversation.contact if conversation.try(:contact).present?
@@ -16,6 +17,8 @@ json.payload do
       json.agent do
         json.partial! 'agent', formats: [:json], agent: conversation.assignee if conversation.try(:assignee).present?
       end
+
+      json.additional_attributes conversation.additional_attributes
     end
   end
 end

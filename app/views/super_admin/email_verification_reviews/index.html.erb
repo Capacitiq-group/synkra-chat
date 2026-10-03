@@ -1,0 +1,47 @@
+<% content_for(:title) do %>Email forwarding verifications<% end %>
+
+<header class="main-content__header" role="banner">
+  <h1 class="main-content__page-title" id="page-title">Email forwarding verifications</h1>
+</header>
+
+<section class="main-content__body">
+  <p class="mb-4 text-sm text-slate-700">
+    Email inboxes where the mailbox provider (Google, Microsoft, etc.)
+    sent a forwarding confirmation email, but the customer hasn't
+    completed the confirmation yet. If a customer is stuck, open the
+    inbox's conversations and help them find the confirmation link.
+  </p>
+
+  <% if @pending.any? %>
+    <table class="w-full text-left" aria-labelledby="page-title">
+      <thead>
+        <tr>
+          <th class="p-2">Account</th>
+          <th class="p-2">Inbox address</th>
+          <th class="p-2">Forwarding address</th>
+          <th class="p-2">Verification received</th>
+          <th class="p-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @pending.each do |channel| %>
+          <tr class="border-t border-slate-100">
+            <td class="p-2">
+              <% if channel.account %>
+                <%= link_to channel.account.name, super_admin_account_path(channel.account.id) %> (ID <%= channel.account_id %>)
+              <% else %>
+                (account <%= channel.account_id %> missing)
+              <% end %>
+            </td>
+            <td class="p-2"><code><%= channel.email %></code></td>
+            <td class="p-2"><code><%= channel.forward_to_email %></code></td>
+            <td class="p-2"><%= channel.forwarding_verification_pending_at.utc.strftime('%Y-%m-%d %H:%M UTC') %></td>
+            <td class="p-2"><%= link_to 'Open inbox', super_admin_account_path(channel.account_id) if channel.account %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="text-slate-500">No pending email forwarding verifications right now.</p>
+  <% end %>
+</section>

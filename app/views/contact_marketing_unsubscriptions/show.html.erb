@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Synkra Chat</title>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png">
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0F0F0F;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #F8F8F8;
+      }
+      .card {
+        text-align: center;
+        max-width: 420px;
+        padding: 40px 32px;
+      }
+      .logo {
+        height: 28px;
+        margin-bottom: 32px;
+      }
+      .icon {
+        font-size: 40px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+      p {
+        color: #B0B0B0;
+        line-height: 1.5;
+        margin: 0;
+      }
+      .accent {
+        color: #5DD62C;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="/brand-assets/logo_dark.png" alt="Synkra">
+      <% if @status == :unsubscribed %>
+        <div class="icon accent">&#10003;</div>
+        <h1>You're unsubscribed</h1>
+        <p>You won't receive marketing emails from this business anymore.</p>
+      <% else %>
+        <div class="icon">&#9888;</div>
+        <h1>This link isn't valid</h1>
+        <p>It may have already been used.</p>
+      <% end %>
+    </div>
+  </body>
+</html>

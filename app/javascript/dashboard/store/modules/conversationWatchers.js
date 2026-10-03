@@ -1,8 +1,14 @@
-import Vue from 'vue';
 import types from '../mutation-types';
 import { throwErrorMessage } from 'dashboard/store/utils/api';
+import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import ConversationInboxApi from '../../api/inbox/conversation';
+
+const FILTERED_UNREAD_COUNTS_REFRESH_RETRY_MS = 30000;
+const FILTERED_UNREAD_COUNTS_REFRESH_RETRY_JITTER_MS = 15000;
+const getFilteredUnreadCountsRefreshRetryDelay = () =>
+  FILTERED_UNREAD_COUNTS_REFRESH_RETRY_MS +
+  Math.random() * FILTERED_UNREAD_COUNTS_REFRESH_RETRY_JITTER_MS;
 
 const state = {
   records: {},
@@ -19,6 +25,43 @@ export const getters = {
   getByConversationId: _state => conversationId => {
     return _state.records[conversationId];
   },
+};
+
+const hasFeatureEnabled = (rootGetters, featureFlag) => {
+  const accountId = rootGetters?.getCurrentAccountId;
+  const isFeatureEnabled = rootGetters?.['accounts/isFeatureEnabledonAccount'];
+
+  return Boolean(accountId && isFeatureEnabled?.(accountId, featureFlag));
+};
+
+const hasCurrentUser = (participants, currentUserId) =>
+  (Array.isArray(participants) ? participants : []).some(
+    participant => participant.id === currentUserId
+  );
+
+const refreshConversationUnreadCounts = dispatch => {
+  dispatch('conversationUnreadCounts/get', {}, { root: true });
+  setTimeout(
+    () => dispatch('conversationUnreadCounts/get', {}, { root: true }),
+    getFilteredUnreadCountsRefreshRetryDelay()
+  );
+};
+
+const shouldRefreshConversationUnreadCounts = (
+  { rootGetters, state: moduleState },
+  conversationId,
+  participants
+) => {
+  const currentUserId =
+    rootGetters?.getCurrentUserID || rootGetters?.getCurrentUser?.id;
+
+  return (
+    currentUserId &&
+    hasFeatureEnabled(rootGetters, FEATURE_FLAGS.CONVERSATION_UNREAD_COUNTS) &&
+    hasFeatureEnabled(rootGetters, FEATURE_FLAGS.UNREAD_COUNT_FOR_FILTERS) &&
+    hasCurrentUser(moduleState.records[conversationId], currentUserId) !==
+      hasCurrentUser(participants, currentUserId)
+  );
 };
 
 export const actions = {
@@ -43,7 +86,10 @@ export const actions = {
     }
   },
 
-  update: async ({ commit }, { conversationId, userIds }) => {
+  update: async (
+    { commit, dispatch, rootGetters, state: moduleState },
+    { conversationId, userIds }
+  ) => {
     commit(types.SET_CONVERSATION_PARTICIPANTS_UI_FLAG, {
       isUpdating: true,
     });
@@ -53,10 +99,18 @@ export const actions = {
         conversationId,
         userIds,
       });
+      const shouldRefreshUnreadCounts = shouldRefreshConversationUnreadCounts(
+        { rootGetters, state: moduleState },
+        conversationId,
+        response.data
+      );
       commit(types.SET_CONVERSATION_PARTICIPANTS, {
         conversationId,
         data: response.data,
       });
+      if (shouldRefreshUnreadCounts) {
+        refreshConversationUnreadCounts(dispatch);
+      }
     } catch (error) {
       throwErrorMessage(error);
     } finally {
@@ -76,7 +130,10 @@ export const mutations = {
   },
 
   [types.SET_CONVERSATION_PARTICIPANTS]($state, { data, conversationId }) {
-    Vue.set($state.records, conversationId, data);
+    $state.records = {
+      ...$state.records,
+      [conversationId]: data,
+    };
   },
 };
 

@@ -2,8 +2,12 @@
 import { mapGetters } from 'vuex';
 import DyteAPI from 'dashboard/api/integrations/dyte';
 import { useAlert } from 'dashboard/composables';
+import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
+  components: {
+    NextButton,
+  },
   props: {
     conversationId: {
       type: Number,
@@ -27,12 +31,22 @@ export default {
     }
   },
   methods: {
+    createErrorMessage(error) {
+      const responseError = error?.response?.data?.error;
+      if (typeof responseError === 'string') return responseError;
+
+      return (
+        responseError?.error?.message ||
+        responseError?.message ||
+        this.$t('INTEGRATION_SETTINGS.DYTE.CREATE_ERROR')
+      );
+    },
     async onClick() {
       this.isLoading = true;
       try {
         await DyteAPI.createAMeeting(this.conversationId);
       } catch (error) {
-        useAlert(this.$t('INTEGRATION_SETTINGS.DYTE.CREATE_ERROR'));
+        useAlert(this.createErrorMessage(error));
       } finally {
         this.isLoading = false;
       }
@@ -41,17 +55,17 @@ export default {
 };
 </script>
 
+<!-- eslint-disable-next-line vue/no-root-v-if -->
 <template>
-  <woot-button
+  <NextButton
     v-if="isVideoIntegrationEnabled"
     v-tooltip.top-end="
       $t('INTEGRATION_SETTINGS.DYTE.START_VIDEO_CALL_HELP_TEXT')
     "
-    icon="video"
-    :is-loading="isLoading"
-    color-scheme="secondary"
-    variant="smooth"
-    size="small"
+    icon="i-ph-video-camera"
+    slate
+    faded
+    sm
     @click="onClick"
   />
 </template>

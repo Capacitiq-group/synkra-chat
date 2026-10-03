@@ -43,7 +43,22 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
   end
 
   def set_conversation
-    @conversation = create_conversation if conversation.nil?
+    if conversation.nil?
+      @conversation = create_conversation
+      apply_labels if permitted_params[:labels].present?
+      return
+    end
+
+    # Hiding the reply box does not stop requests reaching this endpoint, so the setting is
+    # enforced here.
+    return if inbox.allow_messages_after_resolved || !conversation.resolved?
+
+    render json: { error: I18n.t('errors.conversations.resolved') }, status: :forbidden
+  end
+
+  def apply_labels
+    valid_labels = inbox.account.labels.where(title: permitted_params[:labels]).pluck(:title)
+    @conversation.update_labels(valid_labels) if valid_labels.present?
   end
 
   def message_finder_params
@@ -64,10 +79,21 @@ class Api::V1::Widget::MessagesController < Api::V1::Widget::BaseController
 
   def permitted_params
     # timestamp parameter is used in create conversation method
-    params.permit(:id, :before, :after, :website_token, contact: [:name, :email], message: [:content, :referer_url, :timestamp, :echo_id, :reply_to])
+    # custom_attributes and labels are applied when a new conversation is created alongside the first message
+    params.permit(
+      :id, :before, :after, :website_token,
+      contact: [:name, :email],
+      message: [:content, :referer_url, :timestamp, :echo_id, :reply_to],
+      custom_attributes: {},
+      labels: []
+    )
   end
 
   def set_message
-    @message = @web_widget.inbox.messages.find(permitted_params[:id])
+    # `conversation.messages.find` would be simpler, but `conversation` is `conversations.last`,
+    # which means a visitor with more than one open thread could not edit a message in any
+    # but their most recent one. Scoping across all of the visitor's conversations keeps the
+    # happy path correct for that future multi-conversation widget flow.
+    @message = Message.where(conversation_id: conversations.select(:id)).find(permitted_params[:id])
   end
 end

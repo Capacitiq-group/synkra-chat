@@ -1,0 +1,23 @@
+<tr>
+  <td>
+    <p>Hi{% if contact.name %} {{ contact.name }}{% endif %},</p>
+    <p>Here's the link you requested to continue your conversation on this device.</p>
+  </td>
+</tr>
+
+<tr>
+  <td align="center" style="padding: 24px 0;">
+    <a
+      href="{{ continuation_url }}"
+      style="background-color: #337418; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;"
+    >
+      Continue conversation
+    </a>
+  </td>
+</tr>
+
+<tr>
+  <td>
+    <p>This link will expire in 30 minutes and only works for the conversation linked to this email address. If you didn't request this, you can safely ignore this email.</p>
+  </td>
+</tr>

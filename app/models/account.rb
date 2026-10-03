@@ -164,21 +164,56 @@ class Account < ApplicationRecord
   end
 
   # Synkra Chat: developer-facing features gated behind paid plans.
-  # Free-tier accounts (plan == 'free', or no subscription yet) can't
-  # use the public API, webhooks, or API-channel inboxes. The override
-  # sits here so every existing reader - the sidebar, the Webhooks
-  # route, the account JSON payload that feeds the frontend, and the
-  # webhooks controller itself - picks up the gate automatically.
-  PAID_ONLY_FEATURES = %i[api_and_webhooks].freeze
+  # Every flag listed below is a Synkra-paid feature. Free-tier accounts
+  # (plan == 'free', or no subscription yet) get nothing. Paid accounts
+  # get the flag only if their current plan ranks at or above the tier
+  # required by TIER_REQUIREMENTS.
+  #
+  # Plans are ranked in SynkraPlan::PLANS order:
+  #   free < starter < business < pro
+  #
+  # The override sits here so every existing reader - the sidebar, the
+  # Webhooks route, the account JSON payload that feeds the frontend,
+  # and the webhooks controller itself - picks up the gate automatically.
+  #
+  # "Hide don't delete": we don't touch the feature bitset for these
+  # flags. The bitset is not consulted; the plan tier alone decides.
+  # This means the answer is always consistent with the account's
+  # current subscription, with no bitset-sync migration needed.
+  PAID_ONLY_FEATURES = %i[
+    api_and_webhooks
+    companies
+    data_import
+    macros
+    advanced_search
+    advanced_search_indexing
+  ].freeze
+
+  TIER_REQUIREMENTS = {
+    'api_and_webhooks' => 'starter',
+    'companies' => 'starter',
+    'data_import' => 'starter',
+    'macros' => 'business',
+    'advanced_search' => 'pro',
+    'advanced_search_indexing' => 'pro'
+  }.freeze
 
   def feature_enabled?(name)
-    return false if paid_only_feature?(name) && synkra_free_plan?
-
+    return tier_allows?(name) if paid_only_feature?(name)
     super
   end
 
   def paid_only_feature?(name)
     PAID_ONLY_FEATURES.include?(name.to_sym)
+  end
+
+  def tier_allows?(name)
+    return false if synkra_free_plan?
+    required = TIER_REQUIREMENTS[name.to_s]
+    return true if required.nil?
+    current_rank = SynkraPlan::PLANS.keys.index(synkra_subscription&.plan.to_s) || 0
+    required_rank = SynkraPlan::PLANS.keys.index(required) || 0
+    current_rank >= required_rank
   end
 
   def synkra_free_plan?

@@ -137,11 +137,16 @@ const isSynkraBillingVisibleInV1 = true;
 // hidden until that's built out properly, not just left half-wired.
 const isTemplatesVisibleInV1 = false;
 
-// Synkra Chat V1: Macros are hidden from the settings menu (canned
-// responses + native automations already cover V1 needs). The route,
-// page, and underlying macro functionality are untouched - only this
-// nav entry is suppressed. Flip to true to bring it back.
-const isMacrosVisibleInV1 = false;
+// Synkra Chat V1: Macros are gated behind the Business and Pro plans.
+// The route, page, and underlying macro functionality are untouched -
+// the nav entry is shown only when the account's plan tier allows it
+// (see Account#tier_allows? and TIER_REQUIREMENTS).
+const isMacrosVisibleInV1 = computed(() => {
+  return isFeatureEnabledonAccount.value(
+    accountId.value,
+    FEATURE_FLAGS.MACROS
+  );
+});
 
 // Synkra Chat V1: generic Integrations page is replaced by a dedicated
 // Flow connection (not yet built). The integrations feature flag
@@ -929,7 +934,7 @@ const menuItems = computed(() => {
               },
             ]
           : []),
-        ...(isMacrosVisibleInV1
+        ...(isMacrosVisibleInV1.value
           ? [
               {
                 name: 'Settings Macros',

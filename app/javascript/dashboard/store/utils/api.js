@@ -100,9 +100,30 @@ export const parseAPIErrorResponse = error => {
   return error;
 };
 
+// Flattens a Rails-style error hash ({ base: ["msg"] } or { name: ["msg"] })
+// into a readable string. Passes strings through unchanged. Returns null
+// when the shape isn't recognised, so callers can fall back.
+const flattenErrorMessage = errorMessage => {
+  if (typeof errorMessage === 'string') return errorMessage;
+  if (!errorMessage || typeof errorMessage !== 'object') return null;
+  const firstArray = Object.values(errorMessage).find(Array.isArray);
+  if (firstArray && firstArray.length) return String(firstArray[0]);
+  if (typeof errorMessage.message === 'string') return errorMessage.message;
+  return null;
+};
+
 export const throwErrorMessage = error => {
-  const errorMessage = parseAPIErrorResponse(error);
-  throw new Error(errorMessage);
+  // Prefer the raw response body. parseAPIErrorResponse returns an
+  // object for Rails-style validation hashes ({ error: { base: [...] } }),
+  // and `new Error(object)` produces the useless string "[object Object]".
+  const raw =
+    error?.response?.data?.error ??
+    error?.response?.data?.errors?.[0] ??
+    error?.response?.data?.message ??
+    parseAPIErrorResponse(error);
+
+  const flat = flattenErrorMessage(raw);
+  throw new Error(flat || 'Request failed');
 };
 
 export const parseLinearAPIErrorResponse = (error, defaultMessage) => {

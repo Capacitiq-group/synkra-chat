@@ -128,7 +128,9 @@ const saveMacro = async macroData => {
     useAlert(successMessage);
     router.push({ name: 'macros_wrapper' });
   } catch (error) {
-    useAlert(t('MACROS.ERROR'));
+    // Prefer the backend's message when it exists (e.g. the plan's
+    // macro limit), falling back to the generic MACROS.ERROR otherwise.
+    useAlert(error?.message || t('MACROS.ERROR'));
   }
 };
 </script>
